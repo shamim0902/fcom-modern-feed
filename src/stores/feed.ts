@@ -320,6 +320,26 @@ export const useFeedStore = defineStore('feed', () => {
         return feedsById.value[feedId];
     }
 
+    async function fetchSinglePost(feedId: number): Promise<Feed | null> {
+        // First check if we already have it cached
+        if (feedsById.value[feedId]) {
+            return feedsById.value[feedId];
+        }
+
+        try {
+            const response = await api.get<{ feed: Feed }>(`feeds/${feedId}/by-id`);
+            const feed = response.feed;
+
+            // Cache it
+            feedsById.value[feed.id] = feed;
+
+            return feed;
+        } catch (error) {
+            console.error('Failed to fetch single post:', error);
+            return null;
+        }
+    }
+
     return {
         // State
         contexts,
@@ -347,6 +367,10 @@ export const useFeedStore = defineStore('feed', () => {
         addNewFeed,
         resetContext,
         getFeedById,
+        fetchSinglePost,
         getContextKey,
     };
 });
+
+// Re-export Feed type for use in components
+export type { Feed } from '@/api/types';

@@ -1,8 +1,13 @@
 import { createApp, type App as VueApp } from 'vue';
 import { createPinia } from 'pinia';
+import { createRouter, createMemoryHistory, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import App from './App.vue';
 import { useAuthStore } from './stores';
 import './styles/main.scss';
+
+// Lazy load views
+const FeedView = () => import('./views/FeedView.vue');
+const SinglePostView = () => import('./views/SinglePostView.vue');
 
 interface FcomMfConfig {
     containerId: string;
@@ -12,10 +17,48 @@ interface FcomMfConfig {
     layout?: 'card' | 'compact';
     showCreate?: boolean;
     showHeader?: boolean;
+    fullpage?: boolean;
 }
 
 // Store Vue app instances
 const appInstances: Map<string, VueApp> = new Map();
+
+function createAppRouter(useMemoryHistory = false) {
+    const routes: RouteRecordRaw[] = [
+        {
+            path: '/',
+            name: 'feed',
+            component: FeedView,
+        },
+        {
+            path: '/post/:id',
+            name: 'single-post',
+            component: SinglePostView,
+            props: true,
+        },
+        // Catch-all - redirect to feed
+        {
+            path: '/:pathMatch(.*)*',
+            redirect: '/',
+        },
+    ];
+
+    // Use memory history for embedded mode, web history for fullpage
+    const history = useMemoryHistory
+        ? createMemoryHistory()
+        : createWebHistory(window.location.pathname);
+
+    return createRouter({
+        history,
+        routes,
+        scrollBehavior(_to, _from, savedPosition) {
+            if (savedPosition) {
+                return savedPosition;
+            }
+            return { top: 0 };
+        },
+    });
+}
 
 function initApp(container: HTMLElement): void {
     const configAttr = container.getAttribute('data-fcom-mf-config');
@@ -48,6 +91,11 @@ function initApp(container: HTMLElement): void {
     // Create and use Pinia
     const pinia = createPinia();
     app.use(pinia);
+
+    // Create and use Router
+    // Use memory history for embedded mode to avoid URL conflicts
+    const router = createAppRouter(!config.fullpage);
+    app.use(router);
 
     // Initialize auth store
     const authStore = useAuthStore(pinia);

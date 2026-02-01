@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useFeedStore, useAuthStore, useUiStore } from '@/stores';
 import type { Feed } from '@/api/types';
 import FeedAuthor from './FeedAuthor.vue';
@@ -11,7 +12,11 @@ import TimeAgo from '../common/TimeAgo.vue';
 const props = defineProps<{
     feed: Feed;
     isSticky?: boolean;
+    showFullContent?: boolean;
+    showCommentsInline?: boolean;
 }>();
+
+const router = useRouter();
 
 const feedStore = useFeedStore();
 const authStore = useAuthStore();
@@ -26,7 +31,8 @@ const contentIsLong = computed(() => {
 });
 
 const displayContent = computed(() => {
-    if (expanded.value || !contentIsLong.value) {
+    // Show full content in single post view
+    if (props.showFullContent || expanded.value || !contentIsLong.value) {
         return props.feed.message_rendered;
     }
     // Find a good break point
@@ -35,6 +41,11 @@ const displayContent = computed(() => {
     if (breakPoint === -1) breakPoint = 500;
     return text.substring(0, breakPoint) + '...';
 });
+
+// Navigation to single post
+function navigateToPost(): void {
+    router.push({ name: 'single-post', params: { id: props.feed.id } });
+}
 
 const hasMedia = computed(() => {
     return (props.feed.meta?.media_items?.length ?? 0) > 0;
@@ -130,18 +141,20 @@ function handleShare(): void {
 
         <!-- Title -->
         <h2 v-if="feed.title" class="fcom-mf-feed-item__title">
-            <a :href="feed.permalink">{{ feed.title }}</a>
+            <a @click.prevent="navigateToPost" :href="`/post/${feed.id}`">{{ feed.title }}</a>
         </h2>
 
         <!-- Content -->
         <div
             class="fcom-mf-feed-item__content"
+            :class="{ 'fcom-mf-feed-item__content--clickable': !showFullContent }"
+            @click="!showFullContent && navigateToPost()"
             v-html="displayContent"
         ></div>
 
         <!-- See More/Less -->
         <button
-            v-if="contentIsLong"
+            v-if="contentIsLong && !showFullContent"
             class="fcom-mf-feed-item__toggle"
             @click="expanded = !expanded"
         >
@@ -202,10 +215,11 @@ function handleShare(): void {
 
         <!-- Comments Section -->
         <CommentList
-            v-if="showComments"
+            v-if="showComments || showCommentsInline"
             :feed-id="feed.id"
             :comments="feed.comments || []"
             :sticky-comment="feed.sticky_comment"
+            :show-all="showCommentsInline"
         />
     </article>
 </template>
@@ -290,6 +304,10 @@ function handleShare(): void {
         font-size: $font-size-md;
         line-height: $line-height-relaxed;
         word-wrap: break-word;
+
+        &--clickable {
+            cursor: pointer;
+        }
 
         :deep(a) {
             color: $text-link;

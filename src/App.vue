@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, provide } from 'vue';
 import { useUiStore, useAuthStore, useFeedStore } from './stores';
-import FeedList from './components/feed/FeedList.vue';
-import CreatePost from './components/feed/CreatePost.vue';
-import NewPostsBanner from './components/feed/NewPostsBanner.vue';
 import ToastContainer from './components/common/ToastContainer.vue';
 import ImageLightbox from './components/common/ImageLightbox.vue';
 import AppHeader from './components/layout/AppHeader.vue';
@@ -18,6 +15,7 @@ interface Config {
     layout?: 'card' | 'compact';
     showCreate?: boolean;
     showHeader?: boolean;
+    fullpage?: boolean;
 }
 
 const props = defineProps<{
@@ -36,16 +34,8 @@ if (props.config.layout) {
     uiStore.setLayout(props.config.layout);
 }
 
-const showCreatePost = computed(() => {
-    return props.config.showCreate !== false && authStore.canCreatePost();
-});
-
 const contextKey = computed(() => {
     return feedStore.getContextKey(props.config.space, props.config.userId);
-});
-
-const newPostsCount = computed(() => {
-    return feedStore.contexts[contextKey.value]?.newPostsCount || 0;
 });
 
 // Scroll to top button
@@ -68,7 +58,7 @@ onMounted(() => {
     });
 
     // Start ticker for real-time updates
-    if (window.fcomModernFeed.features.realTimeUpdates) {
+    if (window.fcomModernFeed?.features?.realTimeUpdates) {
         startTicker();
     }
 
@@ -79,7 +69,7 @@ onMounted(() => {
 let tickerInterval: ReturnType<typeof setInterval> | null = null;
 
 function startTicker(): void {
-    const interval = window.fcomModernFeed.settings.tickerInterval || 45000;
+    const interval = window.fcomModernFeed?.settings?.tickerInterval || 45000;
 
     tickerInterval = setInterval(async () => {
         // Only poll if tab is visible
@@ -117,14 +107,6 @@ function startTicker(): void {
     }, interval);
 }
 
-function handleLoadNewPosts(): void {
-    feedStore.fetchFeeds({
-        space: props.config.space,
-        userId: props.config.userId,
-        perPage: props.config.perPage,
-    });
-}
-
 onUnmounted(() => {
     if (tickerInterval) {
         clearInterval(tickerInterval);
@@ -147,25 +129,11 @@ onUnmounted(() => {
 
             <!-- Main Content -->
             <main class="fcom-mf-main">
-                <!-- Create Post Box -->
-                <CreatePost
-                    v-if="showCreatePost"
-                    :space="config.space"
-                />
-
-                <!-- New Posts Banner -->
-                <NewPostsBanner
-                    v-if="newPostsCount > 0"
-                    :count="newPostsCount"
-                    @load="handleLoadNewPosts"
-                />
-
-                <!-- Feed List -->
-                <FeedList
-                    :space="config.space"
-                    :user-id="config.userId"
-                    :per-page="config.perPage"
-                />
+                <router-view v-slot="{ Component }">
+                    <transition name="fade" mode="out-in">
+                        <component :is="Component" />
+                    </transition>
+                </router-view>
             </main>
 
             <!-- Right Sidebar -->
@@ -197,6 +165,8 @@ onUnmounted(() => {
 </template>
 
 <style lang="scss" scoped>
+@import "@/styles/variables.scss";
+
 .fcom-mf-app {
     min-height: 100vh;
     background: $bg-secondary;

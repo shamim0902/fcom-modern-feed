@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useFeedStore, useAuthStore, useUiStore } from '@/stores';
 import type { Comment } from '@/api/types';
 import CommentItem from './CommentItem.vue';
@@ -7,8 +7,10 @@ import CommentForm from './CommentForm.vue';
 
 const props = defineProps<{
     feedId: number;
-    comments: Comment[];
+    comments?: Comment[];
     stickyComment?: Comment;
+    showAll?: boolean;
+    commentsCount?: number;
 }>();
 
 const feedStore = useFeedStore();
@@ -17,9 +19,36 @@ const uiStore = useUiStore();
 
 const isLoading = ref(false);
 const isSubmitting = ref(false);
+const localComments = ref<Comment[]>([]);
+
+// Fetch comments if showAll is true and we don't have them yet
+async function fetchCommentsIfNeeded(): Promise<void> {
+    if (props.showAll && (!props.comments || props.comments.length === 0)) {
+        isLoading.value = true;
+        try {
+            const comments = await feedStore.fetchComments(props.feedId);
+            localComments.value = comments;
+        } catch (error) {
+            console.error('Failed to fetch comments:', error);
+        } finally {
+            isLoading.value = false;
+        }
+    }
+}
+
+onMounted(() => {
+    fetchCommentsIfNeeded();
+});
+
+// Watch for feedId changes
+watch(() => props.feedId, () => {
+    fetchCommentsIfNeeded();
+});
 
 const allComments = computed(() => {
-    const comments = [...props.comments];
+    // Use local comments if we fetched them, otherwise use props
+    const commentsSource = localComments.value.length > 0 ? localComments.value : (props.comments || []);
+    const comments = [...commentsSource];
     // Add sticky comment at the top if exists and not already in list
     if (props.stickyComment && !comments.find(c => c.id === props.stickyComment!.id)) {
         comments.unshift(props.stickyComment);
