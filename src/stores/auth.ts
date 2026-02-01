@@ -18,6 +18,8 @@ export const useAuthStore = defineStore('auth', () => {
     const userId = computed(() => user.value?.id);
     const userName = computed(() => user.value?.name);
     const userAvatar = computed(() => user.value?.avatar);
+    const loginUrl = computed(() => window.fcomModernFeed?.loginUrl || '/wp-login.php');
+    const logoutUrl = computed(() => loginUrl.value + '?action=logout');
 
     // Actions
     function initialize(): void {
@@ -52,6 +54,8 @@ export const useAuthStore = defineStore('auth', () => {
         userId,
         userName,
         userAvatar,
+        loginUrl,
+        logoutUrl,
 
         // Actions
         initialize,

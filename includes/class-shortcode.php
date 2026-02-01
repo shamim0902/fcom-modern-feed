@@ -20,7 +20,7 @@ class Shortcode
             'layout' => 'card', // card, compact
             'show_create' => 'true',
             'show_header' => 'true',
-            'fullpage' => 'true', // Enable full-page mode by default
+            'fullpage' => 'true', // Enable full-page mode by default (uses custom template)
             'class' => '',
         ], $atts, 'fcom_modern_feed');
 
@@ -63,14 +63,7 @@ class Shortcode
         $placeholder = self::getLoadingPlaceholder();
 
         // Build output
-        $output = '';
-
-        // Add full-page takeover styles if enabled
-        if ($isFullpage) {
-            $output .= self::getFullpageStyles();
-        }
-
-        $output .= sprintf(
+        $output = sprintf(
             '<div id="%s" class="%s" data-fcom-mf-config=\'%s\'>%s</div>',
             esc_attr($containerId),
             $classes,
@@ -78,11 +71,8 @@ class Shortcode
             $placeholder
         );
 
-        // Add script to add body class for full-page mode
+        // Register this page for SPA rewriting (so sub-routes work on refresh)
         if ($isFullpage) {
-            $output .= self::getFullpageScript();
-
-            // Register this page for SPA rewriting (so sub-routes work on refresh)
             global $post;
             if ($post && $post->ID) {
                 do_action('fcom_mf_shortcode_rendered', $post->ID);
@@ -90,81 +80,6 @@ class Shortcode
         }
 
         return $output;
-    }
-
-    private static function getFullpageStyles()
-    {
-        return '
-        <style id="fcom-mf-fullpage-styles">
-            /* Full-page mode: Hide everything except our container */
-            html.fcom-mf-fullpage-active,
-            html.fcom-mf-fullpage-active body {
-                margin: 0 !important;
-                padding: 0 !important;
-                overflow: hidden !important;
-                height: 100% !important;
-                width: 100% !important;
-            }
-
-            /* Hide WordPress admin bar */
-            html.fcom-mf-fullpage-active #wpadminbar {
-                display: none !important;
-            }
-
-            /* Reset admin bar spacing */
-            html.fcom-mf-fullpage-active.admin-bar {
-                margin-top: 0 !important;
-            }
-
-            html.fcom-mf-fullpage-active body.admin-bar {
-                padding-top: 0 !important;
-                margin-top: 0 !important;
-            }
-
-            /* Full-page container - use fixed positioning to overlay everything */
-            .fcom-mf-fullpage {
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                right: 0 !important;
-                bottom: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
-                z-index: 999999 !important;
-                overflow-y: auto !important;
-                overflow-x: hidden !important;
-                background: #f0f2f5 !important;
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-
-            /* Ensure Vue app fills the container */
-            .fcom-mf-fullpage .fcom-mf-app {
-                min-height: 100vh !important;
-            }
-
-            /* Reset any theme constraints on the container */
-            .fcom-mf-fullpage,
-            .fcom-mf-fullpage * {
-                box-sizing: border-box;
-            }
-        </style>';
-    }
-
-    private static function getFullpageScript()
-    {
-        return "
-        <script>
-            (function() {
-                // Add class to html element immediately for fastest effect
-                document.documentElement.classList.add('fcom-mf-fullpage-active');
-
-                // Cleanup function for when app is destroyed
-                window.fcomMfCleanupFullpage = function() {
-                    document.documentElement.classList.remove('fcom-mf-fullpage-active');
-                };
-            })();
-        </script>";
     }
 
     private static function getLoadingPlaceholder()
