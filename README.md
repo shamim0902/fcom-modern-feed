@@ -1,6 +1,7 @@
 # FluentCommunity Modern Feed
 
 A Facebook-style feed interface for the FluentCommunity WordPress plugin. This plugin provides a modern, responsive, and feature-rich community feed experience that mirrors the look and feel of popular social platforms.
+<img width="1512" height="861" alt="image" src="https://github.com/user-attachments/assets/d40db3fe-dcfc-43f5-b576-ac1790843715" />
 
 ## Features
 
