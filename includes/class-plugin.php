@@ -27,6 +27,7 @@ class Plugin
         require_once FCOM_MF_PLUGIN_DIR . 'includes/class-assets.php';
         require_once FCOM_MF_PLUGIN_DIR . 'includes/class-shortcode.php';
         require_once FCOM_MF_PLUGIN_DIR . 'includes/class-gutenberg-block.php';
+        require_once FCOM_MF_PLUGIN_DIR . 'includes/class-rewrite-handler.php';
     }
 
     private function initHooks()
@@ -34,6 +35,7 @@ class Plugin
         Assets::init();
         Shortcode::init();
         GutenbergBlock::init();
+        RewriteHandler::init();
 
         // Load text domain
         add_action('init', [$this, 'loadTextDomain']);

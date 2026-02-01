@@ -28,13 +28,15 @@ defineProps<{
 </template>
 
 <style lang="scss" scoped>
+@import "@/styles/variables.scss";
+
 .fcom-mf-author {
     display: flex;
     align-items: flex-start;
-    gap: $spacing-md;
+    gap: $spacing-sm;
 
     &--sm {
-        gap: $spacing-sm;
+        gap: $spacing-xs;
     }
 
     &__avatar-link {
@@ -45,15 +47,17 @@ defineProps<{
         display: flex;
         flex-direction: column;
         min-width: 0;
+        gap: 1px;
     }
 
     &__name {
         display: inline-flex;
         align-items: center;
         gap: $spacing-xs;
+        font-size: $font-size-md;
         font-weight: $font-weight-semibold;
         color: $text-primary;
-        line-height: $line-height-tight;
+        line-height: 1.2;
 
         &:hover {
             text-decoration: underline;
@@ -64,11 +68,11 @@ defineProps<{
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 16px;
-        height: 16px;
+        width: 14px;
+        height: 14px;
         background: $primary-color;
         color: $white;
-        font-size: 10px;
+        font-size: 9px;
         border-radius: $border-radius-full;
     }
 }

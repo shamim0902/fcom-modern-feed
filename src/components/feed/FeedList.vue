@@ -137,10 +137,16 @@ onUnmounted(() => {
 </template>
 
 <style lang="scss" scoped>
+@import "@/styles/variables.scss";
+
 .fcom-mf-feed-list {
     display: flex;
     flex-direction: column;
-    gap: $spacing-lg;
+    gap: $spacing-sm; // Facebook uses tighter gaps (~8px)
+
+    @media (max-width: $breakpoint-sm) {
+        gap: $spacing-xs; // Even tighter on mobile
+    }
 
     &__trigger {
         min-height: 1px;
@@ -151,13 +157,14 @@ onUnmounted(() => {
         align-items: center;
         justify-content: center;
         gap: $spacing-sm;
-        padding: $spacing-xl;
+        padding: $spacing-lg;
         color: $text-secondary;
+        font-size: $font-size-sm;
     }
 
     &__end {
         text-align: center;
-        padding: $spacing-xl;
+        padding: $spacing-lg;
         color: $text-tertiary;
         font-size: $font-size-sm;
     }

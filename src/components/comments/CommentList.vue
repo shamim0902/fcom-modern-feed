@@ -128,22 +128,7 @@ async function handleReaction(commentId: number): Promise<void> {
 
 <template>
     <div class="fcom-mf-comments">
-        <div class="fcom-mf-divider"></div>
-
-        <!-- Comment Form -->
-        <CommentForm
-            v-if="authStore.isLoggedIn"
-            :is-submitting="isSubmitting"
-            :placeholder="uiStore.t('writeComment')"
-            @submit="handleSubmit"
-        />
-
-        <!-- Loading State -->
-        <div v-if="isLoading" class="fcom-mf-comments__loading">
-            <span class="fcom-mf-spinner"></span>
-        </div>
-
-        <!-- View More Comments Link -->
+        <!-- View More Comments Link (Facebook shows this at TOP) -->
         <button
             v-if="hasMoreComments && !isLoading"
             class="fcom-mf-comments__view-more"
@@ -152,8 +137,13 @@ async function handleReaction(commentId: number): Promise<void> {
             View {{ hiddenCommentsCount }} more {{ hiddenCommentsCount === 1 ? 'comment' : 'comments' }}
         </button>
 
+        <!-- Loading State -->
+        <div v-if="isLoading" class="fcom-mf-comments__loading">
+            <span class="fcom-mf-spinner"></span>
+        </div>
+
         <!-- Comments List -->
-        <div v-if="!isLoading" class="fcom-mf-comments__list">
+        <div v-if="!isLoading && displayedComments.length > 0" class="fcom-mf-comments__list">
             <CommentItem
                 v-for="comment in displayedComments"
                 :key="comment.id"
@@ -166,9 +156,17 @@ async function handleReaction(commentId: number): Promise<void> {
             />
         </div>
 
+        <!-- Comment Form (Facebook puts this after comments) -->
+        <CommentForm
+            v-if="authStore.isLoggedIn"
+            :is-submitting="isSubmitting"
+            :placeholder="uiStore.t('writeComment')"
+            @submit="handleSubmit"
+        />
+
         <!-- Empty State -->
-        <div v-if="!isLoading && allComments.length === 0" class="fcom-mf-comments__empty">
-            No comments yet. Be the first to comment!
+        <div v-if="!isLoading && allComments.length === 0 && !authStore.isLoggedIn" class="fcom-mf-comments__empty">
+            No comments yet.
         </div>
     </div>
 </template>
@@ -177,26 +175,22 @@ async function handleReaction(commentId: number): Promise<void> {
 @import "@/styles/variables.scss";
 
 .fcom-mf-comments {
-    padding: 0 $spacing-lg $spacing-lg;
-
-    .fcom-mf-divider {
-        margin: 0 0 $spacing-md;
-    }
+    padding: 0 $spacing-md $spacing-md;
 
     &__loading {
         display: flex;
         justify-content: center;
-        padding: $spacing-xl;
+        padding: $spacing-md;
     }
 
     &__view-more {
         @include button-reset;
         display: block;
-        padding: $spacing-sm 0;
-        margin-top: $spacing-sm;
+        padding: $spacing-xs 0;
+        margin-bottom: $spacing-sm;
         color: $text-secondary;
         font-size: $font-size-sm;
-        font-weight: $font-weight-semibold;
+        font-weight: $font-weight-medium;
         transition: color $transition-instant;
 
         &:hover {
@@ -208,14 +202,13 @@ async function handleReaction(commentId: number): Promise<void> {
     &__list {
         display: flex;
         flex-direction: column;
-        gap: $spacing-md;
-        margin-top: $spacing-md;
+        gap: $spacing-xs;
     }
 
     &__empty {
         text-align: center;
-        padding: $spacing-lg;
-        color: $text-secondary;
+        padding: $spacing-md;
+        color: $text-tertiary;
         font-size: $font-size-sm;
     }
 }

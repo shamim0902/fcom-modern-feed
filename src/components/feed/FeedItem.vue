@@ -207,7 +207,7 @@ function handleShare(): void {
         </div>
 
         <!-- Divider -->
-        <div class="fcom-mf-divider"></div>
+        <!-- <div class="fcom-mf-divider"></div> -->
 
         <!-- Actions -->
         <FeedActions
@@ -249,10 +249,10 @@ function handleShare(): void {
     }
 
     &__sticky-badge {
-        padding: $spacing-sm $spacing-lg;
+        padding: $spacing-xs $spacing-md;
         background: rgba($primary-color, 0.1);
         color: $primary-color;
-        font-size: $font-size-sm;
+        font-size: $font-size-xs;
         font-weight: $font-weight-semibold;
         border-bottom: 1px solid $border-color;
     }
@@ -260,8 +260,8 @@ function handleShare(): void {
     &__header {
         display: flex;
         align-items: flex-start;
-        gap: $spacing-md;
-        padding: $spacing-lg;
+        gap: $spacing-sm;
+        padding: $spacing-md;
         padding-bottom: 0;
     }
 
@@ -269,9 +269,9 @@ function handleShare(): void {
         display: flex;
         align-items: center;
         gap: $spacing-xs;
-        margin-top: $spacing-xs;
-        font-size: $font-size-sm;
+        font-size: $font-size-xs;
         color: $text-secondary;
+        line-height: 1.3;
     }
 
     &__separator {
@@ -290,15 +290,16 @@ function handleShare(): void {
         @include button-reset;
         @include hover-bg;
         margin-left: auto;
-        width: 36px;
-        height: 36px;
+        width: 32px;
+        height: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
         border-radius: $border-radius-full;
-        color: $text-secondary;
+        color: $text-tertiary;
         opacity: 0;
         transition: opacity $transition-fast;
+        flex-shrink: 0;
 
         @media (max-width: $breakpoint-md) {
             opacity: 1; // Always show on mobile
@@ -307,7 +308,7 @@ function handleShare(): void {
 
     &__title {
         margin: 0;
-        padding: $spacing-md $spacing-lg 0;
+        padding: $spacing-sm $spacing-md 0;
         font-size: $font-size-lg;
         font-weight: $font-weight-semibold;
         line-height: $line-height-tight;
@@ -322,7 +323,7 @@ function handleShare(): void {
     }
 
     &__content {
-        padding: $spacing-md $spacing-lg;
+        padding: $spacing-xs $spacing-md $spacing-sm;
         font-size: $font-size-md;
         line-height: $line-height-relaxed;
         word-wrap: break-word;
@@ -377,9 +378,9 @@ function handleShare(): void {
 
     &__toggle {
         @include button-reset;
-        padding: 0 $spacing-lg;
+        padding: 0 $spacing-md;
         color: $text-secondary;
-        font-size: $font-size-md;
+        font-size: $font-size-sm;
         font-weight: $font-weight-semibold;
 
         &:hover {
@@ -388,7 +389,7 @@ function handleShare(): void {
     }
 
     &__embed {
-        margin: $spacing-md $spacing-lg;
+        margin: $spacing-sm $spacing-md;
 
         :deep(iframe) {
             max-width: 100%;
@@ -399,13 +400,13 @@ function handleShare(): void {
     &__topics {
         display: flex;
         flex-wrap: wrap;
-        gap: $spacing-sm;
-        padding: $spacing-sm $spacing-lg;
+        gap: $spacing-xs;
+        padding: $spacing-xs $spacing-md;
     }
 
     &__topic {
         color: $text-link;
-        font-size: $font-size-sm;
+        font-size: $font-size-xs;
 
         &:hover {
             text-decoration: underline;
@@ -415,8 +416,8 @@ function handleShare(): void {
     &__stats {
         display: flex;
         justify-content: space-between;
-        padding: $spacing-sm $spacing-lg;
-        font-size: $font-size-sm;
+        padding: $spacing-xs $spacing-md;
+        font-size: $font-size-xs;
         color: $text-secondary;
     }
 
@@ -444,9 +445,9 @@ function handleShare(): void {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 18px;
-        height: 18px;
-        font-size: 12px;
+        width: 16px;
+        height: 16px;
+        font-size: 11px;
         background: $white;
         border: 2px solid $white;
         border-radius: $border-radius-full;
@@ -459,11 +460,11 @@ function handleShare(): void {
     }
 
     &__stat-icon {
-        font-size: $font-size-md;
+        font-size: $font-size-sm;
     }
 
     .fcom-mf-divider {
-        margin: 0 $spacing-lg;
+        margin: 0 $spacing-md;
     }
 }
 </style>

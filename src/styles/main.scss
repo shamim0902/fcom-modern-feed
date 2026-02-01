@@ -37,11 +37,7 @@
 // Card component
 .fcom-mf-card {
     @include card;
-    margin-bottom: $spacing-lg;
-
-    &:last-child {
-        margin-bottom: 0;
-    }
+    // Note: margin-bottom removed - gaps handled by parent flex container
 }
 
 // Avatar

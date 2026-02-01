@@ -69,5 +69,14 @@ function handleLoadNewPosts(): void {
 
 .fcom-mf-feed-view {
     width: 100%;
+    max-width: $card-max-width;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-md;
+
+    @media (max-width: $breakpoint-sm) {
+        gap: $spacing-sm;
+    }
 }
 </style>

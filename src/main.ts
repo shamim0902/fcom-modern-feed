@@ -25,12 +25,13 @@ interface FcomMfConfig {
     showCreate?: boolean;
     showHeader?: boolean;
     fullpage?: boolean;
+    baseUrl?: string;
 }
 
 // Store Vue app instances
 const appInstances: Map<string, VueApp> = new Map();
 
-function createAppRouter(useMemoryHistory = false) {
+function createAppRouter(useMemoryHistory = false, baseUrl = '/') {
     const routes: RouteRecordRaw[] = [
         {
             path: '/',
@@ -90,9 +91,10 @@ function createAppRouter(useMemoryHistory = false) {
     ];
 
     // Use memory history for embedded mode, web history for fullpage
+    // For web history, use the baseUrl from config (the page where shortcode is rendered)
     const history = useMemoryHistory
         ? createMemoryHistory()
-        : createWebHistory(window.location.pathname);
+        : createWebHistory(baseUrl);
 
     return createRouter({
         history,
@@ -140,7 +142,8 @@ function initApp(container: HTMLElement): void {
 
     // Create and use Router
     // Use memory history for embedded mode to avoid URL conflicts
-    const router = createAppRouter(!config.fullpage);
+    // Pass baseUrl from config for proper route matching on page reload
+    const router = createAppRouter(!config.fullpage, config.baseUrl || '/');
     app.use(router);
 
     // Initialize auth store

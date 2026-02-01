@@ -29,6 +29,15 @@ class Shortcode
         // Generate unique container ID
         $containerId = 'fcom-mf-' . wp_generate_uuid4();
 
+        // Get the base URL for the current page (for router)
+        // This is the URL path where the shortcode is rendered
+        $baseUrl = wp_parse_url(get_permalink(), PHP_URL_PATH) ?: '/';
+        // Remove trailing slash and ensure it starts with /
+        $baseUrl = '/' . trim($baseUrl, '/');
+        if ($baseUrl !== '/') {
+            $baseUrl .= '/';
+        }
+
         // Prepare config for JavaScript
         $config = [
             'containerId' => $containerId,
@@ -39,6 +48,7 @@ class Shortcode
             'showCreate' => $atts['show_create'] === 'true',
             'showHeader' => $atts['show_header'] === 'true',
             'fullpage' => $isFullpage,
+            'baseUrl' => $baseUrl,
         ];
 
         $classes = 'fcom-modern-feed-container';
@@ -71,6 +81,12 @@ class Shortcode
         // Add script to add body class for full-page mode
         if ($isFullpage) {
             $output .= self::getFullpageScript();
+
+            // Register this page for SPA rewriting (so sub-routes work on refresh)
+            global $post;
+            if ($post && $post->ID) {
+                do_action('fcom_mf_shortcode_rendered', $post->ID);
+            }
         }
 
         return $output;

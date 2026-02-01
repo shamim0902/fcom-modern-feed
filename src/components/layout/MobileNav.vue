@@ -16,7 +16,7 @@ interface NavItem {
     badge?: number;
 }
 
-const props = defineProps<{
+defineProps<{
     notificationCount?: number;
 }>();
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 
 export interface Reaction {
     type: string;
@@ -8,7 +8,7 @@ export interface Reaction {
     color: string;
 }
 
-const props = defineProps<{
+defineProps<{
     currentReaction?: string;
     show: boolean;
 }>();

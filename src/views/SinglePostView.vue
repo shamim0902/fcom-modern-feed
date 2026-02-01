@@ -122,6 +122,11 @@ watch(() => route.params.id, () => {
 .fcom-mf-single-post {
     width: 100%;
 
+    // Hide dividers in single post view
+    :deep(.fcom-mf-divider) {
+        display: none;
+    }
+
     &__header {
         margin-bottom: $spacing-md;
     }

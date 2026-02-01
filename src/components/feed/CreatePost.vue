@@ -234,7 +234,7 @@ function autoResize(): void {
                             </svg>
                         </button>
                         <!-- Dropdown -->
-                        <div v-if="showSpaceDropdown" class="fcom-mf-create-post__space-dropdown">
+                        <div v-if="showSpaceDropdown" class="fcom-mf-create-post__space-dropdown" @click.stop>
                             <div class="fcom-mf-create-post__space-header">
                                 Choose where to post
                             </div>
@@ -407,7 +407,7 @@ function autoResize(): void {
 @import "@/styles/variables.scss";
 
 .fcom-mf-create-post {
-    margin-bottom: $spacing-lg;
+    // Note: margin-bottom removed - gaps handled by parent flex container
 
     &__collapsed {
         display: flex;

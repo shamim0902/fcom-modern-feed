@@ -403,7 +403,7 @@ onMounted(() => {
     &__btn {
         padding: $spacing-xs $spacing-md;
         border: none;
-        border-radius: $border-radius-full;
+        border-radius: $border-radius-xs;
         background: $primary-color;
         color: $white;
         font-size: $font-size-xs;
