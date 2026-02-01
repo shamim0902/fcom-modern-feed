@@ -1,0 +1,289 @@
+// Main styles for FluentCommunity Modern Feed
+
+// Base reset for the container
+.fcom-modern-feed-container {
+    font-family: $font-family;
+    font-size: $font-size-md;
+    line-height: $line-height-normal;
+    color: $text-primary;
+    box-sizing: border-box;
+
+    *,
+    *::before,
+    *::after {
+        box-sizing: inherit;
+    }
+
+    a {
+        color: $text-link;
+        text-decoration: none;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+
+    button {
+        @include button-reset;
+        @include focus-ring;
+    }
+
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+}
+
+// Card component
+.fcom-mf-card {
+    @include card;
+    margin-bottom: $spacing-lg;
+
+    &:last-child {
+        margin-bottom: 0;
+    }
+}
+
+// Avatar
+.fcom-mf-avatar {
+    width: $avatar-md;
+    height: $avatar-md;
+    border-radius: $border-radius-full;
+    object-fit: cover;
+    flex-shrink: 0;
+
+    &--sm {
+        width: $avatar-sm;
+        height: $avatar-sm;
+    }
+
+    &--lg {
+        width: $avatar-lg;
+        height: $avatar-lg;
+    }
+}
+
+// Button styles
+.fcom-mf-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-sm;
+    padding: $spacing-sm $spacing-lg;
+    border-radius: $border-radius-sm;
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+    transition: background-color $transition-fast;
+    cursor: pointer;
+
+    &--primary {
+        background-color: $primary-color;
+        color: $white;
+
+        &:hover {
+            background-color: $primary-hover;
+        }
+
+        &:disabled {
+            background-color: $gray-200;
+            color: $gray-400;
+            cursor: not-allowed;
+        }
+    }
+
+    &--secondary {
+        background-color: $gray-100;
+        color: $text-primary;
+
+        &:hover {
+            background-color: $gray-200;
+        }
+    }
+
+    &--ghost {
+        background-color: transparent;
+        color: $text-secondary;
+
+        &:hover {
+            background-color: $bg-hover;
+        }
+    }
+
+    &--icon {
+        padding: $spacing-sm;
+        border-radius: $border-radius-full;
+    }
+
+    &--full {
+        width: 100%;
+    }
+}
+
+// Input styles
+.fcom-mf-input {
+    width: 100%;
+    padding: $spacing-sm $spacing-md;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-lg;
+    font-size: $font-size-md;
+    background-color: $gray-50;
+    transition: border-color $transition-fast, background-color $transition-fast;
+
+    &:focus {
+        outline: none;
+        border-color: $primary-color;
+        background-color: $white;
+    }
+
+    &::placeholder {
+        color: $text-tertiary;
+    }
+}
+
+.fcom-mf-textarea {
+    @extend .fcom-mf-input;
+    resize: vertical;
+    min-height: 100px;
+}
+
+// Divider
+.fcom-mf-divider {
+    height: 1px;
+    background-color: $border-color;
+    margin: $spacing-md 0;
+}
+
+// Loading spinner
+.fcom-mf-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid $gray-200;
+    border-top-color: $primary-color;
+    border-radius: 50%;
+    animation: fcom-mf-spin 0.8s linear infinite;
+
+    &--lg {
+        width: 32px;
+        height: 32px;
+        border-width: 3px;
+    }
+}
+
+@keyframes fcom-mf-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+// Skeleton loading
+.fcom-mf-skeleton {
+    background: linear-gradient(
+        90deg,
+        $gray-100 25%,
+        $gray-200 50%,
+        $gray-100 75%
+    );
+    background-size: 200% 100%;
+    animation: fcom-mf-shimmer 1.5s infinite;
+    border-radius: $border-radius-sm;
+}
+
+@keyframes fcom-mf-shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+// Empty state
+.fcom-mf-empty {
+    text-align: center;
+    padding: $spacing-xxxl;
+    color: $text-secondary;
+
+    &__icon {
+        font-size: 48px;
+        margin-bottom: $spacing-lg;
+        opacity: 0.5;
+    }
+
+    &__title {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        margin-bottom: $spacing-sm;
+        color: $text-primary;
+    }
+
+    &__text {
+        font-size: $font-size-md;
+    }
+}
+
+// Scrollbar
+.fcom-mf-scrollable {
+    @include scrollbar;
+    overflow-y: auto;
+}
+
+// Responsive utilities
+.fcom-mf-hide-mobile {
+    @media (max-width: $breakpoint-sm) {
+        display: none !important;
+    }
+}
+
+.fcom-mf-hide-desktop {
+    @media (min-width: $breakpoint-md) {
+        display: none !important;
+    }
+}
+
+// Text utilities
+.fcom-mf-text-secondary {
+    color: $text-secondary;
+}
+
+.fcom-mf-text-small {
+    font-size: $font-size-sm;
+}
+
+.fcom-mf-text-bold {
+    font-weight: $font-weight-semibold;
+}
+
+.fcom-mf-truncate {
+    @include truncate;
+}
+
+// Flex utilities
+.fcom-mf-flex {
+    display: flex;
+}
+
+.fcom-mf-flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fcom-mf-flex-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+// Gap utilities
+.fcom-mf-gap-sm {
+    gap: $spacing-sm;
+}
+
+.fcom-mf-gap-md {
+    gap: $spacing-md;
+}
+
+.fcom-mf-gap-lg {
+    gap: $spacing-lg;
+}
