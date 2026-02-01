@@ -5,6 +5,9 @@ import { resolve } from 'path';
 export default defineConfig({
     plugins: [vue()],
 
+    // Use relative paths for production build so chunks can be found from the assets folder
+    base: './',
+
     build: {
         manifest: true,
         outDir: 'assets',

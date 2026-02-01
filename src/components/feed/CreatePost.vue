@@ -124,9 +124,6 @@ async function handleSubmit(): Promise<void> {
             media_images: mediaItems.value.length > 0 ? mediaItems.value : undefined,
         };
 
-        // Debug: Log the data being sent
-        console.log('[CreatePost] Submitting feed with data:', JSON.stringify(feedData, null, 2));
-
         await feedStore.createFeed(feedData);
 
         // Reset form
@@ -168,9 +165,6 @@ async function handleFileSelect(event: Event): Promise<void> {
             const response = await api.uploadFile('feeds/media-upload', formData);
 
             if (response.media) {
-                // Debug: Log upload response
-                console.log('[CreatePost] Upload response:', JSON.stringify(response.media, null, 2));
-
                 // Normalize type to simple string ('image' or 'video') as expected by FluentCommunity API
                 let mediaType = 'image';
                 if (response.media.type) {
@@ -186,9 +180,6 @@ async function handleFileSelect(event: Event): Promise<void> {
                     height: response.media.height || 0,
                     provider: 'uploader',
                 };
-
-                // Debug: Log the media item being added
-                console.log('[CreatePost] Adding media item:', JSON.stringify(mediaItem, null, 2));
 
                 mediaItems.value.push(mediaItem);
             }
