@@ -22,18 +22,22 @@ const gridClass = computed(() => {
     return `fcom-mf-media-grid--${count}`;
 });
 
+function isImage(item: MediaItem): boolean {
+    return item.type === 'image' || item.type.startsWith('image/');
+}
+
+function isVideo(item: MediaItem): boolean {
+    return item.type === 'video' || item.type.startsWith('video/') || item.url.match(/\.(mp4|webm|ogg)$/i) !== null;
+}
+
 const imageUrls = computed(() => {
     return props.items
-        .filter(item => item.type === 'image')
+        .filter(item => isImage(item))
         .map(item => item.url);
 });
 
 function openLightbox(index: number): void {
     uiStore.openLightbox(imageUrls.value, index);
-}
-
-function isVideo(item: MediaItem): boolean {
-    return item.type === 'video' || item.url.match(/\.(mp4|webm|ogg)$/i) !== null;
 }
 
 function getVideoType(url: string): string {

@@ -118,11 +118,16 @@ async function handleSubmit(): Promise<void> {
 
     isSubmitting.value = true;
     try {
-        await feedStore.createFeed({
+        const feedData = {
             message: message.value,
             space: selectedSpace.value?.slug || undefined,
-            media_items: mediaItems.value.length > 0 ? mediaItems.value : undefined,
-        });
+            media_images: mediaItems.value.length > 0 ? mediaItems.value : undefined,
+        };
+
+        // Debug: Log the data being sent
+        console.log('[CreatePost] Submitting feed with data:', JSON.stringify(feedData, null, 2));
+
+        await feedStore.createFeed(feedData);
 
         // Reset form
         message.value = '';
@@ -163,12 +168,29 @@ async function handleFileSelect(event: Event): Promise<void> {
             const response = await api.uploadFile('feeds/media-upload', formData);
 
             if (response.media) {
-                mediaItems.value.push({
+                // Debug: Log upload response
+                console.log('[CreatePost] Upload response:', JSON.stringify(response.media, null, 2));
+
+                // Normalize type to simple string ('image' or 'video') as expected by FluentCommunity API
+                let mediaType = 'image';
+                if (response.media.type) {
+                    if (response.media.type.startsWith('video/') || response.media.type === 'video') {
+                        mediaType = 'video';
+                    }
+                }
+
+                const mediaItem = {
                     url: response.media.url,
-                    type: response.media.type,
-                    width: response.media.width,
-                    height: response.media.height,
-                });
+                    type: mediaType,
+                    width: response.media.width || 0,
+                    height: response.media.height || 0,
+                    provider: 'uploader',
+                };
+
+                // Debug: Log the media item being added
+                console.log('[CreatePost] Adding media item:', JSON.stringify(mediaItem, null, 2));
+
+                mediaItems.value.push(mediaItem);
             }
 
             uploadProgress.value = ((i + 1) / files.length) * 100;
@@ -317,12 +339,12 @@ function autoResize(): void {
                     class="fcom-mf-create-post__media-item"
                 >
                     <img
-                        v-if="item.type === 'image'"
+                        v-if="item.type === 'image' || item.type.startsWith('image/')"
                         :src="item.url"
                         alt="Upload preview"
                     />
                     <video
-                        v-else
+                        v-else-if="item.type === 'video' || item.type.startsWith('video/')"
                         :src="item.url"
                         controls
                     ></video>

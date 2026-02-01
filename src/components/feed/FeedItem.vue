@@ -52,11 +52,44 @@ function navigateToPost(): void {
 }
 
 const hasMedia = computed(() => {
-    return (props.feed.meta?.media_items?.length ?? 0) > 0;
+    // Check for media_items array
+    if ((props.feed.meta?.media_items?.length ?? 0) > 0) {
+        return true;
+    }
+    // Check for uploaded image in media_preview (single image case)
+    const preview = props.feed.meta?.media_preview;
+    if (preview && (preview.is_uploaded || preview.type === 'meta_data') && preview.image) {
+        return true;
+    }
+    return false;
+});
+
+// Get media items - either from media_items array or from media_preview (single image)
+const mediaItems = computed(() => {
+    // If we have media_items array, use it
+    if ((props.feed.meta?.media_items?.length ?? 0) > 0) {
+        return props.feed.meta!.media_items!;
+    }
+    // If we have uploaded image in media_preview, convert to array format
+    const preview = props.feed.meta?.media_preview;
+    if (preview && (preview.is_uploaded || preview.type === 'meta_data') && preview.image) {
+        return [{
+            url: preview.image,
+            type: 'image',
+            width: preview.width,
+            height: preview.height,
+            provider: preview.provider || 'uploader',
+        }];
+    }
+    return [];
 });
 
 const hasEmbed = computed(() => {
-    return !!props.feed.meta?.media_preview?.html;
+    // Only show embed if it's not an uploaded image (which we handle separately)
+    const preview = props.feed.meta?.media_preview;
+    if (!preview) return false;
+    if (preview.is_uploaded || preview.type === 'meta_data') return false;
+    return !!preview.html;
 });
 
 // Reaction display for stats bar
@@ -434,7 +467,7 @@ function handleEdit(): void {
         <!-- Media Gallery -->
         <FeedMedia
             v-if="hasMedia"
-            :items="feed.meta!.media_items!"
+            :items="mediaItems"
         />
 
         <!-- OEmbed Preview -->

@@ -87,6 +87,12 @@ class ApiClient {
             options.body = JSON.stringify(data);
         }
 
+        // Debug: Log the actual request
+        if (endpoint === 'feeds' && method.toUpperCase() === 'POST') {
+            console.log('[ApiClient] POST feeds - URL:', url);
+            console.log('[ApiClient] POST feeds - Body:', options.body);
+        }
+
         const response = await fetch(url, options);
 
         // Handle nonce expiry

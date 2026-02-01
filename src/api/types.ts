@@ -30,6 +30,7 @@ export interface MediaItem {
     width?: number;
     height?: number;
     thumbnail?: string;
+    provider?: string; // 'uploader' for uploaded files, 'giphy' for giphy, etc.
 }
 
 export interface MediaPreview {
@@ -42,6 +43,8 @@ export interface MediaPreview {
     provider?: string;
     width?: number;
     height?: number;
+    is_uploaded?: boolean;
+    media_id?: number;
 }
 
 export interface FeedMeta {
@@ -190,7 +193,7 @@ export interface CreateFeedData {
     title?: string;
     space?: string; // space slug
     privacy?: string;
-    media_items?: MediaItem[];
+    media_images?: MediaItem[]; // FluentCommunity expects 'media_images' not 'media_items'
     media_preview?: MediaPreview;
     topic_ids?: number[];
 }

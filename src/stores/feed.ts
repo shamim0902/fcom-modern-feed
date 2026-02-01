@@ -153,7 +153,14 @@ export const useFeedStore = defineStore('feed', () => {
     }
 
     async function createFeed(data: CreateFeedData): Promise<Feed> {
+        // Debug: Log data being sent to API
+        console.log('[FeedStore] createFeed sending:', JSON.stringify(data, null, 2));
+
         const response = await api.post<{ feed: Feed }>('feeds', data);
+
+        // Debug: Log API response
+        console.log('[FeedStore] createFeed response:', JSON.stringify(response, null, 2));
+
         const feed = response.feed;
 
         // Add to cache
