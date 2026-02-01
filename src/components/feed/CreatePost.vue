@@ -65,9 +65,18 @@ watch(() => props.spaceId, (newId) => {
     }
 });
 
+const MAX_CHARS = 63206; // Facebook-like character limit
+
 const canSubmit = computed(() => {
-    return message.value.trim().length > 0 || mediaItems.value.length > 0;
+    const hasContent = message.value.trim().length > 0 || mediaItems.value.length > 0;
+    // Space is required - either from props or selected by user
+    const hasSpace = !!props.spaceId || !!selectedSpaceId.value;
+    return hasContent && hasSpace;
 });
+
+const charCount = computed(() => message.value.length);
+const charWarning = computed(() => charCount.value > MAX_CHARS * 0.9);
+const charExceeded = computed(() => charCount.value > MAX_CHARS);
 
 const availableSpaces = computed(() => spaceStore.canPostSpaces);
 
@@ -77,9 +86,12 @@ const selectedSpace = computed(() => {
 });
 
 const showSpaceSelector = computed(() => {
-    // Show selector if no fixed space and user has multiple spaces
-    return !props.spaceId && availableSpaces.value.length > 0;
+    // Show selector if no fixed space is provided
+    return !props.spaceId;
 });
+
+const isLoadingSpaces = computed(() => spaceStore.loading);
+const hasNoSpaces = computed(() => !spaceStore.loading && availableSpaces.value.length === 0);
 
 function selectSpace(space: SpaceFull | null): void {
     selectedSpaceId.value = space?.id || null;
@@ -210,57 +222,69 @@ function autoResize(): void {
                     <div v-if="showSpaceSelector" ref="spaceSelectorRef" class="fcom-mf-create-post__space-selector">
                         <button
                             class="fcom-mf-create-post__space-btn"
+                            :class="{ 'fcom-mf-create-post__space-btn--required': !selectedSpaceId }"
                             @click.stop="showSpaceDropdown = !showSpaceDropdown"
                         >
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
                             </svg>
-                            <span>{{ selectedSpace?.title || 'Select a space' }}</span>
+                            <span>{{ selectedSpace?.title || 'Choose a space *' }}</span>
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="6 9 12 15 18 9"></polyline>
                             </svg>
                         </button>
                         <!-- Dropdown -->
                         <div v-if="showSpaceDropdown" class="fcom-mf-create-post__space-dropdown">
-                            <button
-                                class="fcom-mf-create-post__space-option"
-                                :class="{ 'fcom-mf-create-post__space-option--selected': !selectedSpaceId }"
-                                @click="selectSpace(null)"
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+                            <div class="fcom-mf-create-post__space-header">
+                                Choose where to post
+                            </div>
+                            <!-- Loading state -->
+                            <div v-if="isLoadingSpaces" class="fcom-mf-create-post__space-loading">
+                                <span class="fcom-mf-spinner fcom-mf-spinner--sm"></span>
+                                <span>Loading spaces...</span>
+                            </div>
+                            <!-- No spaces available -->
+                            <div v-else-if="hasNoSpaces" class="fcom-mf-create-post__space-empty">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
                                 </svg>
-                                <span>Public Feed</span>
-                            </button>
-                            <div class="fcom-mf-create-post__space-divider"></div>
-                            <button
-                                v-for="space in availableSpaces"
-                                :key="space.id"
-                                class="fcom-mf-create-post__space-option"
-                                :class="{ 'fcom-mf-create-post__space-option--selected': selectedSpaceId === space.id }"
-                                @click="selectSpace(space)"
-                            >
-                                <img
-                                    v-if="space.logo"
-                                    :src="space.logo"
-                                    :alt="space.title"
-                                    class="fcom-mf-create-post__space-logo"
-                                />
-                                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <rect x="3" y="3" width="7" height="7" rx="1"/>
-                                    <rect x="14" y="3" width="7" height="7" rx="1"/>
-                                    <rect x="3" y="14" width="7" height="7" rx="1"/>
-                                    <rect x="14" y="14" width="7" height="7" rx="1"/>
-                                </svg>
-                                <span>{{ space.title }}</span>
-                            </button>
+                                <span>You need to join a space first</span>
+                            </div>
+                            <!-- Space list -->
+                            <template v-else>
+                                <button
+                                    v-for="space in availableSpaces"
+                                    :key="space.id"
+                                    class="fcom-mf-create-post__space-option"
+                                    :class="{ 'fcom-mf-create-post__space-option--selected': selectedSpaceId === space.id }"
+                                    @click="selectSpace(space)"
+                                >
+                                    <img
+                                        v-if="space.logo"
+                                        :src="space.logo"
+                                        :alt="space.title"
+                                        class="fcom-mf-create-post__space-logo"
+                                    />
+                                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                        <rect x="3" y="3" width="7" height="7" rx="1"/>
+                                        <rect x="14" y="3" width="7" height="7" rx="1"/>
+                                        <rect x="3" y="14" width="7" height="7" rx="1"/>
+                                        <rect x="14" y="14" width="7" height="7" rx="1"/>
+                                    </svg>
+                                    <span>{{ space.title }}</span>
+                                </button>
+                            </template>
                         </div>
                     </div>
                     <!-- Fixed space indicator -->
                     <span v-else-if="selectedSpace" class="fcom-mf-create-post__visibility">
                         📍 {{ selectedSpace.title }}
                     </span>
-                    <span v-else class="fcom-mf-create-post__visibility">🌐 Public</span>
+                    <span v-else class="fcom-mf-create-post__visibility fcom-mf-create-post__visibility--required">
+                        ⚠️ Choose a space to post
+                    </span>
                 </div>
             </div>
 
@@ -272,6 +296,18 @@ function autoResize(): void {
                 rows="3"
                 @input="autoResize"
             ></textarea>
+
+            <!-- Character Counter -->
+            <div
+                v-if="message.length > 100"
+                class="fcom-mf-create-post__char-count"
+                :class="{
+                    'fcom-mf-create-post__char-count--warning': charWarning,
+                    'fcom-mf-create-post__char-count--exceeded': charExceeded
+                }"
+            >
+                {{ charCount.toLocaleString() }} / {{ MAX_CHARS.toLocaleString() }}
+            </div>
 
             <!-- Media Preview -->
             <div v-if="mediaItems.length > 0" class="fcom-mf-create-post__media">
@@ -307,40 +343,59 @@ function autoResize(): void {
                 ></div>
             </div>
 
-            <div class="fcom-mf-divider"></div>
-
-            <!-- Actions -->
-            <div class="fcom-mf-create-post__actions">
-                <div class="fcom-mf-create-post__attach">
+            <!-- Attachment Buttons Row (Facebook-style) -->
+            <div class="fcom-mf-create-post__attach-row">
+                <span class="fcom-mf-create-post__attach-label">Add to your post</span>
+                <div class="fcom-mf-create-post__attach-buttons">
                     <button
-                        class="fcom-mf-create-post__attach-btn"
+                        class="fcom-mf-create-post__attach-icon fcom-mf-create-post__attach-icon--photo"
                         :disabled="isUploading"
+                        title="Photo"
                         @click="triggerFileUpload"
                     >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                            <polyline points="21 15 16 10 5 21"></polyline>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-1.5 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm.5 10H6l4-5 2.5 3 3.5-4.5 3 6.5z"/>
                         </svg>
-                        <span>{{ uiStore.t('photo') }}</span>
                     </button>
-
-                    <input
-                        ref="fileInputRef"
-                        type="file"
-                        accept="image/*,video/*"
-                        multiple
-                        hidden
-                        @change="handleFileSelect"
-                    />
+                    <button
+                        class="fcom-mf-create-post__attach-icon fcom-mf-create-post__attach-icon--video"
+                        :disabled="isUploading"
+                        title="Video"
+                        @click="triggerFileUpload"
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/>
+                        </svg>
+                    </button>
+                    <button
+                        class="fcom-mf-create-post__attach-icon fcom-mf-create-post__attach-icon--emoji"
+                        title="Feeling/Activity"
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                    </button>
                 </div>
+            </div>
 
+            <input
+                ref="fileInputRef"
+                type="file"
+                accept="image/*,video/*"
+                multiple
+                hidden
+                @change="handleFileSelect"
+            />
+
+            <!-- Post Button -->
+            <div class="fcom-mf-create-post__submit">
                 <button
-                    class="fcom-mf-btn fcom-mf-btn--primary"
-                    :disabled="!canSubmit || isSubmitting"
+                    class="fcom-mf-create-post__post-btn"
+                    :class="{ 'fcom-mf-create-post__post-btn--ready': canSubmit && !isSubmitting && !charExceeded }"
+                    :disabled="!canSubmit || isSubmitting || charExceeded"
                     @click="handleSubmit"
                 >
-                    <span v-if="isSubmitting" class="fcom-mf-spinner" style="width: 16px; height: 16px;"></span>
+                    <span v-if="isSubmitting" class="fcom-mf-spinner" style="width: 16px; height: 16px; border-width: 2px;"></span>
                     <span v-else>{{ uiStore.t('post') }}</span>
                 </button>
             </div>
@@ -399,6 +454,10 @@ function autoResize(): void {
     &__visibility {
         font-size: $font-size-sm;
         color: $text-secondary;
+
+        &--required {
+            color: $warning-color;
+        }
     }
 
     &__textarea {
@@ -428,16 +487,33 @@ function autoResize(): void {
 
     &__media-item {
         position: relative;
-        width: 100px;
-        height: 100px;
-        border-radius: $border-radius-sm;
+        width: 150px;
+        height: 150px;
+        border-radius: $border-radius-md;
         overflow: hidden;
+        border: 1px solid $border-color;
 
         img,
         video {
             width: 100%;
             height: 100%;
             object-fit: cover;
+        }
+    }
+
+    &__char-count {
+        text-align: right;
+        font-size: $font-size-xs;
+        color: $text-tertiary;
+        margin-top: $spacing-xs;
+
+        &--warning {
+            color: $warning-color;
+        }
+
+        &--exceeded {
+            color: $danger-color;
+            font-weight: $font-weight-semibold;
         }
     }
 
@@ -475,31 +551,99 @@ function autoResize(): void {
         transition: width 0.3s ease;
     }
 
-    &__actions {
+    &__attach-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding-top: $spacing-md;
+        padding: $spacing-md;
+        border: 1px solid $border-color;
+        border-radius: $border-radius-md;
+        margin-top: $spacing-md;
     }
 
-    &__attach {
+    &__attach-label {
+        font-size: $font-size-md;
+        font-weight: $font-weight-semibold;
+        color: $text-primary;
+    }
+
+    &__attach-buttons {
         display: flex;
-        gap: $spacing-sm;
+        gap: $spacing-xs;
     }
 
-    &__attach-btn {
+    &__attach-icon {
         @include button-reset;
-        @include hover-bg;
+        width: 40px;
+        height: 40px;
         display: flex;
         align-items: center;
-        gap: $spacing-sm;
-        padding: $spacing-sm $spacing-md;
-        border-radius: $border-radius-sm;
-        color: $text-secondary;
-        font-size: $font-size-md;
+        justify-content: center;
+        border-radius: $border-radius-full;
+        transition: background $transition-instant;
+
+        &:hover {
+            background: $bg-hover;
+        }
 
         &:disabled {
             opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        &--photo {
+            color: #45bd62;
+        }
+
+        &--video {
+            color: #f3425f;
+        }
+
+        &--emoji {
+            color: #f7b928;
+        }
+    }
+
+    &__submit {
+        margin-top: $spacing-md;
+    }
+
+    &__post-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: $spacing-sm;
+        padding: $spacing-md $spacing-xl;
+        border: none;
+        border-radius: $border-radius-sm;
+        font-size: $font-size-md;
+        font-weight: $font-weight-bold;
+        min-height: 40px;
+        cursor: pointer;
+        transition: background-color $transition-fast, transform $transition-instant, opacity $transition-fast;
+
+        // Default disabled state
+        background-color: $gray-100;
+        color: $gray-300;
+        cursor: not-allowed;
+
+        &--ready {
+            background-color: $primary-color;
+            color: $white;
+            cursor: pointer;
+
+            &:hover {
+                background-color: $primary-hover;
+            }
+
+            &:active {
+                transform: scale(0.98);
+                background-color: darken($primary-color, 8%);
+            }
+        }
+
+        &:disabled {
             cursor: not-allowed;
         }
     }
@@ -519,7 +663,7 @@ function autoResize(): void {
         font-size: $font-size-sm;
         color: $text-secondary;
         background: $gray-50;
-        transition: background $transition-fast;
+        transition: all $transition-fast;
 
         &:hover {
             background: $gray-100;
@@ -527,6 +671,20 @@ function autoResize(): void {
 
         svg:first-child {
             color: $primary-color;
+        }
+
+        &--required {
+            background: rgba($warning-color, 0.1);
+            border: 1px solid rgba($warning-color, 0.3);
+            color: darken($warning-color, 15%);
+
+            svg:first-child {
+                color: $warning-color;
+            }
+
+            &:hover {
+                background: rgba($warning-color, 0.15);
+            }
         }
     }
 
@@ -543,6 +701,36 @@ function autoResize(): void {
         padding: $spacing-xs 0;
         max-height: 300px;
         overflow-y: auto;
+    }
+
+    &__space-header {
+        padding: $spacing-sm $spacing-md;
+        font-size: $font-size-xs;
+        font-weight: $font-weight-semibold;
+        color: $text-tertiary;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    &__space-loading,
+    &__space-empty {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        padding: $spacing-md;
+        font-size: $font-size-sm;
+        color: $text-secondary;
+    }
+
+    &__space-empty {
+        flex-direction: column;
+        text-align: center;
+        padding: $spacing-lg $spacing-md;
+
+        svg {
+            color: $text-tertiary;
+            margin-bottom: $spacing-xs;
+        }
     }
 
     &__space-option {
@@ -584,10 +772,5 @@ function autoResize(): void {
         flex-shrink: 0;
     }
 
-    &__space-divider {
-        height: 1px;
-        background: $border-color;
-        margin: $spacing-xs 0;
-    }
 }
 </style>

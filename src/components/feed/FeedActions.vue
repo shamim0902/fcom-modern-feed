@@ -1,52 +1,175 @@
 <script setup lang="ts">
-import { useUiStore } from '@/stores';
+import { ref, computed, onUnmounted } from 'vue';
+import { useUiStore, useAuthStore } from '@/stores';
 import type { Feed } from '@/api/types';
+import ReactionPicker from './ReactionPicker.vue';
 
-defineProps<{
+const props = defineProps<{
     feed: Feed;
     isLiking?: boolean;
 }>();
 
 const emit = defineEmits<{
-    like: [];
+    react: [type: string];
     comment: [];
     share: [];
 }>();
 
 const uiStore = useUiStore();
+const authStore = useAuthStore();
+
+const showReactionPicker = ref(false);
+const longPressTimer = ref<ReturnType<typeof setTimeout> | null>(null);
+const hoverTimer = ref<ReturnType<typeof setTimeout> | null>(null);
+const likeButtonRef = ref<HTMLElement | null>(null);
+
+// Reaction display mapping
+const reactionMap: Record<string, { emoji: string; label: string; color: string }> = {
+    like: { emoji: '👍', label: 'Like', color: '#1877f2' },
+    love: { emoji: '❤️', label: 'Love', color: '#e7415f' },
+    haha: { emoji: '😂', label: 'Haha', color: '#f7b928' },
+    wow: { emoji: '😮', label: 'Wow', color: '#f7b928' },
+    sad: { emoji: '😢', label: 'Sad', color: '#f7b928' },
+    angry: { emoji: '😡', label: 'Angry', color: '#e9710f' },
+};
+
+const currentReaction = computed(() => {
+    if (!props.feed.has_user_react) return null;
+
+    // Use the tracked user_reaction_type first
+    if (props.feed.user_reaction_type) {
+        return props.feed.user_reaction_type;
+    }
+
+    // Fallback: check reactions array for current user's reaction
+    const currentUserId = authStore.userId;
+    if (currentUserId && props.feed.reactions) {
+        const userReaction = props.feed.reactions.find(r => r.user_id === currentUserId);
+        if (userReaction) {
+            return userReaction.type;
+        }
+    }
+
+    // Default to 'like' if we can't determine the type
+    return 'like';
+});
+
+const reactionDisplay = computed(() => {
+    const type = currentReaction.value || 'like';
+    return reactionMap[type] || reactionMap.like;
+});
+
+// Desktop: Show picker on hover with delay
+function handleMouseEnter(): void {
+    hoverTimer.value = setTimeout(() => {
+        showReactionPicker.value = true;
+    }, 500);
+}
+
+function handleMouseLeave(): void {
+    if (hoverTimer.value) {
+        clearTimeout(hoverTimer.value);
+        hoverTimer.value = null;
+    }
+    // Small delay before hiding to allow moving to picker
+    setTimeout(() => {
+        if (!document.querySelector('.fcom-mf-reaction-picker:hover')) {
+            showReactionPicker.value = false;
+        }
+    }, 100);
+}
+
+// Mobile: Show picker on long press
+function handleTouchStart(): void {
+    longPressTimer.value = setTimeout(() => {
+        showReactionPicker.value = true;
+    }, 500);
+}
+
+function handleTouchEnd(): void {
+    if (longPressTimer.value) {
+        clearTimeout(longPressTimer.value);
+        longPressTimer.value = null;
+    }
+}
+
+// Handle reaction selection
+function handleReactionSelect(type: string): void {
+    showReactionPicker.value = false;
+    emit('react', type);
+}
+
+// Quick like/unlike on single click (if picker not shown)
+// - If not reacted: add 'like'
+// - If already reacted: toggle off current reaction
+function handleLikeClick(): void {
+    if (!showReactionPicker.value) {
+        // Emit current reaction type to toggle it off, or 'like' to add
+        const reactionType = props.feed.has_user_react
+            ? (props.feed.user_reaction_type || 'like')
+            : 'like';
+        emit('react', reactionType);
+    }
+}
+
+function closePicker(): void {
+    showReactionPicker.value = false;
+}
+
+onUnmounted(() => {
+    if (longPressTimer.value) clearTimeout(longPressTimer.value);
+    if (hoverTimer.value) clearTimeout(hoverTimer.value);
+});
 </script>
 
 <template>
     <div class="fcom-mf-feed-actions">
-        <!-- Like Button -->
-        <button
-            class="fcom-mf-feed-actions__btn"
-            :class="{ 'fcom-mf-feed-actions__btn--active': feed.has_user_react }"
-            :disabled="isLiking"
-            @click="emit('like')"
+        <!-- Like Button with Reaction Picker -->
+        <div
+            class="fcom-mf-feed-actions__like-wrapper"
+            @mouseenter="handleMouseEnter"
+            @mouseleave="handleMouseLeave"
         >
-            <svg
-                v-if="!feed.has_user_react"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
+            <ReactionPicker
+                :show="showReactionPicker"
+                :current-reaction="currentReaction || undefined"
+                @select="handleReactionSelect"
+                @close="closePicker"
+            />
+
+            <button
+                ref="likeButtonRef"
+                class="fcom-mf-feed-actions__btn"
+                :class="{
+                    'fcom-mf-feed-actions__btn--active': feed.has_user_react,
+                    [`fcom-mf-feed-actions__btn--${currentReaction}`]: currentReaction
+                }"
+                :style="feed.has_user_react ? { color: reactionDisplay.color } : {}"
+                :disabled="isLiking"
+                @click="handleLikeClick"
+                @touchstart.passive="handleTouchStart"
+                @touchend="handleTouchEnd"
+                @touchcancel="handleTouchEnd"
             >
-                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
-            </svg>
-            <svg
-                v-else
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-            >
-                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
-            </svg>
-            <span>{{ feed.has_user_react ? uiStore.t('liked') : uiStore.t('like') }}</span>
-        </button>
+                <span v-if="feed.has_user_react" class="fcom-mf-feed-actions__emoji">
+                    {{ reactionDisplay.emoji }}
+                </span>
+                <svg
+                    v-else
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                >
+                    <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+                </svg>
+                <span class="fcom-mf-feed-actions__label">
+                    {{ feed.has_user_react ? reactionDisplay.label : uiStore.t('like') }}
+                </span>
+            </button>
+        </div>
 
         <!-- Comment Button -->
         <button
@@ -56,7 +179,7 @@ const uiStore = useUiStore();
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
             </svg>
-            <span>{{ uiStore.t('comment') }}</span>
+            <span class="fcom-mf-feed-actions__label">{{ uiStore.t('comment') }}</span>
         </button>
 
         <!-- Share Button -->
@@ -71,15 +194,25 @@ const uiStore = useUiStore();
                 <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
                 <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
             </svg>
-            <span>{{ uiStore.t('share') }}</span>
+            <span class="fcom-mf-feed-actions__label">{{ uiStore.t('share') }}</span>
         </button>
     </div>
 </template>
 
 <style lang="scss" scoped>
+@import "@/styles/variables.scss";
+
 .fcom-mf-feed-actions {
     display: flex;
     padding: $spacing-xs $spacing-lg $spacing-md;
+    border-top: 1px solid $border-color;
+    margin-top: $spacing-xs;
+
+    &__like-wrapper {
+        position: relative;
+        flex: 1;
+        display: flex;
+    }
 
     &__btn {
         @include button-reset;
@@ -90,21 +223,20 @@ const uiStore = useUiStore();
         justify-content: center;
         gap: $spacing-sm;
         padding: $spacing-sm;
-        border-radius: $border-radius-sm;
+        border-radius: $border-radius-xs;
         color: $text-secondary;
         font-size: $font-size-md;
         font-weight: $font-weight-semibold;
-        transition: all $transition-fast;
+        transition: all $transition-instant;
 
         &:hover {
             color: $text-primary;
         }
 
         &--active {
-            color: $primary-color;
-
+            // Color applied via inline style for dynamic reaction colors
             &:hover {
-                color: $primary-hover;
+                filter: brightness(0.9);
             }
         }
 
@@ -116,11 +248,16 @@ const uiStore = useUiStore();
         svg {
             flex-shrink: 0;
         }
+    }
 
+    &__emoji {
+        font-size: 18px;
+        line-height: 1;
+    }
+
+    &__label {
         @media (max-width: $breakpoint-sm) {
-            span {
-                display: none;
-            }
+            display: none;
         }
     }
 }

@@ -160,9 +160,23 @@ function toggleReplies(): void {
 .fcom-mf-comment {
     display: flex;
     gap: $spacing-sm;
+    position: relative;
 
     &--reply {
-        margin-left: $spacing-xl;
+        margin-left: $spacing-xl + $spacing-lg;
+        padding-left: $spacing-md;
+
+        // Thread line
+        &::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: $gray-200;
+            border-radius: 1px;
+        }
     }
 
     &__sticky-badge {
@@ -170,6 +184,9 @@ function toggleReplies(): void {
         top: -$spacing-sm;
         right: $spacing-sm;
         font-size: $font-size-sm;
+        background: rgba($warning-color, 0.1);
+        padding: 2px 6px;
+        border-radius: $border-radius-sm;
     }
 
     &__avatar-link {
@@ -187,14 +204,19 @@ function toggleReplies(): void {
         border-radius: $border-radius-lg;
         padding: $spacing-sm $spacing-md;
         max-width: 100%;
+        transition: background $transition-instant;
+
+        &:hover {
+            background: $gray-100;
+        }
     }
 
     &__author {
-        display: block;
+        display: inline;
         font-weight: $font-weight-semibold;
         font-size: $font-size-sm;
         color: $text-primary;
-        margin-bottom: 2px;
+        margin-right: $spacing-xs;
 
         &:hover {
             text-decoration: underline;
@@ -205,6 +227,7 @@ function toggleReplies(): void {
         font-size: $font-size-md;
         line-height: $line-height-normal;
         word-wrap: break-word;
+        display: inline;
 
         :deep(a) {
             color: $text-link;
@@ -212,6 +235,7 @@ function toggleReplies(): void {
 
         :deep(p) {
             margin: 0;
+            display: inline;
         }
     }
 
@@ -228,6 +252,7 @@ function toggleReplies(): void {
         @include button-reset;
         color: $text-secondary;
         font-weight: $font-weight-semibold;
+        transition: color $transition-instant;
 
         &:hover {
             text-decoration: underline;
@@ -249,6 +274,9 @@ function toggleReplies(): void {
     &__reactions {
         color: $text-secondary;
         font-size: $font-size-xs;
+        display: flex;
+        align-items: center;
+        gap: 2px;
     }
 
     &__reply-form {
@@ -265,9 +293,15 @@ function toggleReplies(): void {
         color: $text-secondary;
         font-size: $font-size-sm;
         font-weight: $font-weight-semibold;
+        transition: color $transition-instant;
 
         &:hover {
+            color: $text-primary;
             text-decoration: underline;
+        }
+
+        svg {
+            transition: transform $transition-fast;
         }
     }
 
@@ -276,6 +310,19 @@ function toggleReplies(): void {
         display: flex;
         flex-direction: column;
         gap: $spacing-md;
+        position: relative;
+
+        // Vertical connecting line
+        &::before {
+            content: '';
+            position: absolute;
+            left: calc(-#{$spacing-md} - 1px);
+            top: -$spacing-md;
+            bottom: $spacing-lg;
+            width: 2px;
+            background: $gray-200;
+            border-radius: 1px;
+        }
     }
 }
 </style>

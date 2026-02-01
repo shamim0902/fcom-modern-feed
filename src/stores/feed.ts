@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { api } from '@/api/client';
 import type { Feed, Comment, FeedsResponse, CommentsResponse, CreateFeedData, CreateCommentData } from '@/api/types';
+import { useAuthStore } from './auth';
 
 interface FeedContext {
     feeds: Feed[];
@@ -74,6 +75,21 @@ export const useFeedStore = defineStore('feed', () => {
         return contexts.value[key];
     }
 
+    // Extract user's reaction type from the reactions array
+    function populateUserReactionType(feed: Feed): void {
+        if (!feed.has_user_react || feed.user_reaction_type) return;
+
+        const authStore = useAuthStore();
+        const currentUserId = authStore.userId;
+        if (!currentUserId) return;
+
+        // Find the user's reaction in the reactions array
+        const userReaction = feed.reactions?.find(r => r.user_id === currentUserId);
+        if (userReaction) {
+            feed.user_reaction_type = userReaction.type;
+        }
+    }
+
     // Actions
     async function fetchFeeds(
         params: {
@@ -106,10 +122,16 @@ export const useFeedStore = defineStore('feed', () => {
 
             const feeds = response.feeds.data;
 
-            // Update feedsById cache
+            // Update feedsById cache and populate user reaction types
             feeds.forEach((feed) => {
+                populateUserReactionType(feed);
                 feedsById.value[feed.id] = feed;
             });
+
+            // Also populate for sticky feed
+            if (response.sticky) {
+                populateUserReactionType(response.sticky);
+            }
 
             if (loadMore) {
                 context.feeds = [...context.feeds, ...feeds];
@@ -179,24 +201,43 @@ export const useFeedStore = defineStore('feed', () => {
         });
     }
 
-    async function toggleReaction(feedId: number): Promise<void> {
+    async function toggleReaction(feedId: number, reactionType: string = 'like'): Promise<void> {
         const feed = feedsById.value[feedId];
         if (!feed) return;
 
         const wasReacted = feed.has_user_react;
+        const previousReactionType = feed.user_reaction_type;
+
+        // If already reacted with same type, toggle off
+        // If already reacted with different type, just change the type (no count change)
+        // If not reacted, add reaction
+        const isSameReaction = wasReacted && previousReactionType === reactionType;
 
         // Optimistic update
-        feed.has_user_react = !wasReacted;
-        feed.reactions_count += wasReacted ? -1 : 1;
+        if (isSameReaction) {
+            // Toggle off
+            feed.has_user_react = false;
+            feed.user_reaction_type = undefined;
+            feed.reactions_count -= 1;
+        } else if (wasReacted) {
+            // Change reaction type (no count change)
+            feed.user_reaction_type = reactionType;
+        } else {
+            // Add new reaction
+            feed.has_user_react = true;
+            feed.user_reaction_type = reactionType;
+            feed.reactions_count += 1;
+        }
 
         try {
             await api.post(`feeds/${feedId}/react`, {
-                react_type: 'like',
+                react_type: reactionType,
             });
         } catch (error) {
             // Rollback on error
             feed.has_user_react = wasReacted;
-            feed.reactions_count += wasReacted ? 1 : -1;
+            feed.user_reaction_type = previousReactionType;
+            feed.reactions_count += isSameReaction ? 1 : (wasReacted ? 0 : -1);
             throw error;
         }
     }
@@ -330,7 +371,8 @@ export const useFeedStore = defineStore('feed', () => {
             const response = await api.get<{ feed: Feed }>(`feeds/${feedId}/by-id`);
             const feed = response.feed;
 
-            // Cache it
+            // Populate user reaction type and cache it
+            populateUserReactionType(feed);
             feedsById.value[feed.id] = feed;
 
             return feed;

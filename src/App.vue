@@ -6,6 +6,10 @@ import ImageLightbox from './components/common/ImageLightbox.vue';
 import AppHeader from './components/layout/AppHeader.vue';
 import LeftSidebar from './components/layout/LeftSidebar.vue';
 import RightSidebar from './components/layout/RightSidebar.vue';
+import MobileNav from './components/layout/MobileNav.vue';
+
+// Notification count for mobile nav (placeholder - can be connected to notification store)
+const notificationCount = ref(0);
 
 interface Config {
     containerId: string;
@@ -161,6 +165,9 @@ onUnmounted(() => {
 
         <!-- Image Lightbox -->
         <ImageLightbox />
+
+        <!-- Mobile Bottom Navigation -->
+        <MobileNav :notification-count="notificationCount" />
     </div>
 </template>
 
@@ -262,11 +269,19 @@ onUnmounted(() => {
         transform: translateY(-2px);
     }
 
-    @media (max-width: $breakpoint-sm) {
-        bottom: $spacing-lg;
+    @media (max-width: $breakpoint-md) {
+        // Adjust for mobile nav
+        bottom: calc(56px + $spacing-lg + env(safe-area-inset-bottom));
         right: $spacing-lg;
         width: 40px;
         height: 40px;
+    }
+}
+
+.fcom-mf-main {
+    @media (max-width: $breakpoint-md) {
+        // Add padding for mobile nav
+        padding-bottom: calc(56px + $spacing-lg + env(safe-area-inset-bottom));
     }
 }
 

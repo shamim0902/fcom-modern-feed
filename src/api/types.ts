@@ -94,6 +94,7 @@ export interface Feed {
     priority: number;
     scheduled_at?: string;
     has_user_react?: boolean;
+    user_reaction_type?: string; // Track user's reaction type (like, love, haha, etc.)
     bookmarked?: boolean;
     xprofile: XProfile;
     space?: Space;

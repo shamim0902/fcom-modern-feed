@@ -55,6 +55,9 @@ const hasEmbed = computed(() => {
     return !!props.feed.meta?.media_preview?.html;
 });
 
+// Reaction display for stats bar
+const reactionEmojis = ['👍', '❤️', '😂'];
+
 const reactionText = computed(() => {
     const count = props.feed.reactions_count;
     if (count === 0) return '';
@@ -64,7 +67,7 @@ const reactionText = computed(() => {
         return uiStore.t('youAndOthers', count - 1);
     }
 
-    return uiStore.t('people', count);
+    return count.toString();
 });
 
 const commentsText = computed(() => {
@@ -73,13 +76,13 @@ const commentsText = computed(() => {
     return uiStore.t('comments', count);
 });
 
-async function handleLike(): Promise<void> {
+async function handleReact(type: string = 'like'): Promise<void> {
     if (!authStore.requireAuth()) return;
     if (isLiking.value) return;
 
     isLiking.value = true;
     try {
-        await feedStore.toggleReaction(props.feed.id);
+        await feedStore.toggleReaction(props.feed.id, type);
     } catch (error) {
         uiStore.showError(uiStore.t('errorOccurred'));
     } finally {
@@ -189,7 +192,9 @@ function handleShare(): void {
         <!-- Stats Bar -->
         <div v-if="reactionText || commentsText" class="fcom-mf-feed-item__stats">
             <span v-if="reactionText" class="fcom-mf-feed-item__stat">
-                <span class="fcom-mf-feed-item__stat-icon">👍</span>
+                <span class="fcom-mf-feed-item__stat-emojis">
+                    <span v-for="(emoji, idx) in reactionEmojis.slice(0, Math.min(3, feed.reactions_count))" :key="idx" class="fcom-mf-feed-item__stat-emoji">{{ emoji }}</span>
+                </span>
                 {{ reactionText }}
             </span>
             <button
@@ -208,7 +213,7 @@ function handleShare(): void {
         <FeedActions
             :feed="feed"
             :is-liking="isLiking"
-            @like="handleLike"
+            @react="handleReact"
             @comment="toggleComments"
             @share="handleShare"
         />
@@ -225,8 +230,19 @@ function handleShare(): void {
 </template>
 
 <style lang="scss" scoped>
+@import "@/styles/variables.scss";
+
 .fcom-mf-feed-item {
     padding: 0;
+    transition: box-shadow $transition-normal;
+
+    &:hover {
+        box-shadow: $shadow-card-hover;
+
+        .fcom-mf-feed-item__menu-btn {
+            opacity: 1;
+        }
+    }
 
     &--sticky {
         border: 2px solid $primary-color;
@@ -281,6 +297,12 @@ function handleShare(): void {
         justify-content: center;
         border-radius: $border-radius-full;
         color: $text-secondary;
+        opacity: 0;
+        transition: opacity $transition-fast;
+
+        @media (max-width: $breakpoint-md) {
+            opacity: 1; // Always show on mobile
+        }
     }
 
     &__title {
@@ -410,6 +432,29 @@ function handleShare(): void {
             &:hover {
                 text-decoration: underline;
             }
+        }
+    }
+
+    &__stat-emojis {
+        display: flex;
+        align-items: center;
+    }
+
+    &__stat-emoji {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        font-size: 12px;
+        background: $white;
+        border: 2px solid $white;
+        border-radius: $border-radius-full;
+        margin-right: -4px;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+
+        &:last-child {
+            margin-right: $spacing-xs;
         }
     }
 

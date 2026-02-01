@@ -19,6 +19,10 @@ const uiStore = useUiStore();
 
 const isLoading = ref(false);
 const isSubmitting = ref(false);
+const showAllComments = ref(false);
+
+// Number of comments to show initially
+const INITIAL_COMMENTS_COUNT = 3;
 
 // Get feed from store to have reactive comments
 const feed = computed(() => feedStore.getFeedById(props.feedId));
@@ -57,6 +61,25 @@ const allComments = computed(() => {
     }
     return comments;
 });
+
+const displayedComments = computed(() => {
+    if (props.showAll || showAllComments.value) {
+        return allComments.value;
+    }
+    return allComments.value.slice(0, INITIAL_COMMENTS_COUNT);
+});
+
+const hiddenCommentsCount = computed(() => {
+    return Math.max(0, allComments.value.length - INITIAL_COMMENTS_COUNT);
+});
+
+const hasMoreComments = computed(() => {
+    return !props.showAll && !showAllComments.value && hiddenCommentsCount.value > 0;
+});
+
+function showMore(): void {
+    showAllComments.value = true;
+}
 
 async function handleSubmit(message: string): Promise<void> {
     if (!authStore.requireAuth()) return;
@@ -120,10 +143,19 @@ async function handleReaction(commentId: number): Promise<void> {
             <span class="fcom-mf-spinner"></span>
         </div>
 
+        <!-- View More Comments Link -->
+        <button
+            v-if="hasMoreComments && !isLoading"
+            class="fcom-mf-comments__view-more"
+            @click="showMore"
+        >
+            View {{ hiddenCommentsCount }} more {{ hiddenCommentsCount === 1 ? 'comment' : 'comments' }}
+        </button>
+
         <!-- Comments List -->
-        <div v-else class="fcom-mf-comments__list">
+        <div v-if="!isLoading" class="fcom-mf-comments__list">
             <CommentItem
-                v-for="comment in allComments"
+                v-for="comment in displayedComments"
                 :key="comment.id"
                 :comment="comment"
                 :feed-id="feedId"
@@ -155,6 +187,22 @@ async function handleReaction(commentId: number): Promise<void> {
         display: flex;
         justify-content: center;
         padding: $spacing-xl;
+    }
+
+    &__view-more {
+        @include button-reset;
+        display: block;
+        padding: $spacing-sm 0;
+        margin-top: $spacing-sm;
+        color: $text-secondary;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-semibold;
+        transition: color $transition-instant;
+
+        &:hover {
+            color: $text-primary;
+            text-decoration: underline;
+        }
     }
 
     &__list {

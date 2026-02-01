@@ -36,10 +36,24 @@ $bg-active: #e4e6eb;
 
 // Border
 $border-color: #dddfe2;
+$border-radius-xs: 4px;
 $border-radius-sm: 6px;
 $border-radius-md: 8px;
 $border-radius-lg: 12px;
+$border-radius-xl: 18px;
 $border-radius-full: 50%;
+
+// Notification badge
+$badge-bg: #e41e3f;
+$badge-text: #ffffff;
+
+// Reaction emoji colors (Facebook style)
+$reaction-like: #1877f2;
+$reaction-love: #e7415f;
+$reaction-haha: #f7b928;
+$reaction-wow: #f7b928;
+$reaction-sad: #f7b928;
+$reaction-angry: #e9710f;
 
 // Shadows - Subtle Facebook-like shadows
 $shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -91,10 +105,12 @@ $avatar-xl: 80px;
 $card-max-width: 680px;
 $sidebar-width: 280px;
 
-// Animation
+// Animation - Facebook-snappy transitions
+$transition-instant: 0.05s ease;
 $transition-fast: 0.1s ease;
-$transition-normal: 0.2s ease;
-$transition-slow: 0.3s ease;
+$transition-normal: 0.15s ease;
+$transition-slow: 0.2s ease;
+$transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
 // Z-index layers
 $z-dropdown: 100;
@@ -163,5 +179,81 @@ $breakpoint-xl: 1200px;
         &:hover {
             background: $gray-400;
         }
+    }
+}
+
+// Facebook-style ripple effect
+@mixin ripple {
+    position: relative;
+    overflow: hidden;
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: width 0.3s ease, height 0.3s ease, opacity 0.3s ease;
+        opacity: 0;
+    }
+
+    &:active::after {
+        width: 200%;
+        height: 200%;
+        opacity: 1;
+        transition: 0s;
+    }
+}
+
+// Facebook notification badge
+@mixin badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: $badge-bg;
+    color: $badge-text;
+    font-size: 11px;
+    font-weight: $font-weight-bold;
+    border-radius: 9px;
+    line-height: 1;
+}
+
+// Facebook-style elevated card on hover
+@mixin card-hover {
+    transition: box-shadow $transition-normal, transform $transition-normal;
+
+    &:hover {
+        box-shadow: $shadow-card-hover;
+    }
+}
+
+// Facebook action button (Like, Comment, Share)
+@mixin action-button {
+    @include button-reset;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-sm;
+    flex: 1;
+    padding: $spacing-sm $spacing-md;
+    border-radius: $border-radius-xs;
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+    color: $text-secondary;
+    transition: background-color $transition-instant;
+
+    &:hover {
+        background: $bg-hover;
+    }
+
+    &:active {
+        background: $bg-active;
     }
 }

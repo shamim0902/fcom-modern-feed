@@ -14,31 +14,38 @@ export const useSpaceStore = defineStore('space', () => {
     const hasMultipleSpaces = computed(() => mySpaces.value.length > 1);
 
     const canPostSpaces = computed(() => {
-        // Return spaces where user can post (is member)
-        return mySpaces.value.filter(space => space.is_member);
+        // Return all spaces from mySpaces - these are already spaces user can post to
+        // The is_member flag may not always be set when fetched via my_spaces endpoint
+        return mySpaces.value;
     });
 
     // Actions
-    async function fetchMySpaces(): Promise<void> {
-        if (initialized.value) return;
+    async function fetchMySpaces(forceRefresh = false): Promise<void> {
+        if (initialized.value && !forceRefresh) return;
+        if (loading.value) return; // Prevent concurrent fetches
 
         loading.value = true;
         try {
-            const response = await api.get<SpacesResponse>('spaces', {
-                my_spaces: true,
-                per_page: 100,
-            });
+            // GET /spaces/ returns only spaces where user is a member (see SpaceController@get)
+            const response = await api.get<{ spaces: SpaceFull[] }>('spaces');
 
-            // Get my_spaces from response if available, otherwise filter from spaces
-            if (response.my_spaces) {
-                mySpaces.value = response.my_spaces;
-            } else if (response.spaces?.data) {
-                mySpaces.value = response.spaces.data.filter(s => s.is_member);
+            console.log('[FcomModernFeed] Spaces API response:', response);
+
+            // Response format is { spaces: [...] }
+            if (response.spaces && Array.isArray(response.spaces)) {
+                mySpaces.value = response.spaces;
+            } else if (Array.isArray(response)) {
+                mySpaces.value = response;
+            } else {
+                mySpaces.value = [];
             }
 
+            console.log('[FcomModernFeed] Loaded user spaces:', mySpaces.value);
             initialized.value = true;
         } catch (error) {
-            console.error('Failed to fetch spaces:', error);
+            console.error('[FcomModernFeed] Failed to fetch spaces:', error);
+            // Don't set initialized to true on error, allow retry
+            mySpaces.value = [];
         } finally {
             loading.value = false;
         }
