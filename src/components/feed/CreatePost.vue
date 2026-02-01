@@ -297,9 +297,9 @@ function autoResize(): void {
                 @input="autoResize"
             ></textarea>
 
-            <!-- Character Counter -->
+            <!-- Character Counter - Show immediately when typing -->
             <div
-                v-if="message.length > 100"
+                v-if="message.length > 0"
                 class="fcom-mf-create-post__char-count"
                 :class="{
                     'fcom-mf-create-post__char-count--warning': charWarning,
@@ -574,16 +574,21 @@ function autoResize(): void {
 
     &__attach-icon {
         @include button-reset;
+        @include focus-ring;
         width: 40px;
         height: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
         border-radius: $border-radius-full;
-        transition: background $transition-instant;
+        transition: background $transition-fast, opacity $transition-fast;
 
         &:hover {
             background: $bg-hover;
+        }
+
+        &:active {
+            opacity: 0.9;
         }
 
         &:disabled {
@@ -592,15 +597,15 @@ function autoResize(): void {
         }
 
         &--photo {
-            color: #45bd62;
+            color: $secondary-color;
         }
 
         &--video {
-            color: #f3425f;
+            color: $danger-color;
         }
 
         &--emoji {
-            color: #f7b928;
+            color: $warning-color;
         }
     }
 
@@ -638,7 +643,7 @@ function autoResize(): void {
             }
 
             &:active {
-                transform: scale(0.98);
+                opacity: 0.9;
                 background-color: darken($primary-color, 8%);
             }
         }

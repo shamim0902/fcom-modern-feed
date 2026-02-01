@@ -27,6 +27,8 @@ const expanded = ref(false);
 const isLiking = ref(false);
 const showMenu = ref(false);
 const isDeleting = ref(false);
+const menuWrapperRef = ref<HTMLElement | null>(null);
+const dropdownFlipped = ref(false);
 
 const contentIsLong = computed(() => {
     return props.feed.message_rendered.length > 500;
@@ -148,6 +150,17 @@ const hasSpaceContext = computed(() => {
 
 function toggleMenu(): void {
     showMenu.value = !showMenu.value;
+
+    // Check if dropdown would go off-screen and flip if needed
+    if (showMenu.value && menuWrapperRef.value) {
+        const rect = menuWrapperRef.value.getBoundingClientRect();
+        const dropdownHeight = 350; // Approximate max dropdown height
+        const viewportHeight = window.innerHeight;
+        const spaceBelow = viewportHeight - rect.bottom;
+
+        // If not enough space below, flip to show above
+        dropdownFlipped.value = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
+    }
 }
 
 function closeMenu(): void {
@@ -289,7 +302,7 @@ function handleEdit(): void {
                 </template>
             </div>
             <!-- Menu button with dropdown -->
-            <div class="fcom-mf-feed-item__menu-wrapper">
+            <div ref="menuWrapperRef" class="fcom-mf-feed-item__menu-wrapper">
                 <button class="fcom-mf-feed-item__menu-btn" @click="toggleMenu">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <circle cx="12" cy="5" r="2"></circle>
@@ -300,7 +313,7 @@ function handleEdit(): void {
 
                 <!-- Dropdown Menu -->
                 <Transition name="fcom-mf-dropdown">
-                    <div v-if="showMenu" class="fcom-mf-feed-item__menu-dropdown" @click.stop>
+                    <div v-if="showMenu" class="fcom-mf-feed-item__menu-dropdown" :class="{ 'fcom-mf-feed-item__menu-dropdown--flipped': dropdownFlipped }" @click.stop>
                         <!-- Backdrop to close menu -->
                         <div class="fcom-mf-feed-item__menu-backdrop" @click="closeMenu"></div>
 
@@ -570,6 +583,14 @@ function handleEdit(): void {
         right: 0;
         z-index: $z-dropdown;
         padding-top: $spacing-xs;
+
+        // Flipped state - show above when near bottom of viewport
+        &--flipped {
+            top: auto;
+            bottom: 100%;
+            padding-top: 0;
+            padding-bottom: $spacing-xs;
+        }
     }
 
     &__menu-backdrop {
@@ -592,6 +613,7 @@ function handleEdit(): void {
 
     &__menu-item {
         @include button-reset;
+        @include focus-ring;
         width: 100%;
         display: flex;
         align-items: center;
@@ -600,10 +622,14 @@ function handleEdit(): void {
         font-size: $font-size-sm;
         color: $text-primary;
         text-align: left;
-        transition: background-color $transition-instant;
+        transition: background-color $transition-fast, opacity $transition-fast;
 
         &:hover {
             background: $bg-hover;
+        }
+
+        &:active {
+            opacity: 0.9;
         }
 
         svg {

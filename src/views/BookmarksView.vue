@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '@/api/client';
-import type { Feed, BookmarksResponse } from '@/api/types';
+import type { Feed, FeedsResponse } from '@/api/types';
 import { useAuthStore } from '@/stores';
 import FeedItem from '@/components/feed/FeedItem.vue';
 
@@ -23,19 +23,19 @@ async function fetchBookmarks(page = 1, append = false): Promise<void> {
     }
 
     try {
-        const response = await api.get<BookmarksResponse>('feeds/bookmarks', {
+        const response = await api.get<FeedsResponse>('feeds/bookmarks', {
             page,
             per_page: 10,
         });
 
         if (append) {
-            bookmarks.value = [...bookmarks.value, ...response.bookmarks.data];
+            bookmarks.value = [...bookmarks.value, ...response.feeds.data];
         } else {
-            bookmarks.value = response.bookmarks.data;
+            bookmarks.value = response.feeds.data;
         }
 
-        hasMore.value = response.bookmarks.has_more;
-        currentPage.value = response.bookmarks.current_page;
+        hasMore.value = response.feeds.has_more;
+        currentPage.value = response.feeds.current_page;
     } catch (error) {
         console.error('Failed to fetch bookmarks:', error);
     } finally {

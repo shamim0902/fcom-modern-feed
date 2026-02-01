@@ -342,13 +342,4 @@ export interface LeaderboardResponse {
     period?: string;
 }
 
-// Bookmark types
-export interface BookmarksResponse {
-    bookmarks: {
-        data: Feed[];
-        current_page: number;
-        per_page: number;
-        has_more: boolean;
-        total?: number;
-    };
-}
+// Note: Bookmarks API returns FeedsResponse format (uses 'feeds' key, not 'bookmarks')

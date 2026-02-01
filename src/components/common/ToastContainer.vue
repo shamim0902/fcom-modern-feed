@@ -82,7 +82,7 @@ function getIcon(type: string): string {
 
     &--warning {
         background: $warning-color;
-        color: $text-primary;
+        color: $gray-900; // Dark text for better contrast on yellow
     }
 
     &--info {

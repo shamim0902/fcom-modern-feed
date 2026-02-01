@@ -217,6 +217,7 @@ onUnmounted(() => {
     &__btn {
         @include button-reset;
         @include hover-bg;
+        @include focus-ring;
         flex: 1;
         display: flex;
         align-items: center;
@@ -227,10 +228,14 @@ onUnmounted(() => {
         color: $text-secondary;
         font-size: $font-size-md;
         font-weight: $font-weight-semibold;
-        transition: all $transition-instant;
+        transition: background-color $transition-fast, color $transition-fast, opacity $transition-fast;
 
         &:hover {
             color: $text-primary;
+        }
+
+        &:active {
+            opacity: 0.9;
         }
 
         &--active {

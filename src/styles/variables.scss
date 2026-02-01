@@ -247,7 +247,7 @@ $breakpoint-xl: 1200px;
     font-size: $font-size-md;
     font-weight: $font-weight-semibold;
     color: $text-secondary;
-    transition: background-color $transition-instant;
+    transition: background-color $transition-fast, opacity $transition-fast;
 
     &:hover {
         background: $bg-hover;
@@ -255,5 +255,15 @@ $breakpoint-xl: 1200px;
 
     &:active {
         background: $bg-active;
+        opacity: 0.9;
+    }
+}
+
+// Button press state - subtle opacity instead of scale
+@mixin button-press {
+    transition: opacity $transition-fast, background-color $transition-fast;
+
+    &:active {
+        opacity: 0.9;
     }
 }

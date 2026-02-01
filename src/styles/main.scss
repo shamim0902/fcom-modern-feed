@@ -69,11 +69,12 @@
     border-radius: $border-radius-sm;
     font-size: $font-size-md;
     font-weight: $font-weight-semibold;
-    transition: background-color $transition-fast, transform $transition-instant, box-shadow $transition-fast;
+    transition: background-color $transition-fast, opacity $transition-fast, box-shadow $transition-fast;
     cursor: pointer;
     border: none;
     min-height: 36px;
     line-height: 1;
+    @include focus-ring;
 
     &--primary {
         background-color: $primary-color;
@@ -84,7 +85,7 @@
         }
 
         &:active:not(:disabled) {
-            transform: scale(0.98);
+            opacity: 0.9;
             background-color: darken($primary-color, 8%);
         }
 
@@ -105,7 +106,7 @@
         }
 
         &:active:not(:disabled) {
-            transform: scale(0.98);
+            opacity: 0.9;
         }
     }
 
@@ -115,6 +116,10 @@
 
         &:hover:not(:disabled) {
             background-color: $bg-hover;
+        }
+
+        &:active:not(:disabled) {
+            opacity: 0.9;
         }
     }
 
@@ -143,12 +148,18 @@
     border-radius: $border-radius-lg;
     font-size: $font-size-md;
     background-color: $gray-50;
-    transition: border-color $transition-fast, background-color $transition-fast;
+    transition: border-color $transition-fast, background-color $transition-fast, box-shadow $transition-fast;
 
     &:focus {
         outline: none;
         border-color: $primary-color;
         background-color: $white;
+        box-shadow: 0 0 0 2px rgba($primary-color, 0.2);
+    }
+
+    &:focus-visible {
+        outline: 2px solid $primary-color;
+        outline-offset: 1px;
     }
 
     &::placeholder {
@@ -160,6 +171,7 @@
     @extend .fcom-mf-input;
     resize: vertical;
     min-height: 100px;
+    font-size: $font-size-lg; // Larger font for better composition experience
 }
 
 // Divider
@@ -238,10 +250,21 @@
     }
 }
 
-// Scrollbar
+// Scrollbar - apply to all scrollable elements within the plugin
 .fcom-mf-scrollable {
     @include scrollbar;
     overflow-y: auto;
+}
+
+// Global scrollbar styling for the plugin container
+.fcom-modern-feed-container {
+    @include scrollbar;
+
+    // Apply to all nested scrollable elements
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: $gray-300 transparent;
+    }
 }
 
 // Responsive utilities

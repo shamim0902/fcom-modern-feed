@@ -27,7 +27,7 @@ async function fetchSpace(): Promise<void> {
     error.value = null;
 
     try {
-        const response = await api.get<{ space: SpaceFull }>(`spaces/${spaceSlug.value}`);
+        const response = await api.get<{ space: SpaceFull }>(`spaces/${spaceSlug.value}/by-slug`);
         space.value = response.space;
         await fetchFeeds();
     } catch (e) {
@@ -43,7 +43,7 @@ async function fetchFeeds(page = 1, append = false): Promise<void> {
     loadingFeeds.value = true;
     try {
         const response = await api.get<FeedsResponse>('feeds', {
-            space_id: space.value.id,
+            space: space.value.slug,
             page,
             per_page: 10,
         });
