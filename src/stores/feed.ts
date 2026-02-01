@@ -201,6 +201,160 @@ export const useFeedStore = defineStore('feed', () => {
         });
     }
 
+    async function toggleBookmark(feedId: number): Promise<void> {
+        const feed = feedsById.value[feedId];
+        if (!feed) return;
+
+        const wasBookmarked = feed.bookmarked;
+
+        // Optimistic update
+        feed.bookmarked = !wasBookmarked;
+
+        try {
+            // Use the react endpoint with bookmark type
+            // When removing: include remove param
+            // When adding: don't include remove param (or it may be misinterpreted)
+            const payload: { react_type: string; remove?: number } = {
+                react_type: 'bookmark',
+            };
+            if (wasBookmarked) {
+                payload.remove = 1;
+            }
+            await api.post(`feeds/${feedId}/react`, payload);
+        } catch (error) {
+            // Rollback on error
+            feed.bookmarked = wasBookmarked;
+            throw error;
+        }
+    }
+
+    async function togglePinToTop(feedId: number): Promise<{ feed: Feed }> {
+        const feed = feedsById.value[feedId];
+        if (!feed) throw new Error('Feed not found');
+
+        const wasSticky = feed.is_sticky;
+        const nowSticky = wasSticky === 1 ? 0 : 1;
+
+        // Optimistic update
+        feed.is_sticky = nowSticky;
+
+        try {
+            // Use PATCH endpoint with is_sticky parameter
+            const response = await api.patch<{ feed: Feed }>(`feeds/${feedId}`, {
+                is_sticky: nowSticky,
+            });
+            // Update with server response
+            feed.is_sticky = response.feed.is_sticky;
+
+            // Update context's stickyFeed and feeds list
+            // Find the context that contains this feed (by space_id)
+            const spaceSlug = feed.space?.slug;
+            if (spaceSlug) {
+                const contextKey = `space-${spaceSlug}`;
+                const context = contexts.value[contextKey];
+                if (context) {
+                    if (response.feed.is_sticky === 1) {
+                        // Pinning: Move previous sticky back to feeds, set this as sticky
+                        if (context.stickyFeed && context.stickyFeed.id !== feedId) {
+                            context.feeds = [context.stickyFeed, ...context.feeds];
+                        }
+                        context.stickyFeed = feed;
+                        context.feeds = context.feeds.filter(f => f.id !== feedId);
+                    } else {
+                        // Unpinning: Clear sticky and add back to feeds
+                        if (context.stickyFeed?.id === feedId) {
+                            context.stickyFeed = null;
+                            // Add back to top of feeds
+                            context.feeds = [feed, ...context.feeds.filter(f => f.id !== feedId)];
+                        }
+                    }
+                }
+            }
+
+            return response;
+        } catch (error) {
+            // Rollback on error
+            feed.is_sticky = wasSticky;
+            throw error;
+        }
+    }
+
+    async function togglePinToSidebar(feedId: number): Promise<{ feed: Feed }> {
+        const feed = feedsById.value[feedId];
+        if (!feed) throw new Error('Feed not found');
+
+        const wasPriority = feed.priority || 0;
+
+        // Optimistic update
+        feed.priority = wasPriority ? 0 : 1;
+
+        try {
+            // Use PATCH endpoint with priority parameter
+            const response = await api.patch<{ feed: Feed }>(`feeds/${feedId}`, {
+                priority: feed.priority,
+            });
+            // Update with server response
+            feed.priority = response.feed.priority;
+            return response;
+        } catch (error) {
+            // Rollback on error
+            feed.priority = wasPriority;
+            throw error;
+        }
+    }
+
+    async function removePreview(feedId: number): Promise<void> {
+        const feed = feedsById.value[feedId];
+        if (!feed) return;
+
+        const previousMeta = feed.meta;
+
+        // Optimistic update
+        if (feed.meta) {
+            feed.meta = { ...feed.meta, media_preview: undefined };
+        }
+
+        try {
+            // Use DELETE endpoint for media preview
+            await api.delete(`feeds/${feedId}/media-preview`);
+        } catch (error) {
+            // Rollback on error
+            feed.meta = previousMeta;
+            throw error;
+        }
+    }
+
+    async function toggleFeedComments(feedId: number): Promise<{ feed: Feed }> {
+        const feed = feedsById.value[feedId];
+        if (!feed) throw new Error('Feed not found');
+
+        const wasDisabled = feed.meta?.comments_disabled === 'yes';
+
+        // Optimistic update
+        if (!feed.meta) {
+            feed.meta = {};
+        }
+        feed.meta.comments_disabled = wasDisabled ? 'no' : 'yes';
+
+        try {
+            // Use PATCH endpoint with comments_disabled parameter
+            const response = await api.patch<{ feed: Feed }>(`feeds/${feedId}`, {
+                comments_disabled: wasDisabled ? 0 : 1,
+            });
+            // Update with server response
+            if (feed.meta) {
+                feed.meta.comments_disabled = response.feed.meta?.comments_disabled;
+            }
+            return response;
+        } catch (error) {
+            // Rollback on error
+            if (feed.meta) {
+                feed.meta.comments_disabled = wasDisabled ? 'yes' : 'no';
+            }
+            throw error;
+        }
+    }
+
     async function toggleReaction(feedId: number, reactionType: string = 'like'): Promise<void> {
         const feed = feedsById.value[feedId];
         if (!feed) return;
@@ -400,6 +554,11 @@ export const useFeedStore = defineStore('feed', () => {
         createFeed,
         updateFeed,
         deleteFeed,
+        toggleBookmark,
+        togglePinToTop,
+        togglePinToSidebar,
+        removePreview,
+        toggleFeedComments,
         toggleReaction,
         fetchComments,
         createComment,

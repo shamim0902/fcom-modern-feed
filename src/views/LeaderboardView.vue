@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '@/api/client';
-import type { LeaderboardEntry, LeaderboardResponse } from '@/api/types';
+import type { LeaderboardEntry, MembersResponse, Member } from '@/api/types';
 import { useAuthStore } from '@/stores';
 
 const router = useRouter();
@@ -16,6 +16,21 @@ const hasMore = ref(true);
 const currentPage = ref(1);
 const period = ref<'all' | 'month' | 'week'>('all');
 
+// Transform member to leaderboard entry
+function memberToLeaderboardEntry(member: Member, rank: number): LeaderboardEntry {
+    return {
+        rank,
+        user_id: member.user_id,
+        username: member.username,
+        display_name: member.display_name,
+        avatar: member.avatar,
+        total_points: member.total_points || 0,
+        is_verified: member.is_verified,
+        posts_count: member.posts_count,
+        comments_count: 0, // Not available in members response
+    };
+}
+
 async function fetchLeaderboard(page = 1, append = false): Promise<void> {
     if (page === 1) {
         loading.value = true;
@@ -24,21 +39,41 @@ async function fetchLeaderboard(page = 1, append = false): Promise<void> {
     }
 
     try {
-        const response = await api.get<LeaderboardResponse>('leaderboard', {
+        // Use members endpoint with total_points sorting
+        // FluentCommunity sorts ASC by default for non-last_activity, so we get all and sort client-side
+        const response = await api.get<MembersResponse>('members', {
             page,
-            per_page: 20,
-            period: period.value,
+            per_page: 50, // Get more to sort properly
+            sort_by: 'total_points',
         });
 
+        // Transform members to leaderboard entries
+        let members = response.members.data;
+
+        // Sort by total_points DESC (highest first) since the API sorts ASC
+        members = members.sort((a, b) => (b.total_points || 0) - (a.total_points || 0));
+
+        // Calculate rank offset based on page
+        const rankOffset = append ? leaderboard.value.length : 0;
+
+        const entries = members.map((member, index) =>
+            memberToLeaderboardEntry(member, rankOffset + index + 1)
+        );
+
         if (append) {
-            leaderboard.value = [...leaderboard.value, ...response.leaderboard.data];
+            leaderboard.value = [...leaderboard.value, ...entries];
         } else {
-            leaderboard.value = response.leaderboard.data;
+            leaderboard.value = entries;
+
+            // Find current user's rank
+            if (authStore.isLoggedIn && authStore.userId) {
+                const userEntry = entries.find(e => e.user_id === authStore.userId);
+                currentUserRank.value = userEntry || null;
+            }
         }
 
-        hasMore.value = response.leaderboard.has_more;
-        currentPage.value = response.leaderboard.current_page;
-        currentUserRank.value = response.current_user_rank || null;
+        hasMore.value = response.members.has_more;
+        currentPage.value = response.members.current_page;
     } catch (error) {
         console.error('Failed to fetch leaderboard:', error);
     } finally {
