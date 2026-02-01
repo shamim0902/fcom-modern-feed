@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useFeedStore, useAuthStore, useUiStore } from '@/stores';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useFeedStore, useAuthStore, useUiStore, useSpaceStore } from '@/stores';
 import { api } from '@/api/client';
-import type { MediaItem } from '@/api/types';
+import type { MediaItem, SpaceFull } from '@/api/types';
 
 const props = defineProps<{
-    space?: string;
+    spaceSlug?: string;
+    spaceId?: number;
 }>();
 
 const feedStore = useFeedStore();
 const authStore = useAuthStore();
 const uiStore = useUiStore();
+const spaceStore = useSpaceStore();
 
 const isExpanded = ref(false);
 const message = ref('');
@@ -18,15 +20,74 @@ const isSubmitting = ref(false);
 const mediaItems = ref<MediaItem[]>([]);
 const isUploading = ref(false);
 const uploadProgress = ref(0);
+const selectedSpaceId = ref<number | null>(props.spaceId || null);
+const showSpaceDropdown = ref(false);
 
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
+const spaceSelectorRef = ref<HTMLElement | null>(null);
+const createPostRef = ref<HTMLElement | null>(null);
+const justExpanded = ref(false);
+
+// Click outside handler for space dropdown and collapse
+function handleClickOutside(event: MouseEvent): void {
+    // Close space dropdown if clicking outside
+    if (spaceSelectorRef.value && !spaceSelectorRef.value.contains(event.target as Node)) {
+        showSpaceDropdown.value = false;
+    }
+
+    // Skip collapse check if we just expanded (prevents immediate collapse)
+    if (justExpanded.value) {
+        justExpanded.value = false;
+        return;
+    }
+
+    // Collapse if clicking outside the create post area (and form is empty)
+    if (isExpanded.value && createPostRef.value && !createPostRef.value.contains(event.target as Node)) {
+        collapse();
+    }
+}
+
+// Fetch user's spaces on mount
+onMounted(() => {
+    spaceStore.fetchMySpaces();
+    document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('click', handleClickOutside);
+});
+
+// If spaceId is provided, lock to that space
+watch(() => props.spaceId, (newId) => {
+    if (newId) {
+        selectedSpaceId.value = newId;
+    }
+});
 
 const canSubmit = computed(() => {
     return message.value.trim().length > 0 || mediaItems.value.length > 0;
 });
 
+const availableSpaces = computed(() => spaceStore.canPostSpaces);
+
+const selectedSpace = computed(() => {
+    if (!selectedSpaceId.value) return null;
+    return spaceStore.getSpaceById(selectedSpaceId.value) || null;
+});
+
+const showSpaceSelector = computed(() => {
+    // Show selector if no fixed space and user has multiple spaces
+    return !props.spaceId && availableSpaces.value.length > 0;
+});
+
+function selectSpace(space: SpaceFull | null): void {
+    selectedSpaceId.value = space?.id || null;
+    showSpaceDropdown.value = false;
+}
+
 function expand(): void {
+    justExpanded.value = true;
     isExpanded.value = true;
     setTimeout(() => {
         textareaRef.value?.focus();
@@ -36,6 +97,7 @@ function expand(): void {
 function collapse(): void {
     if (!message.value.trim() && mediaItems.value.length === 0) {
         isExpanded.value = false;
+        showSpaceDropdown.value = false;
     }
 }
 
@@ -46,7 +108,7 @@ async function handleSubmit(): Promise<void> {
     try {
         await feedStore.createFeed({
             message: message.value,
-            space_id: props.space ? undefined : undefined, // Would need space ID lookup
+            space: selectedSpace.value?.slug || undefined,
             media_items: mediaItems.value.length > 0 ? mediaItems.value : undefined,
         });
 
@@ -54,6 +116,10 @@ async function handleSubmit(): Promise<void> {
         message.value = '';
         mediaItems.value = [];
         isExpanded.value = false;
+        // Keep selected space if posting to a specific space view
+        if (!props.spaceId) {
+            selectedSpaceId.value = null;
+        }
 
         uiStore.showSuccess('Post created successfully!');
     } catch (error) {
@@ -117,7 +183,7 @@ function autoResize(): void {
 </script>
 
 <template>
-    <div class="fcom-mf-create-post fcom-mf-card">
+    <div ref="createPostRef" class="fcom-mf-create-post fcom-mf-card">
         <!-- Collapsed State -->
         <div v-if="!isExpanded" class="fcom-mf-create-post__collapsed" @click="expand">
             <img
@@ -140,7 +206,61 @@ function autoResize(): void {
                 />
                 <div class="fcom-mf-create-post__author">
                     <span class="fcom-mf-create-post__name">{{ authStore.userName }}</span>
-                    <span class="fcom-mf-create-post__visibility">🌐 Public</span>
+                    <!-- Space Selector -->
+                    <div v-if="showSpaceSelector" ref="spaceSelectorRef" class="fcom-mf-create-post__space-selector">
+                        <button
+                            class="fcom-mf-create-post__space-btn"
+                            @click.stop="showSpaceDropdown = !showSpaceDropdown"
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+                            </svg>
+                            <span>{{ selectedSpace?.title || 'Select a space' }}</span>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        <!-- Dropdown -->
+                        <div v-if="showSpaceDropdown" class="fcom-mf-create-post__space-dropdown">
+                            <button
+                                class="fcom-mf-create-post__space-option"
+                                :class="{ 'fcom-mf-create-post__space-option--selected': !selectedSpaceId }"
+                                @click="selectSpace(null)"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+                                </svg>
+                                <span>Public Feed</span>
+                            </button>
+                            <div class="fcom-mf-create-post__space-divider"></div>
+                            <button
+                                v-for="space in availableSpaces"
+                                :key="space.id"
+                                class="fcom-mf-create-post__space-option"
+                                :class="{ 'fcom-mf-create-post__space-option--selected': selectedSpaceId === space.id }"
+                                @click="selectSpace(space)"
+                            >
+                                <img
+                                    v-if="space.logo"
+                                    :src="space.logo"
+                                    :alt="space.title"
+                                    class="fcom-mf-create-post__space-logo"
+                                />
+                                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <rect x="3" y="3" width="7" height="7" rx="1"/>
+                                    <rect x="14" y="3" width="7" height="7" rx="1"/>
+                                    <rect x="3" y="14" width="7" height="7" rx="1"/>
+                                    <rect x="14" y="14" width="7" height="7" rx="1"/>
+                                </svg>
+                                <span>{{ space.title }}</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Fixed space indicator -->
+                    <span v-else-if="selectedSpace" class="fcom-mf-create-post__visibility">
+                        📍 {{ selectedSpace.title }}
+                    </span>
+                    <span v-else class="fcom-mf-create-post__visibility">🌐 Public</span>
                 </div>
             </div>
 
@@ -150,7 +270,6 @@ function autoResize(): void {
                 :placeholder="uiStore.t('createPost')"
                 class="fcom-mf-create-post__textarea"
                 rows="3"
-                @blur="collapse"
                 @input="autoResize"
             ></textarea>
 
@@ -230,6 +349,8 @@ function autoResize(): void {
 </template>
 
 <style lang="scss" scoped>
+@import "@/styles/variables.scss";
+
 .fcom-mf-create-post {
     margin-bottom: $spacing-lg;
 
@@ -381,6 +502,92 @@ function autoResize(): void {
             opacity: 0.5;
             cursor: not-allowed;
         }
+    }
+
+    // Space selector
+    &__space-selector {
+        position: relative;
+    }
+
+    &__space-btn {
+        @include button-reset;
+        display: flex;
+        align-items: center;
+        gap: $spacing-xs;
+        padding: $spacing-xs $spacing-sm;
+        border-radius: $border-radius-sm;
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        background: $gray-50;
+        transition: background $transition-fast;
+
+        &:hover {
+            background: $gray-100;
+        }
+
+        svg:first-child {
+            color: $primary-color;
+        }
+    }
+
+    &__space-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        min-width: 200px;
+        max-width: 280px;
+        background: $white;
+        border-radius: $border-radius-md;
+        box-shadow: $shadow-lg;
+        z-index: $z-dropdown;
+        padding: $spacing-xs 0;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    &__space-option {
+        @include button-reset;
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        width: 100%;
+        padding: $spacing-sm $spacing-md;
+        font-size: $font-size-sm;
+        color: $text-primary;
+        text-align: left;
+        transition: background $transition-fast;
+
+        &:hover {
+            background: $gray-50;
+        }
+
+        &--selected {
+            background: rgba($primary-color, 0.1);
+            color: $primary-color;
+        }
+
+        svg {
+            flex-shrink: 0;
+            color: $text-tertiary;
+        }
+
+        span {
+            @include truncate;
+        }
+    }
+
+    &__space-logo {
+        width: 20px;
+        height: 20px;
+        border-radius: $border-radius-sm;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    &__space-divider {
+        height: 1px;
+        background: $border-color;
+        margin: $spacing-xs 0;
     }
 }
 </style>

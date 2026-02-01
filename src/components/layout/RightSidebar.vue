@@ -1,45 +1,59 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores';
+import { api } from '@/api/client';
+import type { Member, MembersResponse } from '@/api/types';
 
+const router = useRouter();
 const authStore = useAuthStore();
 
-// Mock data for suggestions - in real app, this would come from API
-const suggestedMembers = ref([
-    { id: 1, name: 'John Doe', username: 'johndoe', avatar: 'https://i.pravatar.cc/150?u=1', role: 'Community Admin', isOnline: true, mutualFriends: 5 },
-    { id: 2, name: 'Jane Smith', username: 'janesmith', avatar: 'https://i.pravatar.cc/150?u=2', role: 'Moderator', isOnline: true, mutualFriends: 3 },
-    { id: 3, name: 'Mike Johnson', username: 'mikej', avatar: 'https://i.pravatar.cc/150?u=3', role: 'Member', isOnline: false, mutualFriends: 8 },
-]);
-
-const trendingTopics = ref([
-    { slug: 'announcements', title: 'Announcements', posts: 24, isHot: true },
-    { slug: 'tutorials', title: 'Tutorials', posts: 18, isHot: false },
-    { slug: 'showcase', title: 'Showcase', posts: 15, isHot: true },
-    { slug: 'questions', title: 'Questions', posts: 12, isHot: false },
-]);
-
-const upcomingEvents = ref([
-    { title: 'Community Meetup', date: 'Feb 15, 2025', time: '3:00 PM', attendees: 45, color: '#6366f1' },
-    { title: 'AMA Session', date: 'Feb 20, 2025', time: '2:00 PM', attendees: 28, color: '#22c55e' },
-]);
+const suggestedMembers = ref<Member[]>([]);
+const loadingMembers = ref(false);
 
 const communityStats = ref({
-    members: 12543,
-    posts: 45231,
-    online: 234,
+    members: 0,
+    posts: 0,
+    online: 0,
 });
 
 const followingState = ref<Record<number, boolean>>({});
 
-function toggleFollow(memberId: number): void {
-    followingState.value[memberId] = !followingState.value[memberId];
+async function fetchSuggestedMembers(): Promise<void> {
+    loadingMembers.value = true;
+    try {
+        const response = await api.get<MembersResponse>('members', {
+            per_page: 3,
+            sort_by: 'last_activity',
+            suggested: true,
+        });
+        suggestedMembers.value = response.members?.data || [];
+        communityStats.value.members = response.members.total || suggestedMembers.value.length;
+    } catch (error) {
+        console.error('Failed to fetch members:', error);
+    } finally {
+        loadingMembers.value = false;
+    }
 }
 
-function isFollowing(memberId: number): boolean {
-    return followingState.value[memberId] || false;
+async function toggleFollow(member: Member): Promise<void> {
+    if (!authStore.isLoggedIn) return;
+
+    try {
+        await api.post(`profile/${member.username}/follow`);
+        member.is_following = !member.is_following;
+        followingState.value[member.id] = member.is_following;
+    } catch (error) {
+        console.error('Failed to toggle follow:', error);
+    }
 }
 
-function formatNumber(num: number): string {
+function isFollowing(member: Member): boolean {
+    return followingState.value[member.id] ?? member.is_following ?? false;
+}
+
+function formatNumber(num: number | undefined | null): string {
+    if (num == null) return '0';
     if (num >= 1000000) {
         return (num / 1000000).toFixed(1) + 'M';
     }
@@ -48,6 +62,26 @@ function formatNumber(num: number): string {
     }
     return num.toString();
 }
+
+function navigateToProfile(username: string): void {
+    router.push({ name: 'profile', params: { username } });
+}
+
+function navigateToMembers(): void {
+    router.push({ name: 'members' });
+}
+
+function navigateToSpaces(): void {
+    router.push({ name: 'spaces' });
+}
+
+function navigateToLeaderboard(): void {
+    router.push({ name: 'leaderboard' });
+}
+
+onMounted(() => {
+    fetchSuggestedMembers();
+});
 </script>
 
 <template>
@@ -83,120 +117,64 @@ function formatNumber(num: number): string {
         <div v-if="authStore.isLoggedIn" class="fcom-mf-sidebar-card">
             <div class="fcom-mf-sidebar-card__header">
                 <h3>People You May Know</h3>
-                <a href="/portal/members">See All</a>
+                <button @click="navigateToMembers" class="fcom-mf-sidebar-card__link">See All</button>
             </div>
 
-            <div class="fcom-mf-members-list">
+            <div v-if="loadingMembers" class="fcom-mf-members-loading">
+                <div v-for="i in 3" :key="i" class="fcom-mf-member-skeleton">
+                    <div class="fcom-mf-member-skeleton__avatar"></div>
+                    <div class="fcom-mf-member-skeleton__info">
+                        <div class="fcom-mf-member-skeleton__name"></div>
+                        <div class="fcom-mf-member-skeleton__meta"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-else class="fcom-mf-members-list">
                 <div
                     v-for="member in suggestedMembers"
                     :key="member.id"
                     class="fcom-mf-member-item"
                 >
-                    <a :href="`/portal/profile/${member.username}`" class="fcom-mf-member-item__avatar">
-                        <img :src="member.avatar" :alt="member.name" />
-                        <span v-if="member.isOnline" class="fcom-mf-member-item__online"></span>
-                    </a>
+                    <button class="fcom-mf-member-item__avatar" @click="navigateToProfile(member.username)">
+                        <img :src="member.avatar" :alt="member.display_name" />
+                        <span v-if="member.is_online" class="fcom-mf-member-item__online"></span>
+                    </button>
                     <div class="fcom-mf-member-item__info">
-                        <a :href="`/portal/profile/${member.username}`" class="fcom-mf-member-item__name">
-                            {{ member.name }}
-                        </a>
-                        <span class="fcom-mf-member-item__meta">{{ member.mutualFriends }} mutual connections</span>
+                        <button class="fcom-mf-member-item__name" @click="navigateToProfile(member.username)">
+                            {{ member.display_name }}
+                        </button>
+                        <span class="fcom-mf-member-item__meta">{{ member.followers_count || 0 }} followers</span>
                     </div>
                     <button
                         class="fcom-mf-member-item__btn"
-                        :class="{ 'fcom-mf-member-item__btn--following': isFollowing(member.id) }"
-                        @click="toggleFollow(member.id)"
+                        :class="{ 'fcom-mf-member-item__btn--following': isFollowing(member) }"
+                        @click="toggleFollow(member)"
                     >
-                        {{ isFollowing(member.id) ? 'Following' : 'Follow' }}
+                        {{ isFollowing(member) ? 'Following' : 'Follow' }}
                     </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Trending Topics -->
-        <div class="fcom-mf-sidebar-card">
-            <div class="fcom-mf-sidebar-card__header">
-                <h3>Trending Now</h3>
-            </div>
-
-            <div class="fcom-mf-topics-list">
-                <a
-                    v-for="(topic, index) in trendingTopics"
-                    :key="topic.slug"
-                    :href="`?topic=${topic.slug}`"
-                    class="fcom-mf-topic-item"
-                >
-                    <div class="fcom-mf-topic-item__rank">{{ index + 1 }}</div>
-                    <div class="fcom-mf-topic-item__content">
-                        <span class="fcom-mf-topic-item__name">
-                            #{{ topic.title }}
-                            <span v-if="topic.isHot" class="fcom-mf-topic-item__hot">HOT</span>
-                        </span>
-                        <span class="fcom-mf-topic-item__count">{{ topic.posts }} posts today</span>
-                    </div>
-                    <svg class="fcom-mf-topic-item__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="9 18 15 12 9 6"/>
-                    </svg>
-                </a>
-            </div>
-        </div>
-
-        <!-- Upcoming Events -->
-        <div class="fcom-mf-sidebar-card">
-            <div class="fcom-mf-sidebar-card__header">
-                <h3>Upcoming Events</h3>
-                <a href="/portal/events">See All</a>
-            </div>
-
-            <div class="fcom-mf-events-list">
-                <div
-                    v-for="(event, index) in upcomingEvents"
-                    :key="index"
-                    class="fcom-mf-event-item"
-                >
-                    <div class="fcom-mf-event-item__date" :style="{ background: event.color }">
-                        <span class="fcom-mf-event-item__day">{{ event.date.split(' ')[1].replace(',', '') }}</span>
-                        <span class="fcom-mf-event-item__month">{{ event.date.split(' ')[0] }}</span>
-                    </div>
-                    <div class="fcom-mf-event-item__info">
-                        <span class="fcom-mf-event-item__title">{{ event.title }}</span>
-                        <span class="fcom-mf-event-item__meta">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"/>
-                                <polyline points="12 6 12 12 16 14"/>
-                            </svg>
-                            {{ event.time }}
-                            <span class="fcom-mf-event-item__sep">·</span>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                                <circle cx="9" cy="7" r="4"/>
-                            </svg>
-                            {{ event.attendees }} attending
-                        </span>
-                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Quick Actions -->
         <div class="fcom-mf-quick-actions">
-            <a href="/portal/create-space" class="fcom-mf-quick-action">
+            <button class="fcom-mf-quick-action" @click="navigateToSpaces">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" y1="8" x2="12" y2="16"/>
-                    <line x1="8" y1="12" x2="16" y2="12"/>
+                    <rect x="3" y="3" width="7" height="7" rx="1"/>
+                    <rect x="14" y="3" width="7" height="7" rx="1"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1"/>
                 </svg>
-                Create Space
-            </a>
-            <a href="/portal/invite" class="fcom-mf-quick-action">
+                Explore Spaces
+            </button>
+            <button class="fcom-mf-quick-action" @click="navigateToLeaderboard">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="8.5" cy="7" r="4"/>
-                    <line x1="20" y1="8" x2="20" y2="14"/>
-                    <line x1="23" y1="11" x2="17" y2="11"/>
+                    <circle cx="12" cy="8" r="7"/>
+                    <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
                 </svg>
-                Invite Friends
-            </a>
+                Leaderboard
+            </button>
         </div>
 
         <!-- Footer Links -->
@@ -291,17 +269,66 @@ function formatNumber(num: number): string {
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+    }
 
-        a {
-            font-size: $font-size-sm;
-            color: $primary-color;
-            text-decoration: none;
-            font-weight: $font-weight-medium;
+    &__link {
+        font-size: $font-size-sm;
+        color: $primary-color;
+        text-decoration: none;
+        font-weight: $font-weight-medium;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
 
-            &:hover {
-                text-decoration: underline;
-            }
+        &:hover {
+            text-decoration: underline;
         }
+    }
+}
+
+// Members Loading
+.fcom-mf-members-loading {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-md;
+}
+
+.fcom-mf-member-skeleton {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+
+    &__avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: $border-radius-full;
+        background: linear-gradient(90deg, $gray-100 25%, $gray-200 50%, $gray-100 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+    }
+
+    &__info {
+        flex: 1;
+    }
+
+    &__name {
+        height: 14px;
+        width: 70%;
+        border-radius: $border-radius-sm;
+        background: linear-gradient(90deg, $gray-100 25%, $gray-200 50%, $gray-100 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        margin-bottom: $spacing-xs;
+    }
+
+    &__meta {
+        height: 10px;
+        width: 50%;
+        border-radius: $border-radius-sm;
+        background: linear-gradient(90deg, $gray-100 25%, $gray-200 50%, $gray-100 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
     }
 }
 
@@ -320,6 +347,10 @@ function formatNumber(num: number): string {
     &__avatar {
         position: relative;
         flex-shrink: 0;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
 
         img {
             width: 44px;
@@ -352,6 +383,12 @@ function formatNumber(num: number): string {
         color: $text-primary;
         text-decoration: none;
         @include truncate;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        text-align: left;
+        width: 100%;
 
         &:hover {
             color: $primary-color;
@@ -390,149 +427,6 @@ function formatNumber(num: number): string {
     }
 }
 
-// Topics List
-.fcom-mf-topics-list {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.fcom-mf-topic-item {
-    display: flex;
-    align-items: center;
-    gap: $spacing-sm;
-    padding: $spacing-sm;
-    border-radius: $border-radius-md;
-    text-decoration: none;
-    transition: background-color $transition-fast;
-
-    &:hover {
-        background: $gray-50;
-
-        .fcom-mf-topic-item__arrow {
-            opacity: 1;
-            transform: translateX(2px);
-        }
-    }
-
-    &__rank {
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: $font-size-sm;
-        font-weight: $font-weight-bold;
-        color: $text-tertiary;
-        background: $gray-100;
-        border-radius: $border-radius-sm;
-    }
-
-    &__content {
-        flex: 1;
-        min-width: 0;
-    }
-
-    &__name {
-        display: flex;
-        align-items: center;
-        gap: $spacing-xs;
-        font-size: $font-size-sm;
-        font-weight: $font-weight-semibold;
-        color: $text-primary;
-    }
-
-    &__hot {
-        padding: 1px 6px;
-        background: $error-color;
-        color: $white;
-        font-size: 9px;
-        font-weight: $font-weight-bold;
-        border-radius: $border-radius-sm;
-        text-transform: uppercase;
-    }
-
-    &__count {
-        display: block;
-        font-size: $font-size-xs;
-        color: $text-tertiary;
-        margin-top: 1px;
-    }
-
-    &__arrow {
-        color: $text-tertiary;
-        opacity: 0;
-        transition: all $transition-fast;
-    }
-}
-
-// Events List
-.fcom-mf-events-list {
-    display: flex;
-    flex-direction: column;
-    gap: $spacing-md;
-}
-
-.fcom-mf-event-item {
-    display: flex;
-    align-items: center;
-    gap: $spacing-md;
-
-    &__date {
-        width: 50px;
-        height: 50px;
-        border-radius: $border-radius-md;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        color: $white;
-        flex-shrink: 0;
-    }
-
-    &__day {
-        font-size: $font-size-lg;
-        font-weight: $font-weight-bold;
-        line-height: 1;
-    }
-
-    &__month {
-        font-size: $font-size-xs;
-        text-transform: uppercase;
-        opacity: 0.9;
-    }
-
-    &__info {
-        flex: 1;
-        min-width: 0;
-    }
-
-    &__title {
-        display: block;
-        font-size: $font-size-sm;
-        font-weight: $font-weight-semibold;
-        color: $text-primary;
-        @include truncate;
-    }
-
-    &__meta {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        font-size: $font-size-xs;
-        color: $text-tertiary;
-        margin-top: 2px;
-
-        svg {
-            flex-shrink: 0;
-        }
-    }
-
-    &__sep {
-        margin: 0 2px;
-    }
-}
-
 // Quick Actions
 .fcom-mf-quick-actions {
     display: flex;
@@ -553,6 +447,10 @@ function formatNumber(num: number): string {
     text-decoration: none;
     box-shadow: $shadow-sm;
     transition: all $transition-fast;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
 
     &:hover {
         background: $gray-50;
@@ -590,5 +488,10 @@ function formatNumber(num: number): string {
     &__copyright {
         margin-top: $spacing-sm;
     }
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
 </style>

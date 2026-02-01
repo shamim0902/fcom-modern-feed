@@ -19,15 +19,16 @@ const uiStore = useUiStore();
 
 const isLoading = ref(false);
 const isSubmitting = ref(false);
-const localComments = ref<Comment[]>([]);
+
+// Get feed from store to have reactive comments
+const feed = computed(() => feedStore.getFeedById(props.feedId));
 
 // Fetch comments if showAll is true and we don't have them yet
 async function fetchCommentsIfNeeded(): Promise<void> {
-    if (props.showAll && (!props.comments || props.comments.length === 0)) {
+    if (props.showAll && (!feed.value?.comments || feed.value.comments.length === 0)) {
         isLoading.value = true;
         try {
-            const comments = await feedStore.fetchComments(props.feedId);
-            localComments.value = comments;
+            await feedStore.fetchComments(props.feedId);
         } catch (error) {
             console.error('Failed to fetch comments:', error);
         } finally {
@@ -46,12 +47,13 @@ watch(() => props.feedId, () => {
 });
 
 const allComments = computed(() => {
-    // Use local comments if we fetched them, otherwise use props
-    const commentsSource = localComments.value.length > 0 ? localComments.value : (props.comments || []);
+    // Use comments from store (reactive) or props as fallback
+    const commentsSource = feed.value?.comments || props.comments || [];
     const comments = [...commentsSource];
     // Add sticky comment at the top if exists and not already in list
-    if (props.stickyComment && !comments.find(c => c.id === props.stickyComment!.id)) {
-        comments.unshift(props.stickyComment);
+    const sticky = feed.value?.sticky_comment || props.stickyComment;
+    if (sticky && !comments.find(c => c.id === sticky.id)) {
+        comments.unshift(sticky);
     }
     return comments;
 });
@@ -62,7 +64,7 @@ async function handleSubmit(message: string): Promise<void> {
 
     isSubmitting.value = true;
     try {
-        await feedStore.createComment(props.feedId, { message });
+        await feedStore.createComment(props.feedId, { comment: message });
     } catch (error) {
         uiStore.showError(uiStore.t('errorOccurred'));
     } finally {
@@ -75,7 +77,7 @@ async function handleReply(parentId: number, message: string): Promise<void> {
     if (!message.trim()) return;
 
     try {
-        await feedStore.createComment(props.feedId, { message, parent_id: parentId });
+        await feedStore.createComment(props.feedId, { comment: message, parent_id: parentId });
     } catch (error) {
         uiStore.showError(uiStore.t('errorOccurred'));
     }
@@ -140,6 +142,8 @@ async function handleReaction(commentId: number): Promise<void> {
 </template>
 
 <style lang="scss" scoped>
+@import "@/styles/variables.scss";
+
 .fcom-mf-comments {
     padding: 0 $spacing-lg $spacing-lg;
 

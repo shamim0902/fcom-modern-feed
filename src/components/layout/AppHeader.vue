@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores';
 
+const router = useRouter();
 const authStore = useAuthStore();
 
 const searchQuery = ref('');
 const showUserMenu = ref(false);
-const showMobileMenu = ref(false);
 
 const loginUrl = computed(() => window.fcomModernFeed?.loginUrl || '/wp-login.php');
 const logoutUrl = computed(() => loginUrl.value + '?action=logout');
 
 function handleSearch(): void {
     if (searchQuery.value.trim()) {
-        // Emit search event or handle search
         console.log('Search:', searchQuery.value);
     }
 }
@@ -23,182 +23,172 @@ function toggleUserMenu(): void {
 }
 
 function closeUserMenu(): void {
+    setTimeout(() => {
+        showUserMenu.value = false;
+    }, 150);
+}
+
+function navigateTo(route: string): void {
     showUserMenu.value = false;
+    router.push(route);
+}
+
+function goToProfile(): void {
+    const username = authStore.currentUser?.name;
+    if (username) {
+        navigateTo(`/u/${username}`);
+    }
 }
 </script>
 
 <template>
-    <header class="fcom-mf-header">
-        <div class="fcom-mf-header__container">
-            <!-- Logo / Brand -->
-            <div class="fcom-mf-header__brand">
-                <a href="/portal" class="fcom-mf-header__logo">
-                    <svg width="40" height="40" viewBox="0 0 50 50" fill="currentColor">
-                        <circle cx="25" cy="25" r="23" stroke="currentColor" stroke-width="2" fill="none"/>
-                        <path d="M15 20h20M15 25h20M15 30h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                </a>
+    <header class="header">
+        <div class="header__inner">
+            <!-- Logo -->
+            <button class="header__logo" @click="navigateTo('/')">
+                <svg width="28" height="28" viewBox="0 0 50 50" fill="currentColor">
+                    <circle cx="25" cy="25" r="23" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <path d="M15 20h20M15 25h20M15 30h12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+            </button>
 
-                <!-- Search Bar -->
-                <div class="fcom-mf-header__search">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <path d="m21 21-4.35-4.35"></path>
-                    </svg>
-                    <input
-                        v-model="searchQuery"
-                        type="text"
-                        placeholder="Search posts..."
-                        class="fcom-mf-header__search-input"
-                        @keyup.enter="handleSearch"
-                    />
-                </div>
+            <!-- Search -->
+            <div class="header__search">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="11" cy="11" r="7"/>
+                    <path d="m21 21-4-4"/>
+                </svg>
+                <input
+                    v-model="searchQuery"
+                    type="text"
+                    placeholder="Search..."
+                    @keyup.enter="handleSearch"
+                />
             </div>
 
-            <!-- Navigation -->
-            <nav class="fcom-mf-header__nav">
-                <a href="/portal" class="fcom-mf-header__nav-item fcom-mf-header__nav-item--active" title="Home">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <!-- Nav -->
+            <nav class="header__nav">
+                <button
+                    class="header__nav-btn header__nav-btn--active"
+                    title="Home"
+                    @click="navigateTo('/')"
+                >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
                     </svg>
-                </a>
-                <a href="/portal/members" class="fcom-mf-header__nav-item" title="Members">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </button>
+                <button class="header__nav-btn" title="Members" @click="navigateTo('/members')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                     </svg>
-                </a>
-                <a href="/portal/spaces" class="fcom-mf-header__nav-item" title="Spaces">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </button>
+                <button class="header__nav-btn" title="Spaces" @click="navigateTo('/spaces')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 3h8v8H3V3zm0 10h8v8H3v-8zm10-10h8v8h-8V3zm0 10h8v8h-8v-8z"/>
                     </svg>
-                </a>
-                <a href="/portal/notifications" class="fcom-mf-header__nav-item" title="Notifications">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </button>
+                <button class="header__nav-btn" title="Notifications" @click="navigateTo('/notifications')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
                     </svg>
-                </a>
+                </button>
             </nav>
 
-            <!-- User Actions -->
-            <div class="fcom-mf-header__actions">
+            <!-- User -->
+            <div class="header__user">
                 <template v-if="authStore.isLoggedIn">
                     <button
-                        class="fcom-mf-header__user-btn"
+                        class="header__avatar-btn"
                         @click="toggleUserMenu"
                         @blur="closeUserMenu"
                     >
                         <img
                             :src="authStore.userAvatar"
                             :alt="authStore.userName || ''"
-                            class="fcom-mf-header__user-avatar"
                         />
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M7 10l5 5 5-5z"/>
-                        </svg>
                     </button>
 
-                    <!-- User Dropdown -->
-                    <Transition name="dropdown">
-                        <div v-if="showUserMenu" class="fcom-mf-header__dropdown">
-                            <a :href="`/portal/profile/${authStore.currentUser?.name}`" class="fcom-mf-header__dropdown-item">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                    <circle cx="12" cy="7" r="4"></circle>
+                    <Transition name="fade">
+                        <div v-if="showUserMenu" class="header__menu">
+                            <button class="header__menu-item" @mousedown="goToProfile">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                                 </svg>
-                                My Profile
-                            </a>
-                            <a href="/portal/settings" class="fcom-mf-header__dropdown-item">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                                Profile
+                            </button>
+                            <button class="header__menu-item" @mousedown="navigateTo('/bookmarks')">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>
                                 </svg>
-                                Settings
-                            </a>
-                            <div class="fcom-mf-header__dropdown-divider"></div>
-                            <a :href="logoutUrl" class="fcom-mf-header__dropdown-item">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                                    <polyline points="16 17 21 12 16 7"></polyline>
-                                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                                Saved
+                            </button>
+                            <div class="header__menu-divider"></div>
+                            <a :href="logoutUrl" class="header__menu-item">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
                                 </svg>
-                                Log Out
+                                Log out
                             </a>
                         </div>
                     </Transition>
                 </template>
-
-                <template v-else>
-                    <a :href="loginUrl" class="fcom-mf-btn fcom-mf-btn--primary">
-                        Log In
-                    </a>
-                </template>
-
-                <!-- Mobile Menu Toggle -->
-                <button class="fcom-mf-header__mobile-toggle" @click="showMobileMenu = !showMobileMenu">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
-                </button>
+                <a v-else :href="loginUrl" class="header__login-btn">Log in</a>
             </div>
         </div>
     </header>
 </template>
 
 <style lang="scss" scoped>
-.fcom-mf-header {
+@import "@/styles/variables.scss";
+
+.header {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: 60px;
+    height: 52px;
     background: $white;
     border-bottom: 1px solid $border-color;
     z-index: $z-sticky;
 
-    &__container {
+    &__inner {
         display: flex;
         align-items: center;
-        justify-content: space-between;
         height: 100%;
-        max-width: 1400px;
+        max-width: 1200px;
         margin: 0 auto;
-        padding: 0 $spacing-lg;
-    }
-
-    &__brand {
-        display: flex;
-        align-items: center;
+        padding: 0 $spacing-md;
         gap: $spacing-md;
     }
 
     &__logo {
         display: flex;
         align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
         color: $primary-color;
-        text-decoration: none;
+        background: none;
+        border: none;
+        cursor: pointer;
+        border-radius: $border-radius-sm;
+        transition: opacity $transition-fast;
+        flex-shrink: 0;
 
         &:hover {
-            opacity: 0.9;
+            opacity: 0.8;
         }
     }
 
     &__search {
         display: flex;
         align-items: center;
-        gap: $spacing-sm;
+        gap: 8px;
         background: $gray-50;
-        border-radius: $border-radius-lg;
-        padding: $spacing-sm $spacing-md;
-        width: 240px;
+        border-radius: 20px;
+        padding: 6px 12px;
+        flex: 1;
+        max-width: 220px;
 
         @media (max-width: $breakpoint-md) {
             display: none;
@@ -208,167 +198,159 @@ function closeUserMenu(): void {
             color: $text-tertiary;
             flex-shrink: 0;
         }
-    }
 
-    &__search-input {
-        border: none;
-        background: transparent;
-        font-size: $font-size-md;
-        width: 100%;
-        outline: none;
+        input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: $font-size-sm;
+            font-family: inherit;
+            color: $text-primary;
+            min-width: 0;
 
-        &::placeholder {
-            color: $text-tertiary;
+            &::placeholder {
+                color: $text-tertiary;
+            }
+
+            &:focus {
+                outline: none;
+            }
         }
     }
 
     &__nav {
         display: flex;
         align-items: center;
-        gap: $spacing-xs;
+        gap: 4px;
+        margin-left: auto;
 
-        @media (max-width: $breakpoint-md) {
+        @media (max-width: $breakpoint-sm) {
             display: none;
         }
     }
 
-    &__nav-item {
+    &__nav-btn {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 50px;
-        height: 50px;
-        border-radius: $border-radius-md;
-        color: $text-secondary;
-        text-decoration: none;
+        width: 40px;
+        height: 40px;
+        border-radius: $border-radius-sm;
+        color: $text-tertiary;
+        background: none;
+        border: none;
+        cursor: pointer;
         transition: all $transition-fast;
 
         &:hover {
             background: $gray-50;
-            color: $primary-color;
+            color: $text-secondary;
         }
 
         &--active {
             color: $primary-color;
-            position: relative;
-
-            &::after {
-                content: '';
-                position: absolute;
-                bottom: 0;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 70%;
-                height: 3px;
-                background: $primary-color;
-                border-radius: 3px 3px 0 0;
-            }
         }
     }
 
-    &__actions {
-        display: flex;
-        align-items: center;
-        gap: $spacing-sm;
+    &__user {
         position: relative;
+        margin-left: $spacing-sm;
     }
 
-    &__user-btn {
+    &__avatar-btn {
         display: flex;
         align-items: center;
-        gap: $spacing-xs;
-        padding: $spacing-xs;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
         border: none;
-        background: $gray-50;
-        border-radius: $border-radius-lg;
+        background: none;
         cursor: pointer;
-        transition: background-color $transition-fast;
+        border-radius: 50%;
+        overflow: hidden;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
 
         &:hover {
-            background: $gray-100;
-        }
-
-        svg {
-            color: $text-secondary;
+            opacity: 0.9;
         }
     }
 
-    &__user-avatar {
-        width: 36px;
-        height: 36px;
-        border-radius: $border-radius-full;
-        object-fit: cover;
-    }
-
-    &__dropdown {
+    &__menu {
         position: absolute;
-        top: 100%;
+        top: calc(100% + 8px);
         right: 0;
-        margin-top: $spacing-sm;
-        width: 240px;
+        width: 180px;
         background: $white;
         border-radius: $border-radius-md;
         box-shadow: $shadow-lg;
         overflow: hidden;
         z-index: $z-dropdown;
+        padding: 4px 0;
     }
 
-    &__dropdown-item {
+    &__menu-item {
         display: flex;
         align-items: center;
-        gap: $spacing-md;
-        padding: $spacing-md $spacing-lg;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 14px;
         color: $text-primary;
         text-decoration: none;
-        font-size: $font-size-md;
-        transition: background-color $transition-fast;
+        font-size: $font-size-sm;
+        font-family: inherit;
+        background: none;
+        border: none;
+        cursor: pointer;
+        text-align: left;
+        transition: background $transition-fast;
 
         &:hover {
             background: $gray-50;
         }
 
         svg {
-            color: $text-secondary;
+            color: $text-tertiary;
         }
     }
 
-    &__dropdown-divider {
+    &__menu-divider {
         height: 1px;
         background: $border-color;
-        margin: $spacing-xs 0;
+        margin: 4px 0;
     }
 
-    &__mobile-toggle {
-        display: none;
+    &__login-btn {
+        display: inline-flex;
         align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        border: none;
-        background: none;
-        color: $text-secondary;
-        cursor: pointer;
-        border-radius: $border-radius-full;
+        padding: 6px 14px;
+        background: $primary-color;
+        color: $white;
+        border-radius: $border-radius-sm;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-semibold;
+        text-decoration: none;
+        transition: background $transition-fast;
 
         &:hover {
-            background: $gray-50;
-        }
-
-        @media (max-width: $breakpoint-md) {
-            display: flex;
+            background: $primary-hover;
         }
     }
 }
 
-// Dropdown transition
-.dropdown-enter-active,
-.dropdown-leave-active {
-    transition: all 0.2s ease;
+.fade-enter-active,
+.fade-leave-active {
+    transition: all 0.15s ease;
 }
 
-.dropdown-enter-from,
-.dropdown-leave-to {
+.fade-enter-from,
+.fade-leave-to {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-4px);
 }
 </style>

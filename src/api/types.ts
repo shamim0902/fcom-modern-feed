@@ -187,7 +187,7 @@ export interface TickerResponse {
 export interface CreateFeedData {
     message: string;
     title?: string;
-    space_id?: number;
+    space?: string; // space slug
     privacy?: string;
     media_items?: MediaItem[];
     media_preview?: MediaPreview;
@@ -195,6 +195,159 @@ export interface CreateFeedData {
 }
 
 export interface CreateCommentData {
-    message: string;
+    comment: string;
     parent_id?: number;
+}
+
+// Member types
+export interface Member {
+    id: number;
+    user_id: number;
+    username: string;
+    display_name: string;
+    avatar: string;
+    short_description?: string;
+    is_verified?: boolean;
+    total_points?: number;
+    status?: string;
+    created_at?: string;
+    role?: string;
+    followers_count?: number;
+    following_count?: number;
+    posts_count?: number;
+    is_following?: boolean;
+    is_online?: boolean;
+}
+
+export interface MembersResponse {
+    members: {
+        data: Member[];
+        current_page: number;
+        per_page: number;
+        has_more: boolean;
+        total?: number;
+    };
+}
+
+// Space types (extended)
+export interface SpaceFull {
+    id: number;
+    title: string;
+    slug: string;
+    description?: string;
+    type: string;
+    privacy: string;
+    logo?: string;
+    cover?: string;
+    members_count: number;
+    posts_count?: number;
+    created_at?: string;
+    is_member?: boolean;
+    is_admin?: boolean;
+    settings?: Record<string, unknown>;
+    space_group?: {
+        id: number;
+        title: string;
+        slug: string;
+    };
+}
+
+export interface SpacesResponse {
+    spaces: {
+        data: SpaceFull[];
+        current_page: number;
+        per_page: number;
+        has_more: boolean;
+        total?: number;
+    };
+    my_spaces?: SpaceFull[];
+    groups?: Array<{
+        id: number;
+        title: string;
+        slug: string;
+        spaces: SpaceFull[];
+    }>;
+}
+
+// Profile types
+export interface Profile {
+    user_id: number;
+    username: string;
+    display_name: string;
+    avatar: string;
+    cover_photo?: string;
+    short_description?: string;
+    is_verified?: boolean;
+    total_points?: number;
+    status?: string;
+    created_at?: string;
+    followers_count?: number;
+    following_count?: number;
+    posts_count?: number;
+    is_following?: boolean;
+    is_self?: boolean;
+    spaces?: SpaceFull[];
+    badges?: Array<{
+        id: number;
+        title: string;
+        icon?: string;
+    }>;
+    social_links?: Record<string, string>;
+}
+
+export interface ProfileResponse {
+    profile: Profile;
+    feeds?: {
+        data: Feed[];
+        has_more: boolean;
+    };
+}
+
+// Notifications response
+export interface NotificationsResponse {
+    notifications: {
+        data: Notification[];
+        current_page: number;
+        per_page: number;
+        has_more: boolean;
+        total?: number;
+    };
+    unread_count?: number;
+}
+
+// Leaderboard types
+export interface LeaderboardEntry {
+    rank: number;
+    user_id: number;
+    username: string;
+    display_name: string;
+    avatar: string;
+    total_points: number;
+    is_verified?: boolean;
+    posts_count?: number;
+    comments_count?: number;
+    reactions_count?: number;
+}
+
+export interface LeaderboardResponse {
+    leaderboard: {
+        data: LeaderboardEntry[];
+        current_page: number;
+        per_page: number;
+        has_more: boolean;
+        total?: number;
+    };
+    current_user_rank?: LeaderboardEntry;
+    period?: string;
+}
+
+// Bookmark types
+export interface BookmarksResponse {
+    bookmarks: {
+        data: Feed[];
+        current_page: number;
+        per_page: number;
+        has_more: boolean;
+        total?: number;
+    };
 }
