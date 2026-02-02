@@ -88,12 +88,15 @@ function getVideoType(url: string): string {
 </template>
 
 <style lang="scss" scoped>
+$media-max-height: 500px;
+
 .fcom-mf-media {
     display: grid;
     gap: 2px;
     margin: 0 $spacing-lg $spacing-md;
     border-radius: $border-radius-md;
     overflow: hidden;
+    max-height: $media-max-height;
 
     &--1 {
         grid-template-columns: 1fr;
@@ -105,7 +108,6 @@ function getVideoType(url: string): string {
 
     &--3 {
         grid-template-columns: 1fr 1fr;
-        grid-template-rows: 1fr 1fr;
 
         .fcom-mf-media__item:first-child {
             grid-row: span 2;
@@ -114,14 +116,13 @@ function getVideoType(url: string): string {
 
     &--4 {
         grid-template-columns: 1fr 1fr;
-        grid-template-rows: 1fr 1fr;
     }
 
     &__item {
         position: relative;
         background: $gray-100;
-        aspect-ratio: 1;
         overflow: hidden;
+        min-height: 100px;
 
         &--more {
             .fcom-mf-media__image {
@@ -169,16 +170,42 @@ function getVideoType(url: string): string {
     }
 }
 
-// Single image should have auto height
-.fcom-mf-media--1 .fcom-mf-media__item {
-    aspect-ratio: auto;
-    max-height: 500px;
+// Single image - show at natural aspect ratio with max height
+.fcom-mf-media--1 {
+    max-height: none;
+
+    .fcom-mf-media__item {
+        min-height: auto;
+    }
+
+    .fcom-mf-media__image {
+        width: 100%;
+        height: auto;
+        max-height: $media-max-height;
+        object-fit: contain;
+        background: $gray-100;
+    }
+
+    .fcom-mf-media__video {
+        width: 100%;
+        height: auto;
+        max-height: $media-max-height;
+        object-fit: contain;
+    }
 }
 
-.fcom-mf-media--1 .fcom-mf-media__image {
-    height: auto;
-    max-height: 500px;
-    object-fit: contain;
-    background: $gray-100;
+// Two images - side by side, content height
+.fcom-mf-media--2 {
+    .fcom-mf-media__item {
+        aspect-ratio: 4/3;
+    }
+}
+
+// Three or four images - grid layout
+.fcom-mf-media--3,
+.fcom-mf-media--4 {
+    .fcom-mf-media__item {
+        aspect-ratio: 1;
+    }
 }
 </style>

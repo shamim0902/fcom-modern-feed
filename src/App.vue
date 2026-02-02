@@ -183,11 +183,11 @@ onUnmounted(() => {
     display: grid;
     grid-template-columns: 280px 1fr 280px;
     gap: 0;
-    max-width: 1400px;
+    max-width: 1440px;
     margin: 0 auto;
     padding-top: 60px; // Header height
 
-    @media (max-width: 1200px) {
+    @media (max-width: 1440px) {
         grid-template-columns: 240px 1fr 240px;
     }
 

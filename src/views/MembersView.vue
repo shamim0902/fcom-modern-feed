@@ -19,10 +19,6 @@ const totalMembers = ref(0);
 const error = ref<string | null>(null);
 const followLoading = ref<Record<number, boolean>>({});
 
-const isFollowersEnabled = computed(() => {
-    return window.fcomModernFeed?.features?.followersModule ?? false;
-});
-
 async function fetchMembers(page = 1, append = false): Promise<void> {
     if (page === 1) {
         loading.value = true;
@@ -41,11 +37,16 @@ async function fetchMembers(page = 1, append = false): Promise<void> {
 
         // Handle different response structures
         const membersList = response.members?.data || response.members || [];
+        const followMap = response.current_user_follows || {};
+        const withFollow = membersList.map((m: Member) => {
+            const level = followMap[String(m.user_id)] ?? followMap[m.user_id as unknown as string] ?? 0;
+            return { ...m, is_following: Number(level) > 0 };
+        });
 
         if (append) {
-            members.value = [...members.value, ...membersList];
+            members.value = [...members.value, ...withFollow];
         } else {
-            members.value = membersList;
+            members.value = withFollow;
         }
 
         hasMore.value = response.members?.has_more ?? false;
@@ -88,10 +89,14 @@ async function toggleFollow(member: Member): Promise<void> {
 
     followLoading.value[member.id] = true;
     try {
-        // FluentCommunity uses a single toggle endpoint
-        await api.post(`profile/${member.username}/follow`);
-        member.is_following = !member.is_following;
-        uiStore.showSuccess(member.is_following ? 'Now following.' : 'Unfollowed.');
+        // FluentCommunity uses separate follow/unfollow endpoints with username
+        const endpoint = member.is_following
+            ? `profile/${member.username}/unfollow`
+            : `profile/${member.username}/follow`;
+        await api.post<{ message?: string }>(endpoint);
+        const isNowFollowing = !member.is_following;
+        member.is_following = isNowFollowing;
+        uiStore.showSuccess(isNowFollowing ? 'Now following.' : 'Unfollowed.');
     } catch (error) {
         console.error('Failed to toggle follow:', error);
         uiStore.showError('Failed to update follow status. Please try again.');
@@ -207,15 +212,22 @@ const filteredMembers = computed(() => {
                     >
                         View Profile
                     </button>
-                    <button
-                        v-if="isFollowersEnabled && authStore.isLoggedIn && member.user_id !== authStore.currentUser?.id"
-                        class="fcom-mf-btn"
-                        :class="member.is_following ? 'fcom-mf-btn--secondary' : 'fcom-mf-btn--primary'"
-                        :disabled="followLoading[member.id]"
-                        @click="toggleFollow(member)"
-                    >
-                        {{ member.is_following ? 'Unfollow' : 'Follow' }}
-                    </button>
+                    <template v-if="authStore.isLoggedIn && member.user_id !== authStore.currentUser?.id">
+                        <button
+                            v-if="!member.is_following"
+                            class="fcom-mf-btn fcom-mf-btn--primary"
+                            :disabled="followLoading[member.id]"
+                            @click="toggleFollow(member)"
+                        >
+                            Follow
+                        </button>
+                        <span
+                            v-else
+                            class="fcom-mf-member-card__followed"
+                        >
+                            Followed
+                        </span>
+                    </template>
                 </div>
             </div>
         </div>
@@ -499,6 +511,17 @@ const filteredMembers = computed(() => {
     &__actions {
         display: flex;
         gap: $spacing-sm;
+    }
+
+    &__followed {
+        display: inline-flex;
+        align-items: center;
+        padding: $spacing-sm $spacing-md;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-semibold;
+        color: $text-secondary;
+        background: $bg-secondary;
+        border-radius: $border-radius-md;
     }
 }
 

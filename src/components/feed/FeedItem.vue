@@ -9,6 +9,7 @@ import FeedActions from './FeedActions.vue';
 import CommentList from '../comments/CommentList.vue';
 import TimeAgo from '../common/TimeAgo.vue';
 import EditPostModal from './EditPostModal.vue';
+import PollRenderer from './PollRenderer.vue';
 
 const props = defineProps<{
     feed: Feed;
@@ -92,6 +93,10 @@ const hasEmbed = computed(() => {
     if (!preview) return false;
     if (preview.is_uploaded || preview.type === 'meta_data') return false;
     return !!preview.html;
+});
+
+const hasPoll = computed(() => {
+    return !!props.feed.meta?.survey_config?.options?.length;
 });
 
 // Reaction display for stats bar
@@ -338,9 +343,9 @@ function handlePostUpdated(): void {
                 <TimeAgo :date="feed.created_at" />
                 <template v-if="feed.space">
                     <span class="fcom-mf-feed-item__separator">·</span>
-                    <a :href="`/portal/space/${feed.space.slug}`" class="fcom-mf-feed-item__space">
+                    <router-link :to="{ name: 'space', params: { slug: feed.space.slug } }" class="fcom-mf-feed-item__space">
                         {{ feed.space.title }}
-                    </a>
+                    </router-link>
                 </template>
             </div>
             <!-- Menu button with dropdown -->
@@ -485,6 +490,13 @@ function handlePostUpdated(): void {
             class="fcom-mf-feed-item__embed"
             v-html="feed.meta!.media_preview!.html"
         ></div>
+
+        <!-- Poll/Survey -->
+        <PollRenderer
+            v-if="hasPoll"
+            :feed-id="feed.id"
+            :survey-config="feed.meta!.survey_config!"
+        />
 
         <!-- Topics/Tags -->
         <div v-if="feed.terms?.length" class="fcom-mf-feed-item__topics">

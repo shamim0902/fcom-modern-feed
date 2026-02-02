@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore, useUiStore } from '@/stores';
 import { api } from '@/api/client';
@@ -29,20 +29,44 @@ const communityStats = ref({
 const followingState = ref<Record<number, boolean>>({});
 const followLoading = ref<Record<number, boolean>>({});
 
-const isFollowersEnabled = computed(() => {
-    return window.fcomModernFeed?.features?.followersModule ?? false;
-});
+const SUGGESTED_DISPLAY_COUNT = 3;
 
 async function fetchSuggestedMembers(): Promise<void> {
     loadingMembers.value = true;
     try {
         const response = await api.get<MembersResponse>('members', {
-            per_page: 3,
+            per_page: 20,
             sort_by: 'last_activity',
-            suggested: true,
         });
-        suggestedMembers.value = response.members?.data || [];
-        communityStats.value.members = response.members.total || suggestedMembers.value.length;
+
+        const raw = response.members?.data || [];
+        const followMap = response.current_user_follows || {};
+        const withFollow = raw.map((m) => {
+            const level = followMap[String(m.user_id)] ?? followMap[m.user_id as unknown as string] ?? 0;
+            return { ...m, is_following: Number(level) > 0 };
+        });
+
+        // Exclude: people I follow (full list from API), people who follow me, and self
+        const myFollowingIds = new Set(
+            (response.current_user_following_ids || []).map((id) => Number(id))
+        );
+        const myFollowerIds = new Set(
+            (response.current_user_follower_ids || []).map((id) => Number(id))
+        );
+        const currentUserId = Number(authStore.userId ?? 0);
+
+        const notFollowing = withFollow.filter(
+            (m) => {
+                const uid = Number(m.user_id);
+                return (
+                    !myFollowingIds.has(uid) &&
+                    uid !== currentUserId &&
+                    !myFollowerIds.has(uid)
+                );
+            }
+        );
+        suggestedMembers.value = notFollowing.slice(0, SUGGESTED_DISPLAY_COUNT);
+        communityStats.value.members = response.members.total ?? raw.length;
     } catch (error) {
         console.error('Failed to fetch members:', error);
     } finally {
@@ -124,11 +148,15 @@ async function toggleFollow(member: Member): Promise<void> {
 
     followLoading.value[member.id] = true;
     try {
-        // FluentCommunity uses a single toggle endpoint
-        await api.post(`profile/${member.username}/follow`);
-        member.is_following = !member.is_following;
-        followingState.value[member.id] = member.is_following;
-        uiStore.showSuccess(member.is_following ? 'Now following.' : 'Unfollowed.');
+        // FluentCommunity uses separate follow/unfollow endpoints with username
+        const endpoint = member.is_following
+            ? `profile/${member.username}/unfollow`
+            : `profile/${member.username}/follow`;
+        await api.post<{ message?: string }>(endpoint);
+        const isNowFollowing = !member.is_following;
+        member.is_following = isNowFollowing;
+        followingState.value[member.id] = isNowFollowing;
+        uiStore.showSuccess(isNowFollowing ? 'Now following.' : 'Unfollowed.');
     } catch (error) {
         console.error('Failed to toggle follow:', error);
         uiStore.showError('Failed to update follow status. Please try again.');
@@ -203,8 +231,8 @@ onMounted(() => {
             </div>
         </div>
 
-                <!-- Suggested Members -->
-        <div v-if="authStore.isLoggedIn" class="fcom-mf-sidebar-card">
+                <!-- Suggested Members (only when we have suggestions or are still loading) -->
+        <div v-if="authStore.isLoggedIn && (loadingMembers || suggestedMembers.length > 0)" class="fcom-mf-sidebar-card">
             <div class="fcom-mf-sidebar-card__header">
                 <h3>People You May Know</h3>
                 <button @click="navigateToMembers" class="fcom-mf-sidebar-card__link">See All</button>
@@ -234,10 +262,12 @@ onMounted(() => {
                         <button class="fcom-mf-member-item__name" @click="navigateToProfile(member.username)">
                             {{ member.display_name }}
                         </button>
-                        <span class="fcom-mf-member-item__meta">{{ member.followers_count || 0 }} followers</span>
+                        <span class="fcom-mf-member-item__meta">
+                            {{ member.followers_count != null && member.followers_count !== undefined ? `${member.followers_count} followers` : 'Member' }}
+                        </span>
                     </div>
                     <button
-                        v-if="isFollowersEnabled"
+                        v-if="authStore.isLoggedIn && member.user_id !== authStore.currentUser?.id"
                         class="fcom-mf-member-item__btn"
                         :class="{ 'fcom-mf-member-item__btn--following': isFollowing(member) }"
                         :disabled="followLoading[member.id]"

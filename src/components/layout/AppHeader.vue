@@ -165,7 +165,7 @@ function goToProfile(): void {
         display: flex;
         align-items: center;
         height: 100%;
-        max-width: 1200px;
+        max-width: 1440px;
         margin: 0 auto;
         padding: 0 $spacing-md;
         gap: $spacing-md;

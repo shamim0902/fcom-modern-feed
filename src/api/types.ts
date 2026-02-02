@@ -255,6 +255,12 @@ export interface MembersResponse {
         has_more: boolean;
         total?: number;
     };
+    /** Pro: user_id -> follow level (0=blocked, 1/2=following). Used to set member.is_following. */
+    current_user_follows?: Record<string, number>;
+    /** Pro: user IDs of people who follow the current user (exclude from "People You May Know"). */
+    current_user_follower_ids?: number[];
+    /** Pro: user IDs that the current user follows (exclude from "People You May Know"). */
+    current_user_following_ids?: number[];
 }
 
 // Space types (extended)
@@ -313,6 +319,8 @@ export interface Profile {
     following_count?: number;
     posts_count?: number;
     is_following?: boolean;
+    /** From API: follow level (0=blocked, 1=following, 2=notify). We derive is_following from this. */
+    follow?: number;
     is_self?: boolean;
     spaces?: SpaceFull[];
     badges?: Array<{

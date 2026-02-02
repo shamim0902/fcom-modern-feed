@@ -95,7 +95,8 @@ function handleClickOutside(event: MouseEvent): void {
     }
 
     // Collapse if clicking outside the create post area (and form is empty)
-    if (isExpanded.value && createPostRef.value && !createPostRef.value.contains(event.target as Node)) {
+    // Don't collapse if schedule modal is open
+    if (isExpanded.value && !showScheduleModal.value && createPostRef.value && !createPostRef.value.contains(event.target as Node)) {
         collapse();
     }
 }
@@ -244,8 +245,24 @@ async function handleSubmit(): Promise<void> {
         } else {
             uiStore.showSuccess('Post created successfully!');
         }
-    } catch (error) {
-        uiStore.showError(uiStore.t('errorOccurred'));
+    } catch (error: unknown) {
+        // Extract error message from API response
+        let errorMessage = uiStore.t('errorOccurred');
+        if (error && typeof error === 'object') {
+            const apiError = error as { message?: string; errors?: Record<string, string[]> };
+            if (apiError.message) {
+                errorMessage = apiError.message;
+            }
+            // If there are field-specific errors, show the first one
+            if (apiError.errors) {
+                const firstError = Object.values(apiError.errors)[0];
+                if (firstError && firstError[0]) {
+                    errorMessage = firstError[0];
+                }
+            }
+        }
+        uiStore.showError(errorMessage);
+        console.error('[CreatePost] Error:', error);
     } finally {
         isSubmitting.value = false;
     }
@@ -929,9 +946,11 @@ function insertEmoji(emoji: string): void {
         line-height: $line-height-normal;
         resize: none;
         min-height: 80px;
+        background: transparent;
 
         &:focus {
             outline: none;
+            box-shadow: none;
         }
 
         &::placeholder {

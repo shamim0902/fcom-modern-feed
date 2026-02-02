@@ -63,7 +63,12 @@ async function fetchProfile(): Promise<void> {
         const encodedUsername = encodeURIComponent(username.value);
         console.log('API call to:', `profile/${encodedUsername}`);
         const response = await api.get<ProfileResponse>(`profile/${encodedUsername}`);
-        profile.value = response.profile;
+        const raw = response.profile as Profile & { follow?: number; is_following?: boolean };
+        // Backend (Pro) returns is_following when logged in; else derive from follow (level: 0=blocked, 1/2=following)
+        const isFollowing =
+            raw.is_following === true ||
+            (raw.follow !== undefined && raw.follow !== null && Number(raw.follow) > 0);
+        profile.value = { ...raw, is_following: isFollowing };
         if (response.feeds?.data) {
             feeds.value = response.feeds.data;
             hasMore.value = response.feeds.has_more;
@@ -121,15 +126,21 @@ async function toggleFollow(): Promise<void> {
 
     followLoading.value = true;
     try {
-        // FluentCommunity uses a single toggle endpoint
-        await api.post(`profile/${profile.value.username}/follow`);
-        profile.value.is_following = !profile.value.is_following;
-        if (profile.value.is_following) {
+        // FluentCommunity uses separate follow/unfollow endpoints with username
+        const endpoint = profile.value.is_following
+            ? `profile/${profile.value.username}/unfollow`
+            : `profile/${profile.value.username}/follow`;
+        const response = await api.post<{ message?: string; followers_count?: number }>(endpoint);
+        const isNowFollowing = !profile.value.is_following;
+        profile.value.is_following = isNowFollowing;
+        if (response.followers_count !== undefined) {
+            profile.value.followers_count = response.followers_count;
+        } else if (isNowFollowing) {
             profile.value.followers_count = (profile.value.followers_count || 0) + 1;
         } else {
             profile.value.followers_count = Math.max(0, (profile.value.followers_count || 0) - 1);
         }
-        uiStore.showSuccess(profile.value.is_following ? 'Now following.' : 'Unfollowed.');
+        uiStore.showSuccess(isNowFollowing ? 'Now following.' : 'Unfollowed.');
     } catch (e) {
         console.error('Failed to toggle follow:', e);
         uiStore.showError('Failed to update follow status. Please try again.');
@@ -267,7 +278,7 @@ function formatNumber(num: number | undefined | null): string {
                         </div>
                     </div>
 
-                    <div v-if="isFollowersEnabled && authStore.isLoggedIn && !profile.is_self" class="fcom-mf-profile-header__actions">
+                    <div v-if="authStore.isLoggedIn && !profile.is_self" class="fcom-mf-profile-header__actions">
                         <button
                             class="fcom-mf-btn"
                             :class="profile.is_following ? 'fcom-mf-btn--secondary' : 'fcom-mf-btn--primary'"
