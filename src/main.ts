@@ -12,6 +12,7 @@ const MembersView = () => import('./views/MembersView.vue');
 const SpacesView = () => import('./views/SpacesView.vue');
 const SpaceView = () => import('./views/SpaceView.vue');
 const ProfileView = () => import('./views/ProfileView.vue');
+const EditProfileView = () => import('./views/EditProfileView.vue');
 const NotificationsView = () => import('./views/NotificationsView.vue');
 const BookmarksView = () => import('./views/BookmarksView.vue');
 const LeaderboardView = () => import('./views/LeaderboardView.vue');
@@ -45,6 +46,12 @@ function createAppRouter(useMemoryHistory = false, baseUrl = '/') {
             props: true,
         },
         {
+            path: '/post/s/:slug',
+            name: 'single-post-slug',
+            component: SinglePostView,
+            props: true,
+        },
+        {
             path: '/members',
             name: 'members',
             component: MembersView,
@@ -64,6 +71,12 @@ function createAppRouter(useMemoryHistory = false, baseUrl = '/') {
             path: '/u/:username',
             name: 'profile',
             component: ProfileView,
+            props: true,
+        },
+        {
+            path: '/u/:username/edit',
+            name: 'edit-profile',
+            component: EditProfileView,
             props: true,
         },
         {

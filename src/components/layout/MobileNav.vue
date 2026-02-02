@@ -57,7 +57,7 @@ function closeMenu(): void {
 }
 
 function goToProfile(): void {
-    const username = authStore.currentUser?.name;
+    const username = authStore.currentUser?.username;
     if (username) {
         navigate(`/u/${username}`);
     }

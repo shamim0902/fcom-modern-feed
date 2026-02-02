@@ -543,6 +543,22 @@ export const useFeedStore = defineStore('feed', () => {
         }
     }
 
+    async function fetchSinglePostBySlug(slug: string): Promise<Feed | null> {
+        try {
+            const response = await api.get<{ feed: Feed }>(`feeds/${slug}/by-slug`);
+            const feed = response.feed;
+
+            // Populate user reaction type and cache it
+            populateUserReactionType(feed);
+            feedsById.value[feed.id] = feed;
+
+            return feed;
+        } catch (error) {
+            console.error('Failed to fetch single post by slug:', error);
+            return null;
+        }
+    }
+
     return {
         // State
         contexts,
@@ -576,6 +592,7 @@ export const useFeedStore = defineStore('feed', () => {
         resetContext,
         getFeedById,
         fetchSinglePost,
+        fetchSinglePostBySlug,
         getContextKey,
     };
 });

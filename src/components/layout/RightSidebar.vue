@@ -3,13 +3,21 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores';
 import { api } from '@/api/client';
-import type { Member, MembersResponse } from '@/api/types';
+import type { Member, MembersResponse, Activity, FeaturedPost, ActivitiesResponse } from '@/api/types';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+
+dayjs.extend(relativeTime);
 
 const router = useRouter();
 const authStore = useAuthStore();
 
 const suggestedMembers = ref<Member[]>([]);
 const loadingMembers = ref(false);
+
+const featuredPosts = ref<FeaturedPost[]>([]);
+const recentActivities = ref<Activity[]>([]);
+const loadingActivities = ref(false);
 
 const communityStats = ref({
     members: 0,
@@ -34,6 +42,74 @@ async function fetchSuggestedMembers(): Promise<void> {
     } finally {
         loadingMembers.value = false;
     }
+}
+
+async function fetchActivities(): Promise<void> {
+    loadingActivities.value = true;
+    try {
+        const response = await api.get<ActivitiesResponse>('activities', {
+            page: 1,
+            per_page: 5,
+            with_pins: 1,
+            is_trending: 1,
+        });
+        recentActivities.value = response.activities?.data || [];
+        featuredPosts.value = response.pinned_posts || [];
+    } catch (error) {
+        console.error('Failed to fetch activities:', error);
+    } finally {
+        loadingActivities.value = false;
+    }
+}
+
+function formatTimeAgo(dateString: string): string {
+    return dayjs(dateString).fromNow();
+}
+
+function stripHtml(html: string): string {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+}
+
+function truncateText(text: string, maxLength: number): string {
+    const stripped = stripHtml(text);
+    if (stripped.length <= maxLength) return stripped;
+    return stripped.substring(0, maxLength).trim() + '...';
+}
+
+function navigateToActivity(activity: Activity): void {
+    if (!activity.route) {
+        console.log('No route in activity:', activity);
+        return;
+    }
+
+    const { name, params, query } = activity.route;
+    console.log('Activity route:', { name, params, query });
+
+    const feedSlug = params?.['feed_slug'] as string | undefined;
+    const spaceSlug = params?.['space'] as string | undefined;
+    const username = params?.['username'] as string | undefined;
+
+    // Map FluentCommunity route names to our route names
+    if ((name === 'single_feed' || name === 'space_feed') && feedSlug) {
+        router.push(`/post/s/${feedSlug}`);
+    } else if (name === 'view_lesson') {
+        // Course lessons - not supported yet
+        console.log('Course lesson navigation not supported yet');
+    } else if (name === 'user_profile' && username) {
+        router.push(`/u/${username}`);
+    } else if (name === 'space_view' && spaceSlug) {
+        router.push(`/space/${spaceSlug}`);
+    } else {
+        // Fallback: navigate to feed
+        console.log('Unhandled activity route:', name, params);
+        router.push('/');
+    }
+}
+
+function navigateToPost(postId: number): void {
+    router.push({ name: 'single-post', params: { id: postId } });
 }
 
 async function toggleFollow(member: Member): Promise<void> {
@@ -81,6 +157,7 @@ function navigateToLeaderboard(): void {
 
 onMounted(() => {
     fetchSuggestedMembers();
+    fetchActivities();
 });
 </script>
 
@@ -113,7 +190,7 @@ onMounted(() => {
             </div>
         </div>
 
-        <!-- Suggested Members -->
+                <!-- Suggested Members -->
         <div v-if="authStore.isLoggedIn" class="fcom-mf-sidebar-card">
             <div class="fcom-mf-sidebar-card__header">
                 <h3>People You May Know</h3>
@@ -154,6 +231,64 @@ onMounted(() => {
                         {{ isFollowing(member) ? 'Following' : 'Follow' }}
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Featured Posts -->
+        <div v-if="featuredPosts.length" class="fcom-mf-sidebar-card">
+            <div class="fcom-mf-sidebar-card__header">
+                <h3>Featured Posts</h3>
+            </div>
+            <div class="fcom-mf-activity-list">
+                <button
+                    v-for="post in featuredPosts"
+                    :key="post.id"
+                    class="fcom-mf-activity-item"
+                    @click="navigateToPost(post.id)"
+                >
+                    <div class="fcom-mf-activity-item__avatar">
+                        <img :src="post.xprofile.avatar" :alt="post.xprofile.display_name" />
+                    </div>
+                    <div class="fcom-mf-activity-item__content">
+                        <div class="fcom-mf-activity-item__message">{{ truncateText(post.message, 80) }}</div>
+                        <div class="fcom-mf-activity-item__meta">{{ post.xprofile.display_name }}</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Recent Activities -->
+        <div class="fcom-mf-sidebar-card">
+            <div class="fcom-mf-sidebar-card__header">
+                <h3>Recent Activities</h3>
+            </div>
+            <div v-if="loadingActivities" class="fcom-mf-activity-loading">
+                <div v-for="i in 4" :key="i" class="fcom-mf-activity-skeleton">
+                    <div class="fcom-mf-activity-skeleton__avatar"></div>
+                    <div class="fcom-mf-activity-skeleton__content">
+                        <div class="fcom-mf-activity-skeleton__line"></div>
+                        <div class="fcom-mf-activity-skeleton__line fcom-mf-activity-skeleton__line--short"></div>
+                    </div>
+                </div>
+            </div>
+            <div v-else-if="recentActivities.length" class="fcom-mf-activity-list">
+                <button
+                    v-for="activity in recentActivities"
+                    :key="activity.id"
+                    class="fcom-mf-activity-item"
+                    @click="navigateToActivity(activity)"
+                >
+                    <div class="fcom-mf-activity-item__avatar">
+                        <img :src="activity.xprofile.avatar" :alt="activity.xprofile.display_name" />
+                    </div>
+                    <div class="fcom-mf-activity-item__content">
+                        <div class="fcom-mf-activity-item__message" v-html="activity.message"></div>
+                        <div class="fcom-mf-activity-item__time">{{ formatTimeAgo(activity.updated_at) }}</div>
+                    </div>
+                </button>
+            </div>
+            <div v-else class="fcom-mf-activity-empty">
+                No recent activities found
             </div>
         </div>
 
@@ -283,6 +418,132 @@ onMounted(() => {
 
         &:hover {
             text-decoration: underline;
+        }
+    }
+}
+
+// Activity List
+.fcom-mf-activity-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.fcom-mf-activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: $spacing-sm;
+    padding: $spacing-sm;
+    margin: 0 (-$spacing-sm);
+    border-radius: $border-radius-md;
+    text-decoration: none;
+    color: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    width: calc(100% + #{$spacing-sm * 2});
+    transition: background $transition-fast;
+
+    &:hover {
+        background: $gray-50;
+    }
+
+    &__avatar {
+        flex-shrink: 0;
+
+        img {
+            width: 36px;
+            height: 36px;
+            border-radius: $border-radius-full;
+            object-fit: cover;
+        }
+    }
+
+    &__content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    &__message {
+        font-size: $font-size-sm;
+        color: $text-primary;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+
+        :deep(a) {
+            color: $primary-color;
+            text-decoration: none;
+            font-weight: $font-weight-semibold;
+        }
+
+        :deep(strong) {
+            font-weight: $font-weight-semibold;
+        }
+    }
+
+    &__meta {
+        font-size: $font-size-xs;
+        color: $text-tertiary;
+        margin-top: 2px;
+    }
+
+    &__time {
+        font-size: $font-size-xs;
+        color: $text-tertiary;
+        margin-top: 2px;
+    }
+}
+
+.fcom-mf-activity-empty {
+    text-align: center;
+    padding: $spacing-md;
+    color: $text-tertiary;
+    font-size: $font-size-sm;
+}
+
+// Activity Loading
+.fcom-mf-activity-loading {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-sm;
+}
+
+.fcom-mf-activity-skeleton {
+    display: flex;
+    align-items: flex-start;
+    gap: $spacing-sm;
+    padding: $spacing-sm 0;
+
+    &__avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: $border-radius-full;
+        background: linear-gradient(90deg, $gray-100 25%, $gray-200 50%, $gray-100 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        flex-shrink: 0;
+    }
+
+    &__content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-xs;
+    }
+
+    &__line {
+        height: 12px;
+        border-radius: $border-radius-sm;
+        background: linear-gradient(90deg, $gray-100 25%, $gray-200 50%, $gray-100 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+
+        &--short {
+            width: 60%;
+            height: 10px;
         }
     }
 }

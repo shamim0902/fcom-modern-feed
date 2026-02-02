@@ -7,6 +7,7 @@ const MembersView = () => import('@/views/MembersView.vue');
 const SpacesView = () => import('@/views/SpacesView.vue');
 const SpaceView = () => import('@/views/SpaceView.vue');
 const ProfileView = () => import('@/views/ProfileView.vue');
+const EditProfileView = () => import('@/views/EditProfileView.vue');
 const NotificationsView = () => import('@/views/NotificationsView.vue');
 const BookmarksView = () => import('@/views/BookmarksView.vue');
 const LeaderboardView = () => import('@/views/LeaderboardView.vue');
@@ -20,6 +21,12 @@ const routes: RouteRecordRaw[] = [
     {
         path: '/post/:id',
         name: 'single-post',
+        component: SinglePostView,
+        props: true,
+    },
+    {
+        path: '/post/s/:slug',
+        name: 'single-post-slug',
         component: SinglePostView,
         props: true,
     },
@@ -43,6 +50,12 @@ const routes: RouteRecordRaw[] = [
         path: '/u/:username',
         name: 'profile',
         component: ProfileView,
+        props: true,
+    },
+    {
+        path: '/u/:username/edit',
+        name: 'edit-profile',
+        component: EditProfileView,
         props: true,
     },
     {

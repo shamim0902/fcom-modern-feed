@@ -1,27 +1,34 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router';
 import type { XProfile } from '@/api/types';
 
 defineProps<{
     author: XProfile;
     size?: 'sm' | 'md' | 'lg';
 }>();
+
+const router = useRouter();
+
+function navigateToProfile(username: string): void {
+    router.push(`/u/${username}`);
+}
 </script>
 
 <template>
     <div class="fcom-mf-author" :class="`fcom-mf-author--${size || 'md'}`">
-        <a :href="`/portal/profile/${author.username}`" class="fcom-mf-author__avatar-link">
+        <button class="fcom-mf-author__avatar-link" @click="navigateToProfile(author.username)">
             <img
                 :src="author.avatar"
                 :alt="author.display_name"
                 class="fcom-mf-avatar"
                 :class="`fcom-mf-avatar--${size || 'md'}`"
             />
-        </a>
+        </button>
         <div class="fcom-mf-author__info">
-            <a :href="`/portal/profile/${author.username}`" class="fcom-mf-author__name">
+            <button class="fcom-mf-author__name" @click="navigateToProfile(author.username)">
                 {{ author.display_name }}
                 <span v-if="author.is_verified" class="fcom-mf-author__verified" title="Verified">✓</span>
-            </a>
+            </button>
             <slot></slot>
         </div>
     </div>
@@ -41,6 +48,10 @@ defineProps<{
 
     &__avatar-link {
         flex-shrink: 0;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
     }
 
     &__info {
@@ -58,6 +69,11 @@ defineProps<{
         font-weight: $font-weight-semibold;
         color: $text-primary;
         line-height: 1.2;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        text-align: left;
 
         &:hover {
             text-decoration: underline;

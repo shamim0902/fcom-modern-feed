@@ -11,6 +11,7 @@ declare global {
             user: {
                 id: number;
                 name: string;
+                username: string;
                 avatar: string;
                 email: string;
             } | null;
@@ -25,7 +26,10 @@ declare global {
                 infiniteScroll: boolean;
                 realTimeUpdates: boolean;
                 mediaUpload: boolean;
+                adminSettings: boolean;
             };
+            adminSettingsUrl: string;
+            portalBaseUrl: string;
             settings: {
                 tickerInterval: number;
                 perPage: number;

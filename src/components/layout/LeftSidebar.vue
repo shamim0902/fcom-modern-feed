@@ -57,7 +57,7 @@ function navigateTo(routePath: string): void {
 
 function navigateToProfile(): void {
     if (authStore.currentUser) {
-        router.push({ name: 'profile', params: { username: authStore.currentUser.name } });
+        router.push({ name: 'profile', params: { username: authStore.currentUser.username } });
     }
 }
 

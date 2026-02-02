@@ -21,12 +21,47 @@ const error = ref<string | null>(null);
 
 const username = computed(() => route.params.username as string);
 
+const isOwnProfile = computed(() => {
+    if (!profile.value || !authStore.isLoggedIn) return false;
+    return profile.value.user_id === authStore.userId;
+});
+
+const portalBaseUrl = computed(() => {
+    // Get the portal base URL from FluentCommunity config or default
+    return window.fcomModernFeed?.portalBaseUrl || '/portal';
+});
+
+function navigateToEditProfile(): void {
+    if (profile.value) {
+        router.push(`/u/${profile.value.username}/edit`);
+    }
+}
+
+const notificationSettingsUrl = computed(() => {
+    if (!profile.value) return '#';
+    return `${portalBaseUrl.value}/u/${profile.value.username}/notification-settings`;
+});
+
+function navigateToMembers(): void {
+    router.push({ name: 'members' });
+}
+
 async function fetchProfile(): Promise<void> {
+    console.log('Fetching profile for username:', username.value);
+
+    if (!username.value) {
+        error.value = 'No username provided';
+        loading.value = false;
+        return;
+    }
+
     loading.value = true;
     error.value = null;
 
     try {
-        const response = await api.get<ProfileResponse>(`profile/${username.value}`);
+        const encodedUsername = encodeURIComponent(username.value);
+        console.log('API call to:', `profile/${encodedUsername}`);
+        const response = await api.get<ProfileResponse>(`profile/${encodedUsername}`);
         profile.value = response.profile;
         if (response.feeds?.data) {
             feeds.value = response.feeds.data;
@@ -34,8 +69,13 @@ async function fetchProfile(): Promise<void> {
         } else {
             await fetchFeeds();
         }
-    } catch (e) {
-        error.value = e instanceof Error ? e.message : 'Failed to load profile';
+    } catch (e: unknown) {
+        console.error('Profile fetch error:', e);
+        if (e && typeof e === 'object' && 'message' in e) {
+            error.value = (e as { message: string }).message;
+        } else {
+            error.value = 'Failed to load profile';
+        }
     } finally {
         loading.value = false;
     }
@@ -119,14 +159,29 @@ function formatNumber(num: number | undefined | null): string {
 
 <template>
     <div class="fcom-mf-profile-view">
-        <!-- Back Button -->
-        <div class="fcom-mf-profile-view__back">
-            <button @click="goBack" class="fcom-mf-back-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="15 18 9 12 15 6"/>
-                </svg>
-                <span>Back</span>
-            </button>
+        <!-- Breadcrumb & Actions -->
+        <div class="fcom-mf-profile-view__header">
+            <div class="fcom-mf-profile-view__breadcrumb">
+                <button @click="navigateToMembers" class="fcom-mf-breadcrumb__link">Members</button>
+                <span class="fcom-mf-breadcrumb__separator">/</span>
+                <span class="fcom-mf-breadcrumb__current">{{ isOwnProfile ? 'My Profile' : (profile?.display_name || 'Profile') }}</span>
+            </div>
+            <div v-if="isOwnProfile && profile" class="fcom-mf-profile-view__actions">
+                <a :href="notificationSettingsUrl" class="fcom-mf-btn fcom-mf-btn--outline fcom-mf-btn--sm">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                    Notification Settings
+                </a>
+                <button @click="navigateToEditProfile" class="fcom-mf-btn fcom-mf-btn--primary fcom-mf-btn--sm">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    Edit Profile
+                </button>
+            </div>
         </div>
 
         <!-- Loading State -->
@@ -325,28 +380,55 @@ function formatNumber(num: number | undefined | null): string {
 .fcom-mf-profile-view {
     width: 100%;
 
-    &__back {
+    &__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: $spacing-md;
         margin-bottom: $spacing-md;
+        padding: $spacing-md;
+        background: $white;
+        border-radius: $border-radius-lg;
+        box-shadow: $shadow-sm;
+    }
+
+    &__breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        font-size: $font-size-sm;
+    }
+
+    &__actions {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
     }
 }
 
-.fcom-mf-back-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: $spacing-sm;
-    padding: $spacing-sm $spacing-md;
-    border: none;
-    background: $white;
-    border-radius: $border-radius-md;
-    color: $text-primary;
-    font-size: $font-size-md;
-    font-weight: $font-weight-medium;
-    cursor: pointer;
-    box-shadow: $shadow-sm;
-    transition: background-color $transition-fast;
+.fcom-mf-breadcrumb {
+    &__link {
+        color: $primary-color;
+        background: none;
+        border: none;
+        padding: 0;
+        font-size: inherit;
+        cursor: pointer;
+        text-decoration: none;
 
-    &:hover {
-        background: $gray-50;
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+
+    &__separator {
+        color: $text-tertiary;
+    }
+
+    &__current {
+        color: $text-secondary;
+        font-weight: $font-weight-medium;
     }
 }
 
@@ -744,13 +826,24 @@ function formatNumber(num: number | undefined | null): string {
 }
 
 .fcom-mf-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-xs;
     padding: $spacing-sm $spacing-xl;
     border: none;
-    border-radius: $border-radius-full;
+    border-radius: $border-radius-md;
     font-size: $font-size-md;
     font-weight: $font-weight-semibold;
     cursor: pointer;
     transition: all $transition-fast;
+    text-decoration: none;
+
+    &--sm {
+        padding: $spacing-xs $spacing-md;
+        font-size: $font-size-sm;
+        border-radius: $border-radius-sm;
+    }
 
     &--primary {
         background: $primary-color;
@@ -778,6 +871,10 @@ function formatNumber(num: number | undefined | null): string {
         &:hover {
             background: $gray-50;
         }
+    }
+
+    svg {
+        flex-shrink: 0;
     }
 }
 

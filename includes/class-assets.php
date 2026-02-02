@@ -98,12 +98,7 @@ class Assets
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'ajaxNonce' => wp_create_nonce('fcom_mf_ajax'),
             'pluginUrl' => FCOM_MF_PLUGIN_URL,
-            'user' => $user->ID ? [
-                'id' => $user->ID,
-                'name' => $user->display_name,
-                'avatar' => get_avatar_url($user->ID, ['size' => 96]),
-                'email' => $user->user_email,
-            ] : null,
+            'user' => $user->ID ? self::getUserData($user) : null,
             'isLoggedIn' => is_user_logged_in(),
             'loginUrl' => wp_login_url(get_permalink()),
             'registerUrl' => wp_registration_url(),
@@ -115,7 +110,10 @@ class Assets
                 'infiniteScroll' => true,
                 'realTimeUpdates' => true,
                 'mediaUpload' => is_user_logged_in(),
+                'adminSettings' => self::canAccessAdminSettings(),
             ],
+            'adminSettingsUrl' => self::getAdminSettingsUrl(),
+            'portalBaseUrl' => self::getPortalBaseUrl(),
             'settings' => [
                 'tickerInterval' => 45000, // 45 seconds
                 'perPage' => 10,
@@ -175,6 +173,59 @@ class Assets
         }
 
         return apply_filters('fcom_mf_load_assets', false);
+    }
+
+    private static function getUserData($user)
+    {
+        $userData = [
+            'id' => $user->ID,
+            'name' => $user->display_name,
+            'username' => $user->user_login, // Default to WP username
+            'avatar' => get_avatar_url($user->ID, ['size' => 96]),
+            'email' => $user->user_email,
+        ];
+
+        // Try to get FluentCommunity username if available
+        if (class_exists('\FluentCommunity\App\Models\XProfile')) {
+            $xprofile = \FluentCommunity\App\Models\XProfile::where('user_id', $user->ID)->first();
+            if ($xprofile && !empty($xprofile->username)) {
+                $userData['username'] = $xprofile->username;
+            }
+        }
+
+        return $userData;
+    }
+
+    private static function canAccessAdminSettings()
+    {
+        if (!is_user_logged_in()) {
+            return false;
+        }
+
+        // Check if FluentCommunity Helper class exists
+        if (class_exists('\FluentCommunity\App\Services\Helper')) {
+            return \FluentCommunity\App\Services\Helper::isSiteAdmin();
+        }
+
+        return false;
+    }
+
+    private static function getAdminSettingsUrl()
+    {
+        if (class_exists('\FluentCommunity\App\Services\Helper')) {
+            return \FluentCommunity\App\Services\Helper::baseUrl('/admin/settings');
+        }
+
+        return home_url('/portal/admin/settings');
+    }
+
+    private static function getPortalBaseUrl()
+    {
+        if (class_exists('\FluentCommunity\App\Services\Helper')) {
+            return \FluentCommunity\App\Services\Helper::baseUrl('');
+        }
+
+        return home_url('/portal');
     }
 
     private static function getTranslations()

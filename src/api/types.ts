@@ -346,3 +346,37 @@ export interface LeaderboardResponse {
 }
 
 // Note: Bookmarks API returns FeedsResponse format (uses 'feeds' key, not 'bookmarks')
+
+// Activity types
+export interface Activity {
+    id: number;
+    message: string;
+    xprofile: XProfile;
+    updated_at: string;
+    route: {
+        name: string;
+        params?: Record<string, string | number>;
+        query?: Record<string, string | number>;
+    };
+}
+
+export interface FeaturedPost {
+    id: number;
+    message: string;
+    permalink: string;
+    xprofile: XProfile;
+    created_at: string;
+}
+
+export interface ActivitiesResponse {
+    activities: {
+        data: Activity[];
+        has_more: boolean;
+        per_page: number;
+        current_page: number;
+    };
+    pinned_posts?: FeaturedPost[];
+    after_contents?: string;
+    before_contents?: string;
+    pending_count?: number;
+}

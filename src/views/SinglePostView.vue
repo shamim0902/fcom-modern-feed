@@ -18,9 +18,15 @@ const postId = computed(() => {
     return typeof id === 'string' ? parseInt(id, 10) : null;
 });
 
+const postSlug = computed(() => {
+    const slug = route.params.slug;
+    return typeof slug === 'string' ? slug : null;
+});
+
 async function fetchPost() {
-    if (!postId.value) {
-        error.value = 'Invalid post ID';
+    // Check if we have an ID or slug
+    if (!postId.value && !postSlug.value) {
+        error.value = 'Invalid post';
         loading.value = false;
         return;
     }
@@ -29,7 +35,14 @@ async function fetchPost() {
     error.value = null;
 
     try {
-        const fetchedPost = await feedStore.fetchSinglePost(postId.value);
+        let fetchedPost: Feed | null = null;
+
+        if (postId.value) {
+            fetchedPost = await feedStore.fetchSinglePost(postId.value);
+        } else if (postSlug.value) {
+            fetchedPost = await feedStore.fetchSinglePostBySlug(postSlug.value);
+        }
+
         if (fetchedPost) {
             post.value = fetchedPost;
         } else {
@@ -55,8 +68,8 @@ onMounted(() => {
     fetchPost();
 });
 
-// Watch for route changes
-watch(() => route.params.id, () => {
+// Watch for route changes (both id and slug)
+watch([() => route.params.id, () => route.params.slug], () => {
     fetchPost();
 });
 </script>
