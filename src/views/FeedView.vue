@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue';
-import { useAuthStore, useFeedStore } from '@/stores';
+import { useFeedStore } from '@/stores';
 import FeedList from '@/components/feed/FeedList.vue';
 import CreatePost from '@/components/feed/CreatePost.vue';
 import NewPostsBanner from '@/components/feed/NewPostsBanner.vue';
@@ -16,11 +16,10 @@ interface Config {
 }
 
 const config = inject<Config>('config')!;
-const authStore = useAuthStore();
 const feedStore = useFeedStore();
 
 const showCreatePost = computed(() => {
-    return config.showCreate !== false && authStore.canCreatePost();
+    return config.showCreate !== false;
 });
 
 const contextKey = computed(() => {

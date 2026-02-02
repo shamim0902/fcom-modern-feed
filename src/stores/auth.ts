@@ -19,9 +19,16 @@ export const useAuthStore = defineStore('auth', () => {
     const userId = computed(() => user.value?.id);
     const userName = computed(() => user.value?.name);
     const userUsername = computed(() => user.value?.username);
-    const userAvatar = computed(() => user.value?.avatar);
+    // Blank avatar for logged-out users (gray circle with person silhouette)
+    const defaultAvatarUrl =
+        "data:image/svg+xml," +
+        encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" fill="#e5e7eb"/><circle cx="12" cy="8" r="3" fill="#9ca3af"/><path d="M6 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>'
+        );
+    const userAvatar = computed(() => user.value?.avatar || defaultAvatarUrl);
     const loginUrl = computed(() => window.fcomModernFeed?.loginUrl || '/wp-login.php');
-    const logoutUrl = computed(() => loginUrl.value + '?action=logout');
+    const registerUrl = computed(() => window.fcomModernFeed?.registerUrl || '');
+    const logoutUrl = computed(() => window.fcomModernFeed?.logoutUrl || '/wp-login.php?action=logout');
     const canAccessAdminSettings = computed(() => window.fcomModernFeed?.features?.adminSettings || false);
     const adminSettingsUrl = computed(() => window.fcomModernFeed?.adminSettingsUrl || '/portal/admin/settings');
 
@@ -60,6 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
         userUsername,
         userAvatar,
         loginUrl,
+        registerUrl,
         logoutUrl,
         canAccessAdminSettings,
         adminSettingsUrl,

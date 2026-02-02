@@ -23,34 +23,32 @@ const longPressTimer = ref<ReturnType<typeof setTimeout> | null>(null);
 const hoverTimer = ref<ReturnType<typeof setTimeout> | null>(null);
 const likeButtonRef = ref<HTMLElement | null>(null);
 
-// Reaction display mapping
+// Reaction display mapping (community-focused reactions)
 const reactionMap: Record<string, { emoji: string; label: string; color: string }> = {
     like: { emoji: '👍', label: 'Like', color: '#1877f2' },
     love: { emoji: '❤️', label: 'Love', color: '#e7415f' },
-    haha: { emoji: '😂', label: 'Haha', color: '#f7b928' },
-    wow: { emoji: '😮', label: 'Wow', color: '#f7b928' },
-    sad: { emoji: '😢', label: 'Sad', color: '#f7b928' },
-    angry: { emoji: '😡', label: 'Angry', color: '#e9710f' },
+    celebrate: { emoji: '🎉', label: 'Celebrate', color: '#8b5cf6' },
+    insightful: { emoji: '💡', label: 'Insightful', color: '#f59e0b' },
+    support: { emoji: '🙌', label: 'Support', color: '#10b981' },
+    thanks: { emoji: '🙏', label: 'Thanks', color: '#ec4899' },
 };
 
 const currentReaction = computed(() => {
     if (!props.feed.has_user_react) return null;
 
-    // Use the tracked user_reaction_type first
+    // Use the tracked user_reaction_type first (set on load and when replacing reaction)
     if (props.feed.user_reaction_type) {
         return props.feed.user_reaction_type;
     }
 
-    // Fallback: check reactions array for current user's reaction
+    // Fallback: check reactions array for current user's reaction (type-safe id comparison)
     const currentUserId = authStore.userId;
-    if (currentUserId && props.feed.reactions) {
-        const userReaction = props.feed.reactions.find(r => r.user_id === currentUserId);
-        if (userReaction) {
-            return userReaction.type;
-        }
+    if (currentUserId != null && props.feed.reactions?.length) {
+        const uid = Number(currentUserId);
+        const userReaction = props.feed.reactions.find((r) => Number(r.user_id) === uid);
+        if (userReaction?.type) return userReaction.type;
     }
 
-    // Default to 'like' if we can't determine the type
     return 'like';
 });
 

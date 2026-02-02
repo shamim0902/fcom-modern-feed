@@ -18,6 +18,7 @@ declare global {
             isLoggedIn: boolean;
             loginUrl: string;
             registerUrl: string;
+            logoutUrl: string;
             i18n: Record<string, string>;
             features: {
                 reactions: boolean;

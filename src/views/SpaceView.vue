@@ -232,7 +232,7 @@ function formatNumber(num: number | undefined | null): string {
             <div v-if="activeTab === 'posts'" class="fcom-mf-space-posts">
                 <!-- Create Post -->
                 <CreatePost
-                    v-if="authStore.isLoggedIn && space.is_member"
+                    v-if="!authStore.isLoggedIn || space.is_member"
                     :space-id="space.id"
                     @post-created="handlePostCreated"
                 />

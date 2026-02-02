@@ -76,6 +76,38 @@ const createPostRef = ref<HTMLElement | null>(null);
 const justExpanded = ref(false);
 const emojiPickerRef = ref<HTMLElement | null>(null);
 
+// Guest draft: login-required modal (when logged-out user clicks Post)
+const showLoginModal = ref(false);
+const DRAFT_STORAGE_KEY = 'fcom_post_draft';
+const guestPostClickHandler = (event: MouseEvent) => {
+    console.log('[CreatePost] guestPostClickHandler fired, isLoggedIn:', authStore.isLoggedIn);
+    if (authStore.isLoggedIn) {
+        console.log('[CreatePost] User is logged in, skipping guest handler');
+        return;
+    }
+    if (!createPostRef.value) {
+        console.log('[CreatePost] createPostRef is null');
+        return;
+    }
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+        console.log('[CreatePost] target is null');
+        return;
+    }
+    if (!createPostRef.value.contains(target)) {
+        console.log('[CreatePost] click outside createPost');
+        return;
+    }
+    const inSubmit =
+        target.closest?.('.fcom-mf-create-post__submit') ||
+        target.closest?.('.fcom-mf-create-post__post-btn');
+    console.log('[CreatePost] inSubmit:', !!inSubmit, 'target:', target.className);
+    if (inSubmit) {
+        console.log('[CreatePost] Calling showGuestLoginModal from document handler');
+        showGuestLoginModal();
+    }
+};
+
 // Click outside handler for space dropdown, emoji picker and collapse
 function handleClickOutside(event: MouseEvent): void {
     // Close space dropdown if clicking outside
@@ -101,17 +133,65 @@ function handleClickOutside(event: MouseEvent): void {
     }
 }
 
+// Restore guest draft after login (fill form instead of auto-publishing)
+function restoreDraftIfPresent(): void {
+    if (!authStore.isLoggedIn) return;
+    try {
+        const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+        if (!raw) return;
+        const draft = JSON.parse(raw) as CreateFeedData;
+        if (!draft?.message?.trim()) {
+            localStorage.removeItem(DRAFT_STORAGE_KEY);
+            return;
+        }
+        message.value = draft.message;
+        if (draft.space) {
+            const space = spaceStore.canPostSpaces.find((s) => s.slug === draft.space);
+            if (space) selectedSpaceId.value = space.id;
+        }
+        if (draft.media) {
+            videoEmbed.value = {
+                ...draft.media,
+                title: draft.media.title ?? '',
+                image: draft.media.image ?? '',
+            };
+        }
+        const survey = draft.survey;
+        if (survey?.options && survey.options.length >= 2) {
+            showPollForm.value = true;
+            pollData.value = {
+                type: survey.type === 'multi_choice' ? 'multi_choice' : 'single_choice',
+                options: survey.options.map((o) => ({ label: o.label || '', slug: o.slug || '' })),
+                end_date: survey.end_date ?? null,
+            };
+        }
+        if (draft.scheduled_at) scheduledAt.value = draft.scheduled_at;
+        isExpanded.value = true;
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+        uiStore.showSuccess('Your draft has been restored. You can edit and post when ready.');
+    } catch {
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+    }
+}
+
 // Fetch user's spaces on mount and default to first space when "Choose where to post"
 onMounted(async () => {
+    console.log('[CreatePost] onMounted, isLoggedIn:', authStore.isLoggedIn);
     await spaceStore.fetchMySpaces();
     if (!props.spaceId && !selectedSpaceId.value && spaceStore.canPostSpaces.length > 0) {
         selectedSpaceId.value = spaceStore.canPostSpaces[0].id;
     }
+    restoreDraftIfPresent();
     document.addEventListener('click', handleClickOutside);
+    document.addEventListener('click', guestPostClickHandler, true);
+    window.addEventListener('beforeunload', beforeUnloadHandler);
+    console.log('[CreatePost] Guest click handler registered');
 });
 
 onUnmounted(() => {
     document.removeEventListener('click', handleClickOutside);
+    document.removeEventListener('click', guestPostClickHandler, true);
+    window.removeEventListener('beforeunload', beforeUnloadHandler);
 });
 
 // If spaceId is provided, lock to that space
@@ -129,11 +209,28 @@ const canSubmit = computed(() => {
     const hasVideo = !!videoEmbed.value;
     const hasPoll = showPollForm.value && pollData.value.options.filter(o => o.label.trim()).length >= 2;
     const hasContent = hasText || hasMedia || hasVideo || hasPoll;
-    // Space is required - either from props or selected by user
+    // Space is required when logged in; guest can submit with content only (draft saved, then login)
     const hasSpace = !!props.spaceId || !!selectedSpaceId.value;
+    if (!authStore.isLoggedIn) return hasContent;
     return hasContent && hasSpace;
 });
 
+// Unsaved content: any text, media, video, poll, or schedule (used for beforeunload prompt)
+const hasUnsavedContent = computed(
+    () =>
+        message.value.trim().length > 0 ||
+        mediaItems.value.length > 0 ||
+        !!videoEmbed.value ||
+        (showPollForm.value && pollData.value.options.filter((o) => o.label.trim()).length >= 2) ||
+        !!scheduledAt.value
+);
+
+function beforeUnloadHandler(e: BeforeUnloadEvent): void {
+    if (hasUnsavedContent.value) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+}
 
 const charCount = computed(() => message.value.length);
 const charWarning = computed(() => charCount.value > MAX_CHARS * 0.9);
@@ -220,6 +317,43 @@ function resetAttachments(): void {
 }
 
 async function handleSubmit(): Promise<void> {
+    // Guest: always show login modal (save draft if they have content)
+    const isGuest = !authStore.isLoggedIn;
+    if (isGuest) {
+        const hasContent =
+            message.value.trim().length > 0 ||
+            mediaItems.value.length > 0 ||
+            !!videoEmbed.value ||
+            (showPollForm.value && pollData.value.options.filter((o) => o.label.trim()).length >= 2);
+        if (hasContent) {
+            const draft: CreateFeedData = {
+                message: message.value,
+                space: selectedSpace.value?.slug || undefined,
+            };
+            if (videoEmbed.value) draft.media = videoEmbed.value;
+            if (showPollForm.value) {
+                const validOptions = pollData.value.options.filter((o) => o.label.trim());
+                if (validOptions.length >= 2) {
+                    draft.survey = {
+                        type: pollData.value.type,
+                        options: validOptions,
+                        end_date: pollData.value.end_date || undefined,
+                    };
+                }
+            }
+            if (scheduledAt.value) draft.scheduled_at = scheduledAt.value;
+            try {
+                localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+            } catch {
+                uiStore.showError('Could not save draft.');
+                return;
+            }
+        }
+        showLoginModal.value = true;
+        await nextTick(); // ensure modal is in DOM before returning
+        return;
+    }
+
     if (!canSubmit.value || isSubmitting.value) return;
 
     isSubmitting.value = true;
@@ -234,9 +368,17 @@ async function handleSubmit(): Promise<void> {
             feedData.media_images = mediaItems.value;
         }
 
-        // Add video embed
+        // Add video embed (send as both media and media_preview for compatibility)
         if (videoEmbed.value) {
             feedData.media = videoEmbed.value;
+            feedData.media_preview = {
+                type: videoEmbed.value.type,
+                url: videoEmbed.value.url,
+                html: videoEmbed.value.html,
+                image: videoEmbed.value.image,
+                title: videoEmbed.value.title,
+                provider: videoEmbed.value.provider,
+            };
         }
 
         // Add poll/survey
@@ -294,6 +436,63 @@ async function handleSubmit(): Promise<void> {
     } finally {
         isSubmitting.value = false;
     }
+}
+
+const loginUrlWithRedirect = computed(() => {
+    const base = authStore.loginUrl;
+    const sep = base.includes('?') ? '&' : '?';
+    return `${base}${sep}redirect_to=${encodeURIComponent(window.location.href)}`;
+});
+
+/** Guest-only: show login modal and optionally save draft. Called directly from template so click always fires. */
+function showGuestLoginModal(): void {
+    console.log('[CreatePost] showGuestLoginModal called, isLoggedIn:', authStore.isLoggedIn);
+    const hasContent =
+        message.value.trim().length > 0 ||
+        mediaItems.value.length > 0 ||
+        !!videoEmbed.value ||
+        (showPollForm.value && pollData.value.options.filter((o) => o.label.trim()).length >= 2);
+    
+    console.log('[CreatePost] hasContent:', hasContent, 'message:', message.value);
+    
+    if (hasContent) {
+        const draft: CreateFeedData = {
+            message: message.value,
+            space: selectedSpace.value?.slug || undefined,
+        };
+        if (videoEmbed.value) draft.media = videoEmbed.value;
+        if (showPollForm.value) {
+            const validOptions = pollData.value.options.filter((o) => o.label.trim());
+            if (validOptions.length >= 2) {
+                draft.survey = {
+                    type: pollData.value.type,
+                    options: validOptions,
+                    end_date: pollData.value.end_date || undefined,
+                };
+            }
+        }
+        if (scheduledAt.value) draft.scheduled_at = scheduledAt.value;
+        try {
+            localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+            console.log('[CreatePost] Draft saved to localStorage:', draft);
+        } catch (e) {
+            console.error('[CreatePost] Failed to save draft:', e);
+            uiStore.showError('Could not save draft.');
+        }
+    } else {
+        console.log('[CreatePost] No content to save as draft');
+    }
+    console.log('[CreatePost] Setting showLoginModal to true');
+    showLoginModal.value = true;
+    console.log('[CreatePost] showLoginModal is now:', showLoginModal.value);
+}
+
+function onPhotoAttachClick(): void {
+    if (!authStore.isLoggedIn) {
+        showLoginModal.value = true;
+        return;
+    }
+    triggerFileUpload();
 }
 
 function triggerFileUpload(): void {
@@ -378,23 +577,24 @@ async function embedVideo(): Promise<void> {
     try {
         const response = await api.get<{
             oembed: {
-                html: string;
-                provider: string;
-                title: string;
-                type: string;
-                image: string;
-                author_name: string;
+                html?: string;
+                provider?: string;
+                title?: string;
+                type?: string;
+                image?: string;
+                author_name?: string;
             };
         }>('feeds/oembed', { url: videoUrl.value });
 
+        const oembed = response.oembed || {};
         videoEmbed.value = {
-            type: response.oembed.type || 'oembed',
+            type: oembed.type || 'oembed',
             url: videoUrl.value,
-            html: response.oembed.html,
+            html: oembed.html || '',
             content_type: 'video',
-            provider: response.oembed.provider,
-            title: response.oembed.title,
-            image: response.oembed.image
+            provider: oembed.provider || '',
+            title: oembed.title || '',
+            image: oembed.image || ''
         };
         showVideoEmbed.value = false;
         videoUrl.value = '';
@@ -524,8 +724,8 @@ function insertEmoji(emoji: string): void {
                 <div class="fcom-mf-create-post__attach-buttons fcom-mf-create-post__attach-buttons--collapsed" @click.stop>
                     <button
                         class="fcom-mf-create-post__attach-icon fcom-mf-create-post__attach-icon--photo"
-                        title="Photo/Video"
-                        @click="expandAnd(triggerFileUpload)"
+                        :title="authStore.isLoggedIn ? 'Photo/Video' : 'Log in to add photos'"
+                        @click="expandAnd(onPhotoAttachClick)"
                     >
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-1.5 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm.5 10H6l4-5 2.5 3 3.5-4.5 3 6.5z"/>
@@ -813,8 +1013,8 @@ function insertEmoji(emoji: string): void {
                         class="fcom-mf-create-post__attach-icon fcom-mf-create-post__attach-icon--photo"
                         :class="{ 'fcom-mf-create-post__attach-icon--active': mediaItems.length > 0 }"
                         :disabled="isUploading || showPollForm || !!videoEmbed"
-                        title="Photo/Video"
-                        @click="triggerFileUpload"
+                        :title="authStore.isLoggedIn ? 'Photo/Video' : 'Log in to add photos'"
+                        @click="onPhotoAttachClick"
                     >
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-1.5 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm.5 10H6l4-5 2.5 3 3.5-4.5 3 6.5z"/>
@@ -937,16 +1137,33 @@ function insertEmoji(emoji: string): void {
                 @change="handleFileSelect"
             />
 
-            <!-- Post Button -->
-            <div class="fcom-mf-create-post__submit">
+            <!-- Post Button: guest uses dedicated handler so click always fires -->
+            <div
+                class="fcom-mf-create-post__submit"
+                @click.capture="!authStore.isLoggedIn && showGuestLoginModal()"
+            >
+                <!-- Guest: single button, always clickable, opens login modal -->
                 <button
+                    v-if="!authStore.isLoggedIn"
+                    type="button"
+                    class="fcom-mf-create-post__post-btn fcom-mf-create-post__post-btn--ready"
+                    @click.stop.prevent="showGuestLoginModal"
+                    @mousedown.stop.prevent="showGuestLoginModal"
+                    @touchstart.stop.prevent="showGuestLoginModal"
+                >
+                    {{ uiStore.t('post') }}
+                </button>
+                <!-- Logged in: normal submit with validation -->
+                <button
+                    v-else
+                    type="button"
                     class="fcom-mf-create-post__post-btn"
                     :class="{
                         'fcom-mf-create-post__post-btn--ready': canSubmit && !isSubmitting && !charExceeded,
                         'fcom-mf-create-post__post-btn--scheduled': !!scheduledAt
                     }"
                     :disabled="!canSubmit || isSubmitting || charExceeded"
-                    @click="handleSubmit"
+                    @click.stop="handleSubmit"
                 >
                     <span v-if="isSubmitting" class="fcom-mf-spinner" style="width: 16px; height: 16px; border-width: 2px;"></span>
                     <span v-else-if="scheduledAt">Schedule</span>
@@ -954,6 +1171,105 @@ function insertEmoji(emoji: string): void {
                 </button>
             </div>
         </div>
+
+        <!-- Login required modal (guest clicked Post or Photo) -->
+        <Teleport to="body">
+            <div
+                v-if="showLoginModal"
+                class="fcom-mf-guest-login-modal-backdrop"
+                :style="{
+                    position: 'fixed',
+                    inset: '0',
+                    background: 'rgba(0, 0, 0, 0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 99999,
+                    padding: '16px'
+                }"
+                @click.self="showLoginModal = false"
+            >
+                <div
+                    class="fcom-mf-guest-login-modal"
+                    :style="{
+                        background: '#fff',
+                        borderRadius: '12px',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+                        padding: '24px',
+                        maxWidth: '400px',
+                        width: '100%'
+                    }"
+                    @click.stop
+                >
+                    <h3 :style="{ margin: '0 0 12px', fontSize: '20px', fontWeight: '600', color: '#1a1a1a' }">
+                        Log in to post
+                    </h3>
+                    <p :style="{ margin: '0 0 20px', fontSize: '15px', color: '#666', lineHeight: '1.5' }">
+                        Your post will be saved and published after you log in. Photos can be added after you log in.
+                    </p>
+                    <div :style="{ display: 'flex', flexWrap: 'wrap', gap: '10px' }">
+                        <a
+                            :href="loginUrlWithRedirect"
+                            :style="{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '10px 20px',
+                                fontSize: '14px',
+                                fontWeight: '500',
+                                borderRadius: '8px',
+                                textDecoration: 'none',
+                                cursor: 'pointer',
+                                background: '#1877f2',
+                                color: '#fff',
+                                border: 'none'
+                            }"
+                        >
+                            Log in
+                        </a>
+                        <a
+                            v-if="authStore.registerUrl"
+                            :href="authStore.registerUrl"
+                            :style="{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '10px 20px',
+                                fontSize: '14px',
+                                fontWeight: '500',
+                                borderRadius: '8px',
+                                textDecoration: 'none',
+                                cursor: 'pointer',
+                                background: '#e4e6eb',
+                                color: '#1a1a1a',
+                                border: 'none'
+                            }"
+                        >
+                            Sign up
+                        </a>
+                        <button
+                            type="button"
+                            :style="{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '10px 20px',
+                                fontSize: '14px',
+                                fontWeight: '500',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                background: 'transparent',
+                                color: '#666',
+                                border: '1px solid #ddd'
+                            }"
+                            @click="showLoginModal = false"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
     </div>
 </template>
 
@@ -1120,21 +1436,21 @@ function insertEmoji(emoji: string): void {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: $spacing-md;
+        padding: $spacing-sm $spacing-md;
         border: 1px solid $border-color;
-        border-radius: $border-radius-md;
-        margin-top: $spacing-md;
+        border-radius: $border-radius-sm;
+        margin-top: $spacing-sm;
     }
 
     &__attach-label {
-        font-size: $font-size-md;
+        font-size: $font-size-sm;
         font-weight: $font-weight-semibold;
         color: $text-primary;
     }
 
     &__attach-buttons {
         display: flex;
-        gap: $spacing-xs;
+        gap: 2px;
     }
 
     &__attach-buttons--collapsed {
@@ -1144,8 +1460,8 @@ function insertEmoji(emoji: string): void {
     &__attach-icon {
         @include button-reset;
         @include focus-ring;
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1809,6 +2125,90 @@ function insertEmoji(emoji: string): void {
             &:focus {
                 outline: none;
                 border-color: $primary-color;
+            }
+        }
+    }
+
+    // Login required modal (guest) - above header (z-sticky)
+    &__login-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: $spacing-lg;
+    }
+
+    &__login-modal {
+        background: $white;
+        border-radius: $border-radius-lg;
+        box-shadow: $shadow-lg;
+        padding: $spacing-xl;
+        max-width: 400px;
+        width: 100%;
+    }
+
+    &__login-modal-title {
+        margin: 0 0 $spacing-md;
+        font-size: $font-size-xl;
+        font-weight: $font-weight-bold;
+        color: $text-primary;
+    }
+
+    &__login-modal-text {
+        margin: 0 0 $spacing-lg;
+        font-size: $font-size-md;
+        color: $text-secondary;
+        line-height: $line-height-relaxed;
+    }
+
+    &__login-modal-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $spacing-sm;
+    }
+
+    &__login-modal-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: $spacing-sm $spacing-lg;
+        border-radius: $border-radius-sm;
+        font-size: $font-size-md;
+        font-weight: $font-weight-semibold;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background $transition-fast;
+        border: none;
+        font-family: inherit;
+
+        &--primary {
+            background: $primary-color;
+            color: $white;
+
+            &:hover {
+                background: $primary-hover;
+            }
+        }
+
+        &--secondary {
+            background: transparent;
+            color: $primary-color;
+            border: 1px solid $border-color;
+
+            &:hover {
+                background: $gray-50;
+            }
+        }
+
+        &--cancel {
+            background: $gray-100;
+            color: $text-secondary;
+
+            &:hover {
+                background: $gray-200;
             }
         }
     }

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useFeedStore } from '@/stores';
+import { useAuthStore, useFeedStore } from '@/stores';
 import type { Feed } from '@/stores/feed';
 import FeedItem from '@/components/feed/FeedItem.vue';
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 const feedStore = useFeedStore();
 
 const post = ref<Feed | null>(null);
@@ -23,7 +24,17 @@ const postSlug = computed(() => {
     return typeof slug === 'string' ? slug : null;
 });
 
+const loginUrlWithRedirect = computed(() => {
+    const base = authStore.loginUrl;
+    const sep = base.includes('?') ? '&' : '?';
+    return `${base}${sep}redirect_to=${encodeURIComponent(window.location.href)}`;
+});
+
 async function fetchPost() {
+    if (!authStore.isLoggedIn) {
+        loading.value = false;
+        return;
+    }
     // Check if we have an ID or slug
     if (!postId.value && !postSlug.value) {
         error.value = 'Invalid post';
@@ -56,7 +67,6 @@ async function fetchPost() {
 }
 
 function goBack() {
-    // Try to go back in history, or go to feed
     if (window.history.length > 1) {
         router.back();
     } else {
@@ -68,7 +78,6 @@ onMounted(() => {
     fetchPost();
 });
 
-// Watch for route changes (both id and slug)
 watch([() => route.params.id, () => route.params.slug], () => {
     fetchPost();
 });
@@ -86,8 +95,37 @@ watch([() => route.params.id, () => route.params.slug], () => {
             </button>
         </div>
 
+        <!-- Guest: login required modal -->
+        <div v-if="!authStore.isLoggedIn" class="fcom-mf-single-post__login-card">
+            <div class="fcom-mf-single-post__login-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+            </div>
+            <h2 class="fcom-mf-single-post__login-title">Log in to view this post</h2>
+            <p class="fcom-mf-single-post__login-text">
+                Sign in to your account to read this post and join the conversation.
+            </p>
+            <div class="fcom-mf-single-post__login-actions">
+                <a
+                    :href="loginUrlWithRedirect"
+                    class="fcom-mf-single-post__login-btn fcom-mf-single-post__login-btn--primary"
+                >
+                    Log in
+                </a>
+                <button
+                    type="button"
+                    class="fcom-mf-single-post__login-btn fcom-mf-single-post__login-btn--secondary"
+                    @click="goBack"
+                >
+                    Back to Feed
+                </button>
+            </div>
+        </div>
+
         <!-- Loading state -->
-        <div v-if="loading" class="fcom-mf-single-post__loading">
+        <div v-else-if="loading" class="fcom-mf-single-post__loading">
             <div class="fcom-mf-skeleton-card">
                 <div class="fcom-mf-skeleton-header">
                     <div class="fcom-mf-skeleton-avatar"></div>
@@ -211,6 +249,82 @@ watch([() => route.params.id, () => route.params.slug], () => {
             display: flex;
             flex-direction: column;
             gap: $spacing-md;
+        }
+    }
+
+    &__login-card {
+        background: $white;
+        border-radius: $border-radius-lg;
+        padding: $spacing-xxxl;
+        text-align: center;
+        box-shadow: $shadow-md;
+        max-width: 420px;
+        margin: 0 auto;
+    }
+
+    &__login-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 96px;
+        height: 96px;
+        margin: 0 auto $spacing-xl;
+        border-radius: $border-radius-full;
+        background: linear-gradient(135deg, $gray-50 0%, $gray-100 100%);
+        color: $primary-color;
+    }
+
+    &__login-title {
+        font-size: $font-size-xxl;
+        font-weight: $font-weight-bold;
+        color: $text-primary;
+        margin: 0 0 $spacing-md;
+        line-height: $line-height-tight;
+    }
+
+    &__login-text {
+        font-size: $font-size-md;
+        color: $text-secondary;
+        line-height: $line-height-relaxed;
+        margin: 0 0 $spacing-xl;
+    }
+
+    &__login-actions {
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-sm;
+    }
+
+    &__login-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: $spacing-md $spacing-xl;
+        border-radius: $border-radius-md;
+        font-size: $font-size-md;
+        font-weight: $font-weight-semibold;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background $transition-fast, transform $transition-instant;
+        border: none;
+        font-family: inherit;
+
+        &--primary {
+            background: $primary-color;
+            color: $white;
+
+            &:hover {
+                background: $primary-hover;
+            }
+        }
+
+        &--secondary {
+            background: $gray-100;
+            color: $text-primary;
+
+            &:hover {
+                background: $gray-200;
+            }
         }
     }
 

@@ -18,13 +18,14 @@ const emit = defineEmits<{
     close: [];
 }>();
 
+// Community-focused reactions
 const reactions: Reaction[] = [
     { type: 'like', emoji: '👍', label: 'Like', color: '#1877f2' },
     { type: 'love', emoji: '❤️', label: 'Love', color: '#e7415f' },
-    { type: 'haha', emoji: '😂', label: 'Haha', color: '#f7b928' },
-    { type: 'wow', emoji: '😮', label: 'Wow', color: '#f7b928' },
-    { type: 'sad', emoji: '😢', label: 'Sad', color: '#f7b928' },
-    { type: 'angry', emoji: '😡', label: 'Angry', color: '#e9710f' },
+    { type: 'celebrate', emoji: '🎉', label: 'Celebrate', color: '#8b5cf6' },
+    { type: 'insightful', emoji: '💡', label: 'Insightful', color: '#f59e0b' },
+    { type: 'support', emoji: '🙌', label: 'Support', color: '#10b981' },
+    { type: 'thanks', emoji: '🙏', label: 'Thanks', color: '#ec4899' },
 ];
 
 const hoveredReaction = ref<string | null>(null);

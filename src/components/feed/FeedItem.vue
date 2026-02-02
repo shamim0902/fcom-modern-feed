@@ -99,8 +99,27 @@ const hasPoll = computed(() => {
     return !!props.feed.meta?.survey_config?.options?.length;
 });
 
-// Reaction display for stats bar
-const reactionEmojis = ['👍', '❤️', '😂'];
+// Reaction type -> emoji for stats bar (must match FeedActions / ReactionPicker)
+const REACTION_EMOJI: Record<string, string> = {
+    like: '👍',
+    love: '❤️',
+    celebrate: '🎉',
+    insightful: '💡',
+    support: '🙌',
+    thanks: '🙏',
+};
+const DEFAULT_STAT_EMOJIS = ['👍', '❤️', '🎉'];
+
+const reactionStatEmojis = computed(() => {
+    const count = props.feed.reactions_count;
+    if (count === 0) return [];
+    const userType = props.feed.user_reaction_type;
+    const userEmoji = userType ? REACTION_EMOJI[userType] : null;
+    if (props.feed.has_user_react && userEmoji) {
+        return [userEmoji, ...DEFAULT_STAT_EMOJIS.filter((e) => e !== userEmoji)].slice(0, 3);
+    }
+    return DEFAULT_STAT_EMOJIS.slice(0, Math.min(3, count));
+});
 
 const reactionText = computed(() => {
     const count = props.feed.reactions_count;
@@ -514,7 +533,7 @@ function handlePostUpdated(): void {
         <div v-if="reactionText || commentsText" class="fcom-mf-feed-item__stats">
             <span v-if="reactionText" class="fcom-mf-feed-item__stat">
                 <span class="fcom-mf-feed-item__stat-emojis">
-                    <span v-for="(emoji, idx) in reactionEmojis.slice(0, Math.min(3, feed.reactions_count))" :key="idx" class="fcom-mf-feed-item__stat-emoji">{{ emoji }}</span>
+                    <span v-for="(emoji, idx) in reactionStatEmojis" :key="idx" class="fcom-mf-feed-item__stat-emoji">{{ emoji }}</span>
                 </span>
                 {{ reactionText }}
             </span>

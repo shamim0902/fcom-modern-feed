@@ -102,6 +102,7 @@ class Assets
             'isLoggedIn' => is_user_logged_in(),
             'loginUrl' => wp_login_url(get_permalink()),
             'registerUrl' => wp_registration_url(),
+            'logoutUrl' => wp_logout_url(get_permalink()),
             'i18n' => self::getTranslations(),
             'features' => [
                 'reactions' => true,

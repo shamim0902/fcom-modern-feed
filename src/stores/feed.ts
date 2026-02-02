@@ -75,17 +75,17 @@ export const useFeedStore = defineStore('feed', () => {
         return contexts.value[key];
     }
 
-    // Extract user's reaction type from the reactions array
+    // Extract user's reaction type from the reactions array (so UI shows correct emoji/label)
     function populateUserReactionType(feed: Feed): void {
         if (!feed.has_user_react || feed.user_reaction_type) return;
 
         const authStore = useAuthStore();
         const currentUserId = authStore.userId;
-        if (!currentUserId) return;
+        if (currentUserId == null) return;
 
-        // Find the user's reaction in the reactions array
-        const userReaction = feed.reactions?.find(r => r.user_id === currentUserId);
-        if (userReaction) {
+        const uid = Number(currentUserId);
+        const userReaction = feed.reactions?.find((r) => Number(r.user_id) === uid);
+        if (userReaction?.type) {
             feed.user_reaction_type = userReaction.type;
         }
     }
@@ -369,20 +369,39 @@ export const useFeedStore = defineStore('feed', () => {
         const wasReacted = feed.has_user_react;
         const previousReactionType = feed.user_reaction_type;
 
-        // If already reacted with same type, toggle off
-        // If already reacted with different type, just change the type (no count change)
-        // If not reacted, add reaction
+        // If already reacted with same type, toggle off (DELETE)
+        // If already reacted with different type, just change the type (POST, no count change)
+        // If not reacted, add reaction (POST)
         const isSameReaction = wasReacted && previousReactionType === reactionType;
 
         // Optimistic update
         if (isSameReaction) {
-            // Toggle off
+            // Toggle off – clear user reaction so button shows inactive
             feed.has_user_react = false;
             feed.user_reaction_type = undefined;
-            feed.reactions_count -= 1;
+            feed.reactions_count = Math.max(0, feed.reactions_count - 1);
+            // Remove current user from reactions array so UI stays in sync
+            const authStore = useAuthStore();
+            const uid = Number(authStore.userId);
+            if (feed.reactions?.length && uid) {
+                feed.reactions = feed.reactions.filter((r) => Number(r.user_id) !== uid);
+            }
+            syncFeedReactionState(feedId, {
+                has_user_react: false,
+                user_reaction_type: undefined,
+                reactions_count: feed.reactions_count,
+                reactions: feed.reactions,
+            });
         } else if (wasReacted) {
-            // Change reaction type (no count change)
+            // Replace with new reaction type (no count change)
             feed.user_reaction_type = reactionType;
+            // Keep reactions array in sync so current user's reaction shows correct type
+            const authStore = useAuthStore();
+            const uid = Number(authStore.userId);
+            if (feed.reactions && uid) {
+                const userReaction = feed.reactions.find((r) => Number(r.user_id) === uid);
+                if (userReaction) userReaction.type = reactionType;
+            }
         } else {
             // Add new reaction
             feed.has_user_react = true;
@@ -391,8 +410,19 @@ export const useFeedStore = defineStore('feed', () => {
         }
 
         try {
-            await api.post(`feeds/${feedId}/react`, {
-                react_type: reactionType,
+            if (isSameReaction) {
+                await api.delete(`feeds/${feedId}/react`);
+            } else {
+                await api.post(`feeds/${feedId}/react`, {
+                    react_type: reactionType,
+                });
+            }
+            // Sync reaction state to same feed in other contexts so UI updates everywhere
+            syncFeedReactionState(feedId, {
+                has_user_react: !!feed.has_user_react,
+                user_reaction_type: feed.user_reaction_type,
+                reactions_count: feed.reactions_count,
+                reactions: feed.reactions,
             });
         } catch (error) {
             // Rollback on error
@@ -400,6 +430,33 @@ export const useFeedStore = defineStore('feed', () => {
             feed.user_reaction_type = previousReactionType;
             feed.reactions_count += isSameReaction ? 1 : (wasReacted ? 0 : -1);
             throw error;
+        }
+    }
+
+    /** Update reaction state on every copy of this feed in all contexts so the button stays in sync. */
+    function syncFeedReactionState(
+        feedId: number,
+        state: { has_user_react: boolean; user_reaction_type?: string; reactions_count: number; reactions?: Feed['reactions'] }
+    ): void {
+        for (const key of Object.keys(contexts.value)) {
+            const ctx = contexts.value[key];
+            if (!ctx?.feeds) continue;
+            for (const f of ctx.feeds) {
+                if (f.id === feedId) {
+                    f.has_user_react = state.has_user_react;
+                    f.user_reaction_type = state.user_reaction_type;
+                    f.reactions_count = state.reactions_count;
+                    if (state.reactions !== undefined) f.reactions = state.reactions;
+                    break;
+                }
+            }
+        }
+        if (contexts.value[currentContext.value]?.stickyFeed?.id === feedId) {
+            const sticky = contexts.value[currentContext.value].stickyFeed!;
+            sticky.has_user_react = state.has_user_react;
+            sticky.user_reaction_type = state.user_reaction_type;
+            sticky.reactions_count = state.reactions_count;
+            if (state.reactions !== undefined) sticky.reactions = state.reactions;
         }
     }
 
@@ -486,6 +543,7 @@ export const useFeedStore = defineStore('feed', () => {
         comment.reactions_count += wasReacted ? -1 : 1;
 
         try {
+            // POST toggles reaction (add if not present, remove if present)
             await api.post(`feeds/${feedId}/comments/${commentId}/reactions`);
         } catch (error) {
             // Rollback

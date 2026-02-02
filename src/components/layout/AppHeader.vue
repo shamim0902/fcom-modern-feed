@@ -19,7 +19,6 @@ watch(
 );
 
 const loginUrl = computed(() => window.fcomModernFeed?.loginUrl || '/wp-login.php');
-const logoutUrl = computed(() => loginUrl.value + '?action=logout');
 
 function handleSearch(): void {
     const q = searchQuery.value.trim();
@@ -49,6 +48,12 @@ function goToProfile(): void {
     if (username) {
         navigateTo(`/u/${username}`);
     }
+}
+
+/** Full-page redirect so WordPress session is cleared and page reloads with fresh auth state. */
+function doLogout(): void {
+    const url = authStore.logoutUrl || window.fcomModernFeed?.logoutUrl || '/wp-login.php?action=logout';
+    window.location.href = url;
 }
 </script>
 
@@ -144,12 +149,12 @@ function goToProfile(): void {
                                 Portal Settings
                             </a>
                             <div class="header__menu-divider"></div>
-                            <a :href="logoutUrl" class="header__menu-item">
+                            <button type="button" class="header__menu-item" @mousedown="doLogout">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
                                 </svg>
                                 Log out
-                            </a>
+                            </button>
                         </div>
                     </Transition>
                 </template>
