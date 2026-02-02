@@ -27,6 +27,7 @@ declare global {
                 realTimeUpdates: boolean;
                 mediaUpload: boolean;
                 adminSettings: boolean;
+                followersModule: boolean;
             };
             adminSettingsUrl: string;
             portalBaseUrl: string;

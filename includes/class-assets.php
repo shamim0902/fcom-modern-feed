@@ -111,6 +111,7 @@ class Assets
                 'realTimeUpdates' => true,
                 'mediaUpload' => is_user_logged_in(),
                 'adminSettings' => self::canAccessAdminSettings(),
+                'followersModule' => self::isFollowersModuleEnabled(),
             ],
             'adminSettingsUrl' => self::getAdminSettingsUrl(),
             'portalBaseUrl' => self::getPortalBaseUrl(),
@@ -205,6 +206,16 @@ class Assets
         // Check if FluentCommunity Helper class exists
         if (class_exists('\FluentCommunity\App\Services\Helper')) {
             return \FluentCommunity\App\Services\Helper::isSiteAdmin();
+        }
+
+        return false;
+    }
+
+    private static function isFollowersModuleEnabled()
+    {
+        // Check if FluentCommunity Helper class exists
+        if (class_exists('\FluentCommunity\App\Services\Helper')) {
+            return \FluentCommunity\App\Services\Helper::isFeatureEnabled('followers_module');
         }
 
         return false;

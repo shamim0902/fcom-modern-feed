@@ -3,16 +3,27 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '@/api/client';
 import type { SpaceFull, SpacesResponse } from '@/api/types';
-import { useAuthStore } from '@/stores';
+import { useAuthStore, useUiStore } from '@/stores';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const uiStore = useUiStore();
 
 const spaces = ref<SpaceFull[]>([]);
 const mySpaces = ref<SpaceFull[]>([]);
 const loading = ref(true);
 const searchQuery = ref('');
 const activeTab = ref<'discover' | 'my'>('discover');
+const joining = ref<Record<number, boolean>>({});
+
+function isSpaceMember(space: SpaceFull, memberIds: Set<number>, memberSlugs: Set<string>): boolean {
+    const inferredMember = Boolean(
+        // Some APIs return member flags under different keys
+        (space as SpaceFull & { space_pivot?: unknown; user_status?: { status?: string } }).space_pivot ||
+        (space as SpaceFull & { user_status?: { status?: string } }).user_status?.status === 'active'
+    );
+    return Boolean(space.is_member || inferredMember || memberIds.has(space.id) || memberSlugs.has(space.slug));
+}
 
 async function fetchSpaces(): Promise<void> {
     loading.value = true;
@@ -29,6 +40,14 @@ async function fetchSpaces(): Promise<void> {
             spaces.value = [];
         }
         mySpaces.value = response.my_spaces || [];
+        const memberIds = new Set(mySpaces.value.map(space => space.id));
+        const memberSlugs = new Set(mySpaces.value.map(space => space.slug));
+        if (spaces.value.length) {
+            spaces.value = spaces.value.map(space => ({
+                ...space,
+                is_member: isSpaceMember(space, memberIds, memberSlugs),
+            }));
+        }
     } catch (error) {
         console.error('Failed to fetch spaces:', error);
         spaces.value = [];
@@ -42,31 +61,37 @@ function navigateToSpace(slug: string): void {
     router.push({ name: 'space', params: { slug } });
 }
 
-async function joinSpace(space: SpaceFull, event: Event): Promise<void> {
-    event.stopPropagation();
-    if (!authStore.isLoggedIn) return;
+async function joinSpace(space: SpaceFull): Promise<void> {
+    if (!authStore.requireAuth()) return;
+    if (space.privacy && space.privacy !== 'public') {
+        navigateToSpace(space.slug);
+        return;
+    }
+    if (joining.value[space.id]) return;
 
+    joining.value[space.id] = true;
     try {
         await api.post(`spaces/${space.slug}/join`);
         space.is_member = true;
-        space.members_count++;
-        mySpaces.value.push(space);
+        space.members_count = (space.members_count || 0) + 1;
+        if (!mySpaces.value.find(s => s.id === space.id)) {
+            mySpaces.value.push(space);
+        }
+        uiStore.showSuccess('Successfully joined the space.');
     } catch (error) {
-        console.error('Failed to join space:', error);
-    }
-}
-
-async function leaveSpace(space: SpaceFull, event: Event): Promise<void> {
-    event.stopPropagation();
-    if (!authStore.isLoggedIn) return;
-
-    try {
-        await api.post(`spaces/${space.slug}/leave`);
-        space.is_member = false;
-        space.members_count--;
-        mySpaces.value = mySpaces.value.filter(s => s.id !== space.id);
-    } catch (error) {
-        console.error('Failed to leave space:', error);
+        const apiError = error as { message?: string; status?: number };
+        if (apiError?.status === 422 && apiError?.message?.includes('already a member')) {
+            space.is_member = true;
+            if (!mySpaces.value.find(s => s.id === space.id)) {
+                mySpaces.value.push(space);
+            }
+            uiStore.showInfo('You are already a member of this space.');
+        } else {
+            console.error('Failed to join space:', error);
+            uiStore.showError('Failed to join the space. Please try again.');
+        }
+    } finally {
+        joining.value[space.id] = false;
     }
 }
 
@@ -193,18 +218,25 @@ function formatNumber(num: number | undefined | null): string {
                         </span>
                     </div>
                     <button
-                        v-if="authStore.isLoggedIn"
+                        v-if="authStore.isLoggedIn && !space.is_member"
                         class="space-card__btn"
-                        :class="{ 'space-card__btn--joined': space.is_member }"
-                        @click="space.is_member ? leaveSpace(space, $event) : joinSpace(space, $event)"
+                        :disabled="joining[space.id]"
+                        @click.stop="joinSpace(space)"
                     >
-                        <svg v-if="space.is_member" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                        </svg>
-                        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                         </svg>
-                        {{ space.is_member ? 'Joined' : 'Join' }}
+                        Join
+                    </button>
+                    <button
+                        v-else-if="authStore.isLoggedIn && space.is_member"
+                        class="space-card__view-btn"
+                        @click.stop="navigateToSpace(space.slug)"
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M10 17l5-5-5-5v10z"/>
+                        </svg>
+                        View Space
                     </button>
                 </div>
             </div>
@@ -518,6 +550,11 @@ function formatNumber(num: number | undefined | null): string {
             background: $primary-hover;
         }
 
+        &:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
         &--joined {
             background: $gray-100;
             color: $text-secondary;
@@ -525,6 +562,28 @@ function formatNumber(num: number | undefined | null): string {
             &:hover {
                 background: $gray-200;
             }
+        }
+    }
+
+    &__view-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 14px;
+        background: $gray-100;
+        color: $text-secondary;
+        border: none;
+        border-radius: $border-radius-sm;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-semibold;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all $transition-fast;
+
+        &:hover {
+            background: $gray-200;
         }
     }
 }

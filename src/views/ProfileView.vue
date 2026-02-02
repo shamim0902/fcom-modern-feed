@@ -3,12 +3,13 @@ import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '@/api/client';
 import type { Profile, ProfileResponse, Feed, FeedsResponse } from '@/api/types';
-import { useAuthStore } from '@/stores';
+import { useAuthStore, useUiStore } from '@/stores';
 import FeedItem from '@/components/feed/FeedItem.vue';
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const uiStore = useUiStore();
 
 const profile = ref<Profile | null>(null);
 const feeds = ref<Feed[]>([]);
@@ -18,17 +19,17 @@ const hasMore = ref(true);
 const currentPage = ref(1);
 const activeTab = ref<'posts' | 'about' | 'spaces'>('posts');
 const error = ref<string | null>(null);
+const followLoading = ref(false);
 
 const username = computed(() => route.params.username as string);
+
+const isFollowersEnabled = computed(() => {
+    return window.fcomModernFeed?.features?.followersModule ?? false;
+});
 
 const isOwnProfile = computed(() => {
     if (!profile.value || !authStore.isLoggedIn) return false;
     return profile.value.user_id === authStore.userId;
-});
-
-const portalBaseUrl = computed(() => {
-    // Get the portal base URL from FluentCommunity config or default
-    return window.fcomModernFeed?.portalBaseUrl || '/portal';
 });
 
 function navigateToEditProfile(): void {
@@ -37,10 +38,10 @@ function navigateToEditProfile(): void {
     }
 }
 
-const notificationSettingsUrl = computed(() => {
-    if (!profile.value) return '#';
-    return `${portalBaseUrl.value}/u/${profile.value.username}/notification-settings`;
-});
+function navigateToNotificationSettings(): void {
+    if (!profile.value) return;
+    router.push({ name: 'notification-settings', params: { username: profile.value.username } });
+}
 
 function navigateToMembers(): void {
     router.push({ name: 'members' });
@@ -114,9 +115,13 @@ function loadMoreFeeds(): void {
 }
 
 async function toggleFollow(): Promise<void> {
-    if (!authStore.isLoggedIn || !profile.value) return;
+    if (!profile.value) return;
+    if (!authStore.requireAuth()) return;
+    if (followLoading.value) return;
 
+    followLoading.value = true;
     try {
+        // FluentCommunity uses a single toggle endpoint
         await api.post(`profile/${profile.value.username}/follow`);
         profile.value.is_following = !profile.value.is_following;
         if (profile.value.is_following) {
@@ -124,8 +129,12 @@ async function toggleFollow(): Promise<void> {
         } else {
             profile.value.followers_count = Math.max(0, (profile.value.followers_count || 0) - 1);
         }
+        uiStore.showSuccess(profile.value.is_following ? 'Now following.' : 'Unfollowed.');
     } catch (e) {
         console.error('Failed to toggle follow:', e);
+        uiStore.showError('Failed to update follow status. Please try again.');
+    } finally {
+        followLoading.value = false;
     }
 }
 
@@ -167,13 +176,13 @@ function formatNumber(num: number | undefined | null): string {
                 <span class="fcom-mf-breadcrumb__current">{{ isOwnProfile ? 'My Profile' : (profile?.display_name || 'Profile') }}</span>
             </div>
             <div v-if="isOwnProfile && profile" class="fcom-mf-profile-view__actions">
-                <a :href="notificationSettingsUrl" class="fcom-mf-btn fcom-mf-btn--outline fcom-mf-btn--sm">
+                <button @click="navigateToNotificationSettings" class="fcom-mf-btn fcom-mf-btn--outline fcom-mf-btn--sm">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                         <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
                     </svg>
                     Notification Settings
-                </a>
+                </button>
                 <button @click="navigateToEditProfile" class="fcom-mf-btn fcom-mf-btn--primary fcom-mf-btn--sm">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -240,31 +249,32 @@ function formatNumber(num: number | undefined | null): string {
 
                         <div class="fcom-mf-profile-header__stats">
                             <div class="fcom-mf-profile-header__stat">
-                                <span class="fcom-mf-profile-header__stat-value">{{ formatNumber(profile.posts_count || 0) }}</span>
+                                <span class="fcom-mf-profile-header__stat-value">{{ formatNumber(profile.posts_count ?? 0) }}</span>
                                 <span class="fcom-mf-profile-header__stat-label">Posts</span>
                             </div>
-                            <div class="fcom-mf-profile-header__stat">
-                                <span class="fcom-mf-profile-header__stat-value">{{ formatNumber(profile.followers_count || 0) }}</span>
+                            <div v-if="isFollowersEnabled" class="fcom-mf-profile-header__stat">
+                                <span class="fcom-mf-profile-header__stat-value">{{ formatNumber(profile.followers_count ?? 0) }}</span>
                                 <span class="fcom-mf-profile-header__stat-label">Followers</span>
                             </div>
-                            <div class="fcom-mf-profile-header__stat">
-                                <span class="fcom-mf-profile-header__stat-value">{{ formatNumber(profile.following_count || 0) }}</span>
+                            <div v-if="isFollowersEnabled" class="fcom-mf-profile-header__stat">
+                                <span class="fcom-mf-profile-header__stat-value">{{ formatNumber(profile.following_count ?? 0) }}</span>
                                 <span class="fcom-mf-profile-header__stat-label">Following</span>
                             </div>
-                            <div v-if="profile.total_points" class="fcom-mf-profile-header__stat">
-                                <span class="fcom-mf-profile-header__stat-value">{{ formatNumber(profile.total_points) }}</span>
+                            <div class="fcom-mf-profile-header__stat">
+                                <span class="fcom-mf-profile-header__stat-value">{{ formatNumber(profile.total_points ?? 0) }}</span>
                                 <span class="fcom-mf-profile-header__stat-label">Points</span>
                             </div>
                         </div>
                     </div>
 
-                    <div v-if="authStore.isLoggedIn && !profile.is_self" class="fcom-mf-profile-header__actions">
+                    <div v-if="isFollowersEnabled && authStore.isLoggedIn && !profile.is_self" class="fcom-mf-profile-header__actions">
                         <button
                             class="fcom-mf-btn"
                             :class="profile.is_following ? 'fcom-mf-btn--secondary' : 'fcom-mf-btn--primary'"
+                            :disabled="followLoading"
                             @click="toggleFollow"
                         >
-                            {{ profile.is_following ? 'Following' : 'Follow' }}
+                            {{ profile.is_following ? 'Unfollow' : 'Follow' }}
                         </button>
                     </div>
                 </div>

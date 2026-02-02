@@ -13,6 +13,7 @@ const SpacesView = () => import('./views/SpacesView.vue');
 const SpaceView = () => import('./views/SpaceView.vue');
 const ProfileView = () => import('./views/ProfileView.vue');
 const EditProfileView = () => import('./views/EditProfileView.vue');
+const NotificationSettingsView = () => import('./views/NotificationSettingsView.vue');
 const NotificationsView = () => import('./views/NotificationsView.vue');
 const BookmarksView = () => import('./views/BookmarksView.vue');
 const LeaderboardView = () => import('./views/LeaderboardView.vue');
@@ -77,6 +78,12 @@ function createAppRouter(useMemoryHistory = false, baseUrl = '/') {
             path: '/u/:username/edit',
             name: 'edit-profile',
             component: EditProfileView,
+            props: true,
+        },
+        {
+            path: '/u/:username/notification-settings',
+            name: 'notification-settings',
+            component: NotificationSettingsView,
             props: true,
         },
         {

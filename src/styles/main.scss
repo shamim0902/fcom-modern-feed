@@ -76,6 +76,11 @@
     line-height: 1;
     @include focus-ring;
 
+    &:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
     &--primary {
         background-color: $primary-color;
         color: $white;

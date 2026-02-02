@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores';
+import { useAuthStore, useUiStore } from '@/stores';
 import { api } from '@/api/client';
 import type { Member, MembersResponse, Activity, FeaturedPost, ActivitiesResponse } from '@/api/types';
 import dayjs from 'dayjs';
@@ -11,6 +11,7 @@ dayjs.extend(relativeTime);
 
 const router = useRouter();
 const authStore = useAuthStore();
+const uiStore = useUiStore();
 
 const suggestedMembers = ref<Member[]>([]);
 const loadingMembers = ref(false);
@@ -26,6 +27,11 @@ const communityStats = ref({
 });
 
 const followingState = ref<Record<number, boolean>>({});
+const followLoading = ref<Record<number, boolean>>({});
+
+const isFollowersEnabled = computed(() => {
+    return window.fcomModernFeed?.features?.followersModule ?? false;
+});
 
 async function fetchSuggestedMembers(): Promise<void> {
     loadingMembers.value = true;
@@ -113,14 +119,21 @@ function navigateToPost(postId: number): void {
 }
 
 async function toggleFollow(member: Member): Promise<void> {
-    if (!authStore.isLoggedIn) return;
+    if (!authStore.requireAuth()) return;
+    if (followLoading.value[member.id]) return;
 
+    followLoading.value[member.id] = true;
     try {
+        // FluentCommunity uses a single toggle endpoint
         await api.post(`profile/${member.username}/follow`);
         member.is_following = !member.is_following;
         followingState.value[member.id] = member.is_following;
+        uiStore.showSuccess(member.is_following ? 'Now following.' : 'Unfollowed.');
     } catch (error) {
         console.error('Failed to toggle follow:', error);
+        uiStore.showError('Failed to update follow status. Please try again.');
+    } finally {
+        followLoading.value[member.id] = false;
     }
 }
 
@@ -224,11 +237,13 @@ onMounted(() => {
                         <span class="fcom-mf-member-item__meta">{{ member.followers_count || 0 }} followers</span>
                     </div>
                     <button
+                        v-if="isFollowersEnabled"
                         class="fcom-mf-member-item__btn"
                         :class="{ 'fcom-mf-member-item__btn--following': isFollowing(member) }"
+                        :disabled="followLoading[member.id]"
                         @click="toggleFollow(member)"
                     >
-                        {{ isFollowing(member) ? 'Following' : 'Follow' }}
+                        {{ isFollowing(member) ? 'Unfollow' : 'Follow' }}
                     </button>
                 </div>
             </div>
@@ -675,6 +690,11 @@ onMounted(() => {
 
         &:hover {
             background: $primary-hover;
+        }
+
+        &:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
         }
 
         &--following {

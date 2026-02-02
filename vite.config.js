@@ -43,11 +43,11 @@ export default defineConfig({
     },
 
     server: {
-        port: 5173,
+        port: 8120,
         strictPort: true,
         cors: true,
         hmr: {
-            port: 5173,
+            port: 8120,
         },
     },
 

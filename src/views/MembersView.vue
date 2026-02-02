@@ -3,10 +3,11 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '@/api/client';
 import type { Member, MembersResponse } from '@/api/types';
-import { useAuthStore } from '@/stores';
+import { useAuthStore, useUiStore } from '@/stores';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const uiStore = useUiStore();
 
 const members = ref<Member[]>([]);
 const loading = ref(true);
@@ -16,6 +17,11 @@ const currentPage = ref(1);
 const searchQuery = ref('');
 const totalMembers = ref(0);
 const error = ref<string | null>(null);
+const followLoading = ref<Record<number, boolean>>({});
+
+const isFollowersEnabled = computed(() => {
+    return window.fcomModernFeed?.features?.followersModule ?? false;
+});
 
 async function fetchMembers(page = 1, append = false): Promise<void> {
     if (page === 1) {
@@ -77,13 +83,20 @@ function navigateToProfile(username: string): void {
 }
 
 async function toggleFollow(member: Member): Promise<void> {
-    if (!authStore.isLoggedIn) return;
+    if (!authStore.requireAuth()) return;
+    if (followLoading.value[member.id]) return;
 
+    followLoading.value[member.id] = true;
     try {
+        // FluentCommunity uses a single toggle endpoint
         await api.post(`profile/${member.username}/follow`);
         member.is_following = !member.is_following;
+        uiStore.showSuccess(member.is_following ? 'Now following.' : 'Unfollowed.');
     } catch (error) {
         console.error('Failed to toggle follow:', error);
+        uiStore.showError('Failed to update follow status. Please try again.');
+    } finally {
+        followLoading.value[member.id] = false;
     }
 }
 
@@ -195,12 +208,13 @@ const filteredMembers = computed(() => {
                         View Profile
                     </button>
                     <button
-                        v-if="authStore.isLoggedIn && member.user_id !== authStore.currentUser?.id"
+                        v-if="isFollowersEnabled && authStore.isLoggedIn && member.user_id !== authStore.currentUser?.id"
                         class="fcom-mf-btn"
                         :class="member.is_following ? 'fcom-mf-btn--secondary' : 'fcom-mf-btn--primary'"
+                        :disabled="followLoading[member.id]"
                         @click="toggleFollow(member)"
                     >
-                        {{ member.is_following ? 'Following' : 'Follow' }}
+                        {{ member.is_following ? 'Unfollow' : 'Follow' }}
                     </button>
                 </div>
             </div>
