@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, provide } from 'vue';
+import { ref, computed, onMounted, onUnmounted, provide, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { useUiStore, useAuthStore, useFeedStore } from './stores';
 import ToastContainer from './components/common/ToastContainer.vue';
 import ImageLightbox from './components/common/ImageLightbox.vue';
@@ -26,6 +27,7 @@ const props = defineProps<{
     config: Config;
 }>();
 
+const route = useRoute();
 const uiStore = useUiStore();
 const authStore = useAuthStore();
 const feedStore = useFeedStore();
@@ -42,6 +44,16 @@ const contextKey = computed(() => {
     return feedStore.getContextKey(props.config.space, props.config.userId);
 });
 
+function fetchFeedWithSearch(): void {
+    const search = typeof route.query.search === 'string' ? route.query.search.trim() : undefined;
+    feedStore.fetchFeeds({
+        space: props.config.space,
+        userId: props.config.userId,
+        perPage: props.config.perPage,
+        search: search || undefined,
+    });
+}
+
 // Scroll to top button
 const showScrollTop = ref(false);
 
@@ -54,12 +66,10 @@ function scrollToTop(): void {
 }
 
 onMounted(() => {
-    // Initial feed fetch
-    feedStore.fetchFeeds({
-        space: props.config.space,
-        userId: props.config.userId,
-        perPage: props.config.perPage,
-    });
+    // Initial feed fetch (with search when on feed route)
+    if (route.path === '/') {
+        fetchFeedWithSearch();
+    }
 
     // Start ticker for real-time updates
     if (window.fcomModernFeed?.features?.realTimeUpdates) {
@@ -69,6 +79,16 @@ onMounted(() => {
     // Listen for scroll
     window.addEventListener('scroll', handleScroll);
 });
+
+// Refetch feed when search query changes (header search)
+watch(
+    () => [route.path, route.query.search] as const,
+    ([path]) => {
+        if (path === '/') {
+            fetchFeedWithSearch();
+        }
+    }
+);
 
 let tickerInterval: ReturnType<typeof setInterval> | null = null;
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { useFeedStore, useUiStore } from '@/stores';
 import FeedItem from './FeedItem.vue';
 import FeedSkeleton from './FeedSkeleton.vue';
@@ -10,6 +11,7 @@ const props = defineProps<{
     perPage?: number;
 }>();
 
+const route = useRoute();
 const feedStore = useFeedStore();
 const uiStore = useUiStore();
 
@@ -43,11 +45,13 @@ const isEmpty = computed(() => {
 async function loadMore(): Promise<void> {
     if (isLoading.value || !hasMore.value) return;
 
+    const search = typeof route.query.search === 'string' ? route.query.search.trim() : undefined;
     await feedStore.fetchFeeds(
         {
             space: props.space,
             userId: props.userId,
             perPage: props.perPage,
+            search: search || undefined,
         },
         true
     );

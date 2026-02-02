@@ -288,6 +288,7 @@ const filteredMembers = computed(() => {
 
     &__content {
         text-align: center;
+        color: $white;
     }
 
     &__title {
@@ -298,6 +299,7 @@ const filteredMembers = computed(() => {
         font-size: $font-size-xxl;
         font-weight: $font-weight-bold;
         margin: 0 0 $spacing-sm;
+        color: $white;
 
         svg {
             opacity: 0.9;

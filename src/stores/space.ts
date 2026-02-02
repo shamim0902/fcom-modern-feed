@@ -27,13 +27,16 @@ export const useSpaceStore = defineStore('space', () => {
         loading.value = true;
         try {
             // GET /spaces/ returns only spaces where user is a member (see SpaceController@get)
-            const response = await api.get<{ spaces: SpaceFull[] }>('spaces');
+            type MySpacesResponse = { spaces: SpaceFull[] } | { spaces: { data: SpaceFull[] } };
+            const response = await api.get<MySpacesResponse>('spaces');
 
             console.log('[FcomModernFeed] Spaces API response:', response);
 
-            // Response format is { spaces: [...] }
+            // Response format is { spaces: [...] } or { spaces: { data: [...] } }
             if (response.spaces && Array.isArray(response.spaces)) {
                 mySpaces.value = response.spaces;
+            } else if (response.spaces && 'data' in response.spaces && Array.isArray(response.spaces.data)) {
+                mySpaces.value = response.spaces.data;
             } else if (Array.isArray(response)) {
                 mySpaces.value = response;
             } else {

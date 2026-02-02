@@ -290,6 +290,10 @@ onMounted(() => {
     color: $white;
     text-align: center;
 
+    &__content {
+        color: $white;
+    }
+
     &__title {
         display: flex;
         align-items: center;
@@ -298,6 +302,7 @@ onMounted(() => {
         font-size: $font-size-xxl;
         font-weight: $font-weight-bold;
         margin: 0 0 $spacing-sm;
+        color: $white;
     }
 
     &__icon {

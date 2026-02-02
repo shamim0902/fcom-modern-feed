@@ -1,21 +1,32 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores';
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 
-const searchQuery = ref('');
+const searchQuery = ref((route.query.search as string) || '');
 const showUserMenu = ref(false);
+
+// Keep search input in sync with route (e.g. when navigating to /?search=...)
+watch(
+    () => route.query.search,
+    (q) => {
+        searchQuery.value = (q as string) || '';
+    }
+);
 
 const loginUrl = computed(() => window.fcomModernFeed?.loginUrl || '/wp-login.php');
 const logoutUrl = computed(() => loginUrl.value + '?action=logout');
 
 function handleSearch(): void {
-    if (searchQuery.value.trim()) {
-        console.log('Search:', searchQuery.value);
-    }
+    const q = searchQuery.value.trim();
+    router.push({
+        path: '/',
+        query: q ? { search: q } : {},
+    });
 }
 
 function toggleUserMenu(): void {

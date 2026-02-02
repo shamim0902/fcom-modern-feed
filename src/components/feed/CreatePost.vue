@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useFeedStore, useAuthStore, useUiStore, useSpaceStore } from '@/stores';
 import { api } from '@/api/client';
 import type { MediaItem, SpaceFull, CreateFeedData } from '@/api/types';
@@ -101,9 +101,12 @@ function handleClickOutside(event: MouseEvent): void {
     }
 }
 
-// Fetch user's spaces on mount
-onMounted(() => {
-    spaceStore.fetchMySpaces();
+// Fetch user's spaces on mount and default to first space when "Choose where to post"
+onMounted(async () => {
+    await spaceStore.fetchMySpaces();
+    if (!props.spaceId && !selectedSpaceId.value && spaceStore.canPostSpaces.length > 0) {
+        selectedSpaceId.value = spaceStore.canPostSpaces[0].id;
+    }
     document.addEventListener('click', handleClickOutside);
 });
 
@@ -151,9 +154,29 @@ const showSpaceSelector = computed(() => {
 const isLoadingSpaces = computed(() => spaceStore.loading);
 const hasNoSpaces = computed(() => !spaceStore.loading && availableSpaces.value.length === 0);
 
+// Default to first space when spaces load and none selected (e.g. after post reset)
+watch(
+    () => [availableSpaces.value.length, spaceStore.loading] as const,
+    ([count, loading]) => {
+        if (props.spaceId || loading || count === 0 || selectedSpaceId.value != null) return;
+        const first = availableSpaces.value[0];
+        if (first) selectedSpaceId.value = first.id;
+    },
+    { immediate: true }
+);
+
 function selectSpace(space: SpaceFull | null): void {
     selectedSpaceId.value = space?.id || null;
     showSpaceDropdown.value = false;
+}
+
+function onSpaceDropdownToggle(): void {
+    const willOpen = !showSpaceDropdown.value;
+    showSpaceDropdown.value = willOpen;
+    // When opening "Choose where to post", default to first space if none selected
+    if (willOpen && !props.spaceId && !selectedSpaceId.value && availableSpaces.value.length > 0) {
+        selectedSpaceId.value = availableSpaces.value[0].id;
+    }
 }
 
 function expand(): void {
@@ -162,6 +185,11 @@ function expand(): void {
     setTimeout(() => {
         textareaRef.value?.focus();
     }, 50);
+}
+
+function expandAnd(fn: () => void): void {
+    expand();
+    nextTick(() => fn());
 }
 
 function collapse(): void {
@@ -489,8 +517,57 @@ function insertEmoji(emoji: string): void {
                 :alt="authStore.userName || ''"
                 class="fcom-mf-avatar"
             />
-            <div class="fcom-mf-create-post__placeholder">
-                {{ uiStore.t('createPost') }}
+            <div class="fcom-mf-create-post__collapsed-inner">
+                <div class="fcom-mf-create-post__placeholder">
+                    {{ uiStore.t('createPost') }}
+                </div>
+                <div class="fcom-mf-create-post__attach-buttons fcom-mf-create-post__attach-buttons--collapsed" @click.stop>
+                    <button
+                        class="fcom-mf-create-post__attach-icon fcom-mf-create-post__attach-icon--photo"
+                        title="Photo/Video"
+                        @click="expandAnd(triggerFileUpload)"
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-1.5 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm.5 10H6l4-5 2.5 3 3.5-4.5 3 6.5z"/>
+                        </svg>
+                    </button>
+                    <button
+                        class="fcom-mf-create-post__attach-icon fcom-mf-create-post__attach-icon--video"
+                        title="Embed Video (YouTube, Vimeo, etc.)"
+                        @click="expandAnd(toggleVideoEmbed)"
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/>
+                        </svg>
+                    </button>
+                    <button
+                        class="fcom-mf-create-post__attach-icon fcom-mf-create-post__attach-icon--poll"
+                        title="Create Poll"
+                        @click="expandAnd(togglePollForm)"
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                        </svg>
+                    </button>
+                    <button
+                        class="fcom-mf-create-post__attach-icon fcom-mf-create-post__attach-icon--schedule"
+                        title="Schedule Post"
+                        @click="expandAnd(openScheduleModal)"
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm-8 4H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/>
+                        </svg>
+                    </button>
+                    <button
+                        class="fcom-mf-create-post__attach-icon fcom-mf-create-post__attach-icon--emoji"
+                        title="Add Emoji"
+                        @click="expandAnd(toggleEmojiPicker)"
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-4-8c.83 0 1.5-.67 1.5-1.5S8.83 9 8 9s-1.5.67-1.5 1.5S7.17 12 8 12zm8 0c.83 0 1.5-.67 1.5-1.5S16.83 9 16 9s-1.5.67-1.5 1.5.67 1.5 1.5 1.5zm-4 5.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -509,7 +586,7 @@ function insertEmoji(emoji: string): void {
                         <button
                             class="fcom-mf-create-post__space-btn"
                             :class="{ 'fcom-mf-create-post__space-btn--required': !selectedSpaceId }"
-                            @click.stop="showSpaceDropdown = !showSpaceDropdown"
+                            @click.stop="onSpaceDropdownToggle"
                         >
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
@@ -635,14 +712,13 @@ function insertEmoji(emoji: string): void {
 
             <!-- Video Embed Preview -->
             <div v-if="videoEmbed" class="fcom-mf-create-post__video-preview">
-                <div class="fcom-mf-create-post__video-info">
-                    <img v-if="videoEmbed.image" :src="videoEmbed.image" alt="Video thumbnail" class="fcom-mf-create-post__video-thumb" />
-                    <div class="fcom-mf-create-post__video-details">
-                        <span class="fcom-mf-create-post__video-provider">{{ videoEmbed.provider }}</span>
-                        <span class="fcom-mf-create-post__video-title">{{ videoEmbed.title || 'Embedded Video' }}</span>
-                    </div>
-                    <button class="fcom-mf-create-post__media-remove" @click="removeVideoEmbed">✕</button>
+                <div class="fcom-mf-create-post__video-preview-header">
+                    <span class="fcom-mf-create-post__video-provider">{{ videoEmbed.provider }}</span>
+                    <span class="fcom-mf-create-post__video-title">{{ videoEmbed.title || 'Embedded Video' }}</span>
+                    <button class="fcom-mf-create-post__media-remove" @click="removeVideoEmbed" title="Remove video">✕</button>
                 </div>
+                <div v-if="videoEmbed.html" class="fcom-mf-create-post__video-embed-html" v-html="videoEmbed.html"></div>
+                <img v-else-if="videoEmbed.image" :src="videoEmbed.image" alt="Video thumbnail" class="fcom-mf-create-post__video-thumb" />
             </div>
 
             <!-- Video URL Input -->
@@ -895,8 +971,17 @@ function insertEmoji(emoji: string): void {
         cursor: pointer;
     }
 
+    &__collapsed-inner {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        min-width: 0;
+    }
+
     &__placeholder {
         flex: 1;
+        min-width: 0;
         padding: $spacing-sm $spacing-lg;
         background: $gray-50;
         border-radius: $border-radius-lg;
@@ -1050,6 +1135,10 @@ function insertEmoji(emoji: string): void {
     &__attach-buttons {
         display: flex;
         gap: $spacing-xs;
+    }
+
+    &__attach-buttons--collapsed {
+        flex-shrink: 0;
     }
 
     &__attach-icon {
@@ -1309,26 +1398,44 @@ function insertEmoji(emoji: string): void {
         overflow: hidden;
     }
 
-    &__video-info {
+    &__video-preview-header {
         display: flex;
         align-items: center;
-        gap: $spacing-md;
-        padding: $spacing-md;
+        gap: $spacing-sm;
+        padding: $spacing-sm $spacing-md;
         background: $gray-50;
+        flex-wrap: wrap;
+
+        .fcom-mf-create-post__video-title {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+
+    &__video-embed-html {
+        position: relative;
+        width: 100%;
+        padding-bottom: 56.25%; /* 16:9 */
+        height: 0;
+        overflow: hidden;
+        background: $gray-900;
+
+        iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
     }
 
     &__video-thumb {
-        width: 80px;
-        height: 60px;
-        object-fit: cover;
-        border-radius: $border-radius-sm;
-    }
-
-    &__video-details {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: $spacing-xs;
+        display: block;
+        width: 100%;
+        max-height: 360px;
+        object-fit: contain;
+        background: $gray-900;
     }
 
     &__video-provider {
@@ -1546,7 +1653,7 @@ function insertEmoji(emoji: string): void {
         position: absolute;
         bottom: calc(100% + 8px);
         right: 0;
-        width: 280px;
+        width: 320px;
         background: $white;
         border-radius: $border-radius-md;
         box-shadow: $shadow-lg;

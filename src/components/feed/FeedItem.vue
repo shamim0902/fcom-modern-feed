@@ -735,7 +735,7 @@ function handlePostUpdated(): void {
     }
 
     &__content {
-        padding: $spacing-xs $spacing-md $spacing-sm;
+        padding: $spacing-sm $spacing-lg $spacing-md;
         font-size: $font-size-md;
         line-height: $line-height-relaxed;
         word-wrap: break-word;
