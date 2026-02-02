@@ -203,8 +203,8 @@ onUnmounted(() => {
 
 .fcom-mf-sidebar {
     position: sticky;
-    top: 76px; // Header height + gap
-    height: calc(100vh - 76px);
+    top: 60px; // Header height
+    height: calc(100vh - 60px);
     overflow-y: auto;
     padding: $spacing-lg;
 

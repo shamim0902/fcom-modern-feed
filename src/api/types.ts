@@ -188,6 +188,27 @@ export interface TickerResponse {
     };
 }
 
+export interface VideoEmbed {
+    type: string;
+    url: string;
+    html: string;
+    content_type: string;
+    provider: string;
+    title?: string;
+    image?: string;
+}
+
+export interface PollOption {
+    label: string;
+    slug: string;
+}
+
+export interface SurveyData {
+    type: 'single_choice' | 'multi_choice';
+    options: PollOption[];
+    end_date?: string;
+}
+
 export interface CreateFeedData {
     message: string;
     title?: string;
@@ -195,6 +216,9 @@ export interface CreateFeedData {
     privacy?: string;
     media_images?: MediaItem[]; // FluentCommunity expects 'media_images' not 'media_items'
     media_preview?: MediaPreview;
+    media?: VideoEmbed; // For video embeds
+    survey?: SurveyData; // For polls
+    scheduled_at?: string; // For scheduling
     topic_ids?: number[];
 }
 

@@ -202,11 +202,12 @@ async function handleAvatarUpload(event: Event): Promise<void> {
     try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('type', 'avatar');
+        formData.append('context', 'user_avatar');
 
-        const response = await api.uploadFile(`profile/${profile.value.username}/photo`, formData);
+        const response = await api.uploadFile('feeds/media-upload', formData);
 
         if (response.media?.url) {
+            await api.put(`profile/${profile.value.username}`, { data: { avatar: response.media.url } });
             profile.value.avatar = response.media.url;
             successMessage.value = 'Avatar updated successfully';
         }
@@ -246,11 +247,12 @@ async function handleCoverUpload(event: Event): Promise<void> {
     try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('type', 'cover_photo');
+        formData.append('context', 'user_cover_photo');
 
-        const response = await api.uploadFile(`profile/${profile.value.username}/photo`, formData);
+        const response = await api.uploadFile('feeds/media-upload', formData);
 
         if (response.media?.url) {
+            await api.put(`profile/${profile.value.username}`, { data: { cover_photo: response.media.url } });
             profile.value.cover_photo = response.media.url;
             successMessage.value = 'Cover photo updated successfully';
         }
@@ -274,7 +276,7 @@ async function removeAvatar(): Promise<void> {
     error.value = null;
 
     try {
-        await api.delete(`profile/${profile.value.username}/photo?type=avatar`);
+        await api.put(`profile/${profile.value.username}`, { data: { avatar: '' } });
         profile.value.avatar = '';
         successMessage.value = 'Avatar removed successfully';
     } catch (e: unknown) {
@@ -296,7 +298,7 @@ async function removeCover(): Promise<void> {
     error.value = null;
 
     try {
-        await api.delete(`profile/${profile.value.username}/photo?type=cover_photo`);
+        await api.put(`profile/${profile.value.username}`, { data: { cover_photo: '' } });
         profile.value.cover_photo = '';
         successMessage.value = 'Cover photo removed successfully';
     } catch (e: unknown) {

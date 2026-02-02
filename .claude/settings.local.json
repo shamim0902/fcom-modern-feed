@@ -6,7 +6,8 @@
       "Bash(npx vue-tsc:*)",
       "Bash(curl:*)",
       "Bash(python3:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(find:*)"
     ]
   }
 }

@@ -8,6 +8,7 @@ import FeedMedia from './FeedMedia.vue';
 import FeedActions from './FeedActions.vue';
 import CommentList from '../comments/CommentList.vue';
 import TimeAgo from '../common/TimeAgo.vue';
+import EditPostModal from './EditPostModal.vue';
 
 const props = defineProps<{
     feed: Feed;
@@ -29,6 +30,7 @@ const showMenu = ref(false);
 const isDeleting = ref(false);
 const menuWrapperRef = ref<HTMLElement | null>(null);
 const dropdownFlipped = ref(false);
+const showEditModal = ref(false);
 
 const contentIsLong = computed(() => {
     return props.feed.message_rendered.length > 500;
@@ -309,9 +311,16 @@ async function handleDelete(): Promise<void> {
 }
 
 function handleEdit(): void {
-    // Navigate to edit or open edit modal
-    router.push({ name: 'single-post', params: { id: props.feed.id }, query: { edit: '1' } });
+    showEditModal.value = true;
     closeMenu();
+}
+
+function handleEditClose(): void {
+    showEditModal.value = false;
+}
+
+function handlePostUpdated(): void {
+    showEditModal.value = false;
 }
 </script>
 
@@ -525,6 +534,14 @@ function handleEdit(): void {
             :comments="feed.comments || []"
             :sticky-comment="feed.sticky_comment"
             :show-all="showCommentsInline"
+        />
+
+        <!-- Edit Post Modal -->
+        <EditPostModal
+            :feed="feed"
+            :show="showEditModal"
+            @close="handleEditClose"
+            @updated="handlePostUpdated"
         />
     </article>
 </template>

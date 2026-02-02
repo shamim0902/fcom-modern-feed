@@ -66,13 +66,7 @@ class ApiClient {
             'Accept': 'application/json',
         };
 
-        // Handle method overrides for PUT/PATCH/DELETE (WordPress compatibility)
-        let actualMethod = method.toUpperCase();
-        if (['PUT', 'PATCH', 'DELETE'].includes(actualMethod)) {
-            headers['X-HTTP-Method-Override'] = actualMethod;
-            actualMethod = 'POST';
-        }
-
+        const actualMethod = method.toUpperCase();
         let url = `${this.baseUrl}/${endpoint}`;
 
         const options: RequestInit = {
