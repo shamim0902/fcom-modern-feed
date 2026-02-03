@@ -7,6 +7,14 @@ export interface PrimaryMenuItem {
     enabled: string;
 }
 
+export interface ProfileDropdownItem {
+    slug: string;
+    title: string;
+    permalink: string;
+    shape_svg: string;
+    enabled: string;
+}
+
 declare global {
     interface Window {
         fcomModernFeed: {
@@ -45,6 +53,8 @@ declare global {
             socialLinkProviders?: Record<string, { title: string; placeholder: string; domain: string }>;
             /** Primary Menu Items from Fluent Community settings (order preserved) */
             primaryMenuItems?: PrimaryMenuItem[];
+            /** Profile Dropdown Items from Fluent Community settings (order preserved, URLs resolved) */
+            profileDropdownItems?: ProfileDropdownItem[];
             settings: {
                 tickerInterval: number;
                 perPage: number;

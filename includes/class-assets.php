@@ -118,6 +118,7 @@ class Assets
             'portalBaseUrl' => self::getPortalBaseUrl(),
             'socialLinkProviders' => self::getSocialLinkProviders(),
             'primaryMenuItems' => self::getPrimaryMenuItems(),
+            'profileDropdownItems' => self::getProfileDropdownItems(),
             'settings' => [
                 'tickerInterval' => 45000, // 45 seconds
                 'perPage' => 10,
@@ -171,6 +172,71 @@ class Assets
                 'shape_svg'  => isset($item['shape_svg']) ? (string) $item['shape_svg'] : '',
                 'privacy'    => isset($item['privacy']) ? (string) $item['privacy'] : 'public',
                 'enabled'    => isset($item['enabled']) ? (string) $item['enabled'] : 'yes',
+            ];
+        }
+        return $list;
+    }
+
+    /**
+     * Get Profile Dropdown Items from Fluent Community "Profile Dropdown Items" settings (order preserved).
+     * Permalinks are resolved for the current user (profile URL, logout URL, etc.).
+     * Only returned when user is logged in.
+     *
+     * @return list<array{slug: string, title: string, permalink: string, shape_svg: string, enabled: string}>
+     */
+    private static function getProfileDropdownItems()
+    {
+        if (!is_user_logged_in() || !class_exists(\FluentCommunity\App\Services\Helper::class)) {
+            return [];
+        }
+        $helper = \FluentCommunity\App\Services\Helper::class;
+        $menuGroups = $helper::getMenuItemsGroup('view');
+        $raw = isset($menuGroups['profileDropdownItems']) && is_array($menuGroups['profileDropdownItems']) ? $menuGroups['profileDropdownItems'] : [];
+        $username = '';
+        if (class_exists(\FluentCommunity\App\Models\XProfile::class)) {
+            $xprofile = $helper::getCurrentProfile();
+            if ($xprofile && !empty($xprofile->username)) {
+                $username = $xprofile->username;
+            }
+        }
+        if (!$username) {
+            $user = wp_get_current_user();
+            $username = $user->user_login;
+        }
+        $baseUrl = $helper::baseUrl('');
+        $userUrl = $helper::baseUrl('u/' . $username);
+        $logoutUrl = wp_logout_url($baseUrl);
+        $replaces = [
+            '#{{user_url}}'   => $userUrl,
+            '#user_url'        => $userUrl,
+            '#{{logout_url}}' => $logoutUrl,
+            '#logout_url'     => $logoutUrl,
+        ];
+        $list = [];
+        foreach ($raw as $slug => $item) {
+            if (empty($item['slug'])) {
+                continue;
+            }
+            $enabled = isset($item['enabled']) ? (string) $item['enabled'] : 'yes';
+            if ($enabled !== 'yes') {
+                continue;
+            }
+            $permalink = isset($item['permalink']) ? (string) $item['permalink'] : '';
+            if ($slug === 'my_spaces') {
+                $permalink = $helper::baseUrl('u/' . $username . '/spaces');
+            } elseif ($slug === 'logout') {
+                $permalink = $logoutUrl;
+            } elseif ($slug === 'profile') {
+                $permalink = $userUrl;
+            } else {
+                $permalink = str_replace(array_keys($replaces), array_values($replaces), $permalink);
+            }
+            $list[] = [
+                'slug'      => $slug,
+                'title'     => isset($item['title']) ? (string) $item['title'] : '',
+                'permalink' => $permalink,
+                'shape_svg' => isset($item['shape_svg']) ? (string) $item['shape_svg'] : '',
+                'enabled'   => $enabled,
             ];
         }
         return $list;

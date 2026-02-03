@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores';
+import type { ProfileDropdownItem } from '@/api/client';
 
 const router = useRouter();
 const route = useRoute();
@@ -19,6 +20,56 @@ watch(
 );
 
 const loginUrl = computed(() => window.fcomModernFeed?.loginUrl || '/wp-login.php');
+
+/** Profile dropdown: merge settings items with Profile, Saved, Portal Settings (order preserved). */
+const profileDropdownItems = computed(() => {
+    const fromSettings = (window.fcomModernFeed?.profileDropdownItems ?? []) as ProfileDropdownItem[];
+    const hasPortalSettings = fromSettings.some((i) => i.slug === 'portal_settings');
+    const needsPortalSettings = authStore.canAccessAdminSettings && !hasPortalSettings;
+
+    if (fromSettings.length === 0) {
+        // Default order: Profile, Saved, Portal Settings (if admin), divider, Logout
+        const defaultItems: ProfileDropdownItem[] = [
+            { slug: 'profile', title: 'Profile', permalink: '', shape_svg: '', enabled: 'yes' },
+            { slug: 'bookmarks', title: 'Saved', permalink: '', shape_svg: '', enabled: 'yes' },
+        ];
+        if (needsPortalSettings) {
+            defaultItems.push({
+                slug: 'portal_settings',
+                title: 'Portal Settings',
+                permalink: authStore.adminSettingsUrl || '',
+                shape_svg: '',
+                enabled: 'yes',
+            });
+        }
+        defaultItems.push({ slug: 'logout', title: 'Log out', permalink: '', shape_svg: '', enabled: 'yes' });
+        return defaultItems;
+    }
+
+    const merged: ProfileDropdownItem[] = [];
+    for (const item of fromSettings) {
+        if (item.slug === 'logout' && needsPortalSettings) {
+            merged.push({
+                slug: 'portal_settings',
+                title: 'Portal Settings',
+                permalink: authStore.adminSettingsUrl || '',
+                shape_svg: '',
+                enabled: 'yes',
+            });
+        }
+        merged.push(item);
+    }
+    if (needsPortalSettings && !merged.some((i) => i.slug === 'portal_settings')) {
+        merged.push({
+            slug: 'portal_settings',
+            title: 'Portal Settings',
+            permalink: authStore.adminSettingsUrl || '',
+            shape_svg: '',
+            enabled: 'yes',
+        });
+    }
+    return merged;
+});
 
 function handleSearch(): void {
     const q = searchQuery.value.trim();
@@ -38,15 +89,16 @@ function closeUserMenu(): void {
     }, 150);
 }
 
-function navigateTo(route: string): void {
+function navigateTo(path: string): void {
     showUserMenu.value = false;
-    router.push(route);
+    router.push(path);
 }
 
 function goToProfile(): void {
     const username = authStore.userUsername || authStore.currentUser?.username;
     if (username) {
-        navigateTo(`/u/${username}`);
+        showUserMenu.value = false;
+        router.push(`/u/${username}`);
     }
 }
 
@@ -55,6 +107,52 @@ function doLogout(): void {
     const url = authStore.logoutUrl || window.fcomModernFeed?.logoutUrl || '/wp-login.php?action=logout';
     window.location.href = url;
 }
+
+function handleDropdownAction(item: ProfileDropdownItem): void {
+    showUserMenu.value = false;
+    if (item.slug === 'profile') {
+        goToProfile();
+        return;
+    }
+    if (item.slug === 'bookmarks') {
+        router.push('/bookmarks');
+        return;
+    }
+    if (item.slug === 'logout') {
+        doLogout();
+        return;
+    }
+    if (item.slug === 'portal_settings' && item.permalink) {
+        window.location.href = item.permalink;
+        return;
+    }
+    if (item.permalink) {
+        const base = (window.fcomModernFeed?.portalBaseUrl ?? '').replace(/\/$/, '');
+        if (base && item.permalink.startsWith(base)) {
+            const path = item.permalink === base ? '/' : item.permalink.slice(base.length).replace(/^\//, '');
+            const routePath = path === 'bookmarks' ? '/bookmarks' : path === 'notifications' ? '/notifications' : path ? '/' + path : '/';
+            router.push(routePath);
+        } else {
+            window.location.href = item.permalink;
+        }
+    }
+}
+
+function isInternalRoute(item: ProfileDropdownItem): boolean {
+    if (!item.permalink) return false;
+    const base = (window.fcomModernFeed?.portalBaseUrl ?? '').replace(/\/$/, '');
+    return !!base && item.permalink.startsWith(base);
+}
+
+const defaultIcons: Record<string, string> = {
+    profile: '<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>',
+    bookmarks: '<path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>',
+    logout: '<path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>',
+    portal_settings:
+        '<path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>',
+    my_spaces:
+        '<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>',
+};
 </script>
 
 <template>
@@ -126,35 +224,28 @@ function doLogout(): void {
 
                     <Transition name="fade">
                         <div v-if="showUserMenu" class="header__menu">
-                            <button class="header__menu-item" @mousedown="goToProfile">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                                </svg>
-                                Profile
-                            </button>
-                            <button class="header__menu-item" @mousedown="navigateTo('/bookmarks')">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>
-                                </svg>
-                                Saved
-                            </button>
-                            <a
-                                v-if="authStore.canAccessAdminSettings"
-                                :href="authStore.adminSettingsUrl"
-                                class="header__menu-item"
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
-                                </svg>
-                                Portal Settings
-                            </a>
-                            <div class="header__menu-divider"></div>
-                            <button type="button" class="header__menu-item" @mousedown="doLogout">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
-                                </svg>
-                                Log out
-                            </button>
+                            <template v-for="(item, idx) in profileDropdownItems" :key="item.slug + String(idx)">
+                                <div v-if="item.slug === 'logout'" class="header__menu-divider"></div>
+                                <button
+                                    v-if="item.slug === 'logout' || item.slug === 'profile' || item.slug === 'bookmarks' || (item.permalink && isInternalRoute(item))"
+                                    type="button"
+                                    class="header__menu-item"
+                                    @mousedown="handleDropdownAction(item)"
+                                >
+                                    <span v-if="item.shape_svg" class="header__menu-icon" v-html="item.shape_svg"></span>
+                                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor" v-html="defaultIcons[item.slug] || defaultIcons.profile"></svg>
+                                    {{ item.title }}
+                                </button>
+                                <a
+                                    v-else
+                                    :href="item.permalink"
+                                    class="header__menu-item"
+                                >
+                                    <span v-if="item.shape_svg" class="header__menu-icon" v-html="item.shape_svg"></span>
+                                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor" v-html="defaultIcons[item.slug] || defaultIcons.portal_settings"></svg>
+                                    {{ item.title }}
+                                </a>
+                            </template>
                         </div>
                     </Transition>
                 </template>
@@ -342,6 +433,18 @@ function doLogout(): void {
 
         svg {
             color: $text-tertiary;
+        }
+    }
+
+    &__menu-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        :deep(svg) {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
         }
     }
 

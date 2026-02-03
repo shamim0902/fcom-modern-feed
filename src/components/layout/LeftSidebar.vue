@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores';
 import { api } from '@/api/client';
 import type { SpaceFull } from '@/api/types';
+import type { PrimaryMenuItem } from '@/api/client';
 
 const router = useRouter();
 const route = useRoute();
@@ -12,7 +13,43 @@ const authStore = useAuthStore();
 const spaces = ref<SpaceFull[]>([]);
 const loadingSpaces = ref(false);
 
-interface MenuItem {
+/** Map portal path (no leading slash) to our Vue route path */
+const PORTAL_PATH_TO_ROUTE: Record<string, string> = {
+    '': '/',
+    '/': '/',
+    members: '/members',
+    'discover/spaces': '/spaces',
+    leaderboards: '/leaderboard',
+    bookmarks: '/bookmarks',
+    notifications: '/notifications',
+};
+
+interface ResolvedMenuItem {
+    id: string;
+    icon: string;
+    label: string;
+    route: string | null;
+    href: string | null;
+    requireAuth: boolean;
+    shapeSvg: string;
+}
+
+function resolvePortalPath(permalink: string): { internal: string | null; external: string | null } {
+    const base = (window.fcomModernFeed?.portalBaseUrl ?? '').replace(/\/$/, '') || '';
+    if (!base || !permalink.startsWith(base)) {
+        return { internal: null, external: permalink || null };
+    }
+    const path = permalink === base ? '' : permalink.slice(base.length).replace(/^\//, '') || '';
+    const key = path ? path.replace(/^\//, '') : '';
+    const pathOnly = key ? '/' + key : '/';
+    const ourRoute =
+        PORTAL_PATH_TO_ROUTE[key] ??
+        (key.startsWith('u/') || key.startsWith('space/') ? pathOnly : null);
+    return ourRoute !== null ? { internal: ourRoute, external: null } : { internal: null, external: permalink };
+}
+
+/** Original sidebar items (fixed, not overridden by settings) */
+interface SidebarItem {
     id: string;
     icon: string;
     label: string;
@@ -21,14 +58,51 @@ interface MenuItem {
     badge?: number;
 }
 
-const menuItems = computed<MenuItem[]>(() => [
+const menuItems: SidebarItem[] = [
     { id: 'home', icon: 'home', label: 'Home', route: '/' },
     { id: 'members', icon: 'users', label: 'Members', route: '/members' },
     { id: 'spaces', icon: 'grid', label: 'Spaces', route: '/spaces' },
     { id: 'leaderboard', icon: 'award', label: 'Leaderboard', route: '/leaderboard' },
     { id: 'notifications', icon: 'bell', label: 'Notifications', route: '/notifications', requireAuth: true, badge: 3 },
     { id: 'bookmarks', icon: 'bookmark', label: 'Saved Posts', route: '/bookmarks', requireAuth: true },
-]);
+];
+
+const icons: Record<string, string> = {
+    home: `<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>`,
+    users: `<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`,
+    bell: `<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>`,
+    bookmark: `<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>`,
+    grid: `<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>`,
+    award: `<circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>`,
+};
+
+/** Primary menu items from settings (shown after break at bottom of nav) */
+const primaryMenuItemsFromSettings = computed<ResolvedMenuItem[]>(() => {
+    const primary = (window.fcomModernFeed?.primaryMenuItems ?? []) as PrimaryMenuItem[];
+    if (primary.length === 0) return [];
+    return primary
+        .filter((item) => item.enabled === 'yes')
+        .map((item) => {
+            const { internal, external } = resolvePortalPath(item.permalink);
+            const slugToIcon: Record<string, string> = {
+                all_feeds: 'home',
+                all_members: 'users',
+                spaces: 'grid',
+                leaderboard: 'award',
+                notifications: 'bell',
+                bookmarks: 'bookmark',
+            };
+            return {
+                id: item.slug,
+                icon: slugToIcon[item.slug] ?? 'home',
+                label: item.title || item.slug,
+                route: internal,
+                href: external,
+                requireAuth: item.privacy === 'logged_in',
+                shapeSvg: item.shape_svg || '',
+            };
+        });
+});
 
 async function fetchUserSpaces(): Promise<void> {
     if (!authStore.isLoggedIn) return;
@@ -44,15 +118,27 @@ async function fetchUserSpaces(): Promise<void> {
     }
 }
 
-function isActive(itemRoute: string): boolean {
-    if (itemRoute === '/') {
-        return route.path === '/';
-    }
-    return route.path.startsWith(itemRoute);
+function isActiveRoute(routePath: string): boolean {
+    if (routePath === '/') return route.path === '/';
+    return route.path.startsWith(routePath);
+}
+
+function isActiveResolved(item: ResolvedMenuItem): boolean {
+    const r = item.route;
+    if (!r || r === '/') return route.path === '/';
+    return route.path.startsWith(r);
 }
 
 function navigateTo(routePath: string): void {
     router.push(routePath);
+}
+
+function handlePrimaryItemClick(item: ResolvedMenuItem): void {
+    if (item.route) {
+        router.push(item.route);
+    } else if (item.href) {
+        window.location.href = item.href;
+    }
 }
 
 function navigateToProfile(): void {
@@ -76,16 +162,6 @@ onMounted(() => {
     fetchUserSpaces();
 });
 
-const icons: Record<string, string> = {
-    home: `<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>`,
-    user: `<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>`,
-    users: `<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`,
-    bell: `<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>`,
-    bookmark: `<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>`,
-    grid: `<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>`,
-    award: `<circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>`,
-    settings: `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>`,
-};
 </script>
 
 <template>
@@ -108,13 +184,14 @@ const icons: Record<string, string> = {
             </a>
         </div>
 
-        <!-- Main Navigation -->
+        <!-- Main Navigation (original sidebar items) -->
         <nav class="fcom-mf-sidebar-nav">
             <template v-for="item in menuItems" :key="item.id">
                 <button
                     v-if="!item.requireAuth || authStore.isLoggedIn"
+                    type="button"
                     class="fcom-mf-sidebar-nav__item"
-                    :class="{ 'fcom-mf-sidebar-nav__item--active': isActive(item.route) }"
+                    :class="{ 'fcom-mf-sidebar-nav__item--active': isActiveRoute(item.route) }"
                     @click="navigateTo(item.route)"
                 >
                     <div class="fcom-mf-sidebar-nav__icon">
@@ -135,6 +212,41 @@ const icons: Record<string, string> = {
                 </button>
             </template>
         </nav>
+
+        <!-- Break then Primary Menu Items from settings -->
+        <template v-if="primaryMenuItemsFromSettings.length > 0">
+            <div class="fcom-mf-sidebar-break"></div>
+            <nav class="fcom-mf-sidebar-nav">
+                <template v-for="item in primaryMenuItemsFromSettings" :key="item.id">
+                    <component
+                        v-if="!item.requireAuth || authStore.isLoggedIn"
+                        :is="item.href ? 'a' : 'button'"
+                        :href="item.href || undefined"
+                        :type="item.href ? undefined : 'button'"
+                        class="fcom-mf-sidebar-nav__item"
+                        :class="{ 'fcom-mf-sidebar-nav__item--active': isActiveResolved(item) }"
+                        @click="item.route ? (e: MouseEvent) => { e.preventDefault(); handlePrimaryItemClick(item); } : undefined"
+                    >
+                        <div class="fcom-mf-sidebar-nav__icon">
+                            <span v-if="item.shapeSvg" class="fcom-mf-sidebar-nav__icon-svg" v-html="item.shapeSvg"></span>
+                            <svg
+                                v-else
+                                width="22"
+                                height="22"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                v-html="icons[item.icon]"
+                            ></svg>
+                        </div>
+                        <span class="fcom-mf-sidebar-nav__label">{{ item.label }}</span>
+                    </component>
+                </template>
+            </nav>
+        </template>
 
         <!-- Spaces Section -->
         <div v-if="authStore.isLoggedIn && spaces.length > 0" class="fcom-mf-sidebar-section">
@@ -246,7 +358,14 @@ const icons: Record<string, string> = {
     }
 }
 
-// Navigation
+// Break before primary menu items
+.fcom-mf-sidebar-break {
+    height: 1px;
+    background: $border-color;
+    margin: $spacing-sm 0;
+}
+
+// Navigation (Primary Menu Items from settings)
 .fcom-mf-sidebar-nav {
     display: flex;
     flex-direction: column;
@@ -267,6 +386,7 @@ const icons: Record<string, string> = {
         transition: all $transition-fast;
         text-align: left;
         width: 100%;
+        text-decoration: none;
 
         &:hover {
             background: $gray-100;
@@ -293,6 +413,18 @@ const icons: Record<string, string> = {
         border-radius: $border-radius-md;
         transition: all $transition-fast;
         flex-shrink: 0;
+
+        &-svg {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            :deep(svg) {
+                width: 22px;
+                height: 22px;
+                fill: currentColor;
+            }
+        }
     }
 
     &__label {
