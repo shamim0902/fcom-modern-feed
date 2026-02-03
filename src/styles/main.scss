@@ -40,22 +40,36 @@
     // Note: margin-bottom removed - gaps handled by parent flex container
 }
 
-// Avatar
+// Avatar – fixed dimensions (overrides global img rules)
 .fcom-mf-avatar {
+    display: block;
     width: $avatar-md;
+    min-width: $avatar-md;
+    max-width: $avatar-md;
     height: $avatar-md;
+    min-height: $avatar-md;
+    max-height: $avatar-md;
     border-radius: $border-radius-full;
     object-fit: cover;
     flex-shrink: 0;
+    box-sizing: border-box;
 
     &--sm {
         width: $avatar-sm;
+        min-width: $avatar-sm;
+        max-width: $avatar-sm;
         height: $avatar-sm;
+        min-height: $avatar-sm;
+        max-height: $avatar-sm;
     }
 
     &--lg {
         width: $avatar-lg;
+        min-width: $avatar-lg;
+        max-width: $avatar-lg;
         height: $avatar-lg;
+        min-height: $avatar-lg;
+        max-height: $avatar-lg;
     }
 }
 

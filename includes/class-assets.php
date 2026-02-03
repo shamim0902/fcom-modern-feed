@@ -298,23 +298,35 @@ class Assets
 
     private static function getUserData($user)
     {
-        $userData = [
-            'id' => $user->ID,
-            'name' => $user->display_name,
-            'username' => $user->user_login, // Default to WP username
-            'avatar' => get_avatar_url($user->ID, ['size' => 96]),
-            'email' => $user->user_email,
-        ];
+        $avatar   = get_avatar_url($user->ID, ['size' => 96]);
+        $username = $user->user_login;
+        $name     = $user->display_name;
 
-        // Try to get FluentCommunity username if available
-        if (class_exists('\FluentCommunity\App\Models\XProfile')) {
+        // Ensure FluentCommunity XProfile exists and use saved profile data (avatar, username, display name)
+        if (class_exists('\FluentCommunity\App\Models\User') && class_exists('\FluentCommunity\App\Models\XProfile')) {
+            $fcUser = \FluentCommunity\App\Models\User::find($user->ID);
+            if ($fcUser && method_exists($fcUser, 'syncXProfile')) {
+                $fcUser->syncXProfile();
+            }
             $xprofile = \FluentCommunity\App\Models\XProfile::where('user_id', $user->ID)->first();
-            if ($xprofile && !empty($xprofile->username)) {
-                $userData['username'] = $xprofile->username;
+            if ($xprofile) {
+                $avatar = $xprofile->avatar;
+                if (!empty($xprofile->username)) {
+                    $username = $xprofile->username;
+                }
+                if (!empty($xprofile->display_name)) {
+                    $name = $xprofile->display_name;
+                }
             }
         }
 
-        return $userData;
+        return [
+            'id'       => $user->ID,
+            'name'     => $name,
+            'username' => $username,
+            'avatar'   => $avatar,
+            'email'    => $user->user_email,
+        ];
     }
 
     private static function canAccessAdminSettings()
