@@ -101,11 +101,12 @@ onUnmounted(() => {
 <template>
     <div class="fcom-mf-feed-list">
         <!-- Sticky Post -->
-        <FeedItem
-            v-if="stickyFeed"
-            :feed="stickyFeed"
-            :is-sticky="true"
-        />
+        <div v-if="stickyFeed" class="fcom-mf-feed-list__sticky-wrap">
+            <FeedItem
+                :feed="stickyFeed"
+                :is-sticky="true"
+            />
+        </div>
 
         <!-- Feed Items -->
         <FeedItem
@@ -150,6 +151,14 @@ onUnmounted(() => {
 
     @media (max-width: $breakpoint-sm) {
         gap: $spacing-xs; // Even tighter on mobile
+    }
+
+    &__sticky-wrap {
+        margin: $spacing-sm 0;
+
+        @media (max-width: $breakpoint-sm) {
+            margin: $spacing-xs 0;
+        }
     }
 
     &__trigger {

@@ -1,3 +1,12 @@
+export interface PrimaryMenuItem {
+    slug: string;
+    title: string;
+    permalink: string;
+    shape_svg: string;
+    privacy: string;
+    enabled: string;
+}
+
 declare global {
     interface Window {
         fcomModernFeed: {
@@ -32,6 +41,10 @@ declare global {
             };
             adminSettingsUrl: string;
             portalBaseUrl: string;
+            /** Enabled social link providers from "Social Media Links Settings" (key -> title, placeholder, domain) */
+            socialLinkProviders?: Record<string, { title: string; placeholder: string; domain: string }>;
+            /** Primary Menu Items from Fluent Community settings (order preserved) */
+            primaryMenuItems?: PrimaryMenuItem[];
             settings: {
                 tickerInterval: number;
                 perPage: number;

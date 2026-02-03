@@ -116,11 +116,64 @@ class Assets
             ],
             'adminSettingsUrl' => self::getAdminSettingsUrl(),
             'portalBaseUrl' => self::getPortalBaseUrl(),
+            'socialLinkProviders' => self::getSocialLinkProviders(),
+            'primaryMenuItems' => self::getPrimaryMenuItems(),
             'settings' => [
                 'tickerInterval' => 45000, // 45 seconds
                 'perPage' => 10,
             ],
         ];
+    }
+
+    /**
+     * Get enabled social link providers from Fluent Community "Social Media Links Settings".
+     *
+     * @return array<string, array{title: string, placeholder: string, domain: string}>
+     */
+    private static function getSocialLinkProviders()
+    {
+        if (!class_exists(\FluentCommunity\App\Services\ProfileHelper::class)) {
+            return [];
+        }
+        $providers = \FluentCommunity\App\Services\ProfileHelper::socialLinkProviders(true);
+        $out = [];
+        foreach ($providers as $key => $provider) {
+            $out[$key] = [
+                'title' => isset($provider['title']) ? (string) $provider['title'] : $key,
+                'placeholder' => isset($provider['placeholder']) ? (string) $provider['placeholder'] : '',
+                'domain' => isset($provider['domain']) ? (string) $provider['domain'] : '',
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * Get Primary Menu Items from Fluent Community "Primary Menu Items" settings (order preserved).
+     *
+     * @return list<array{slug: string, title: string, permalink: string, shape_svg: string, privacy: string, enabled: string}>
+     */
+    private static function getPrimaryMenuItems()
+    {
+        if (!class_exists(\FluentCommunity\App\Functions\Utility::class)) {
+            return [];
+        }
+        $data = \FluentCommunity\App\Functions\Utility::getPortalSidebarData('sidebar');
+        $primaryItems = isset($data['primaryItems']) && is_array($data['primaryItems']) ? $data['primaryItems'] : [];
+        $list = [];
+        foreach ($primaryItems as $slug => $item) {
+            if (empty($item['slug'])) {
+                continue;
+            }
+            $list[] = [
+                'slug'       => $slug,
+                'title'      => isset($item['title']) ? (string) $item['title'] : '',
+                'permalink'  => isset($item['permalink']) ? (string) $item['permalink'] : '',
+                'shape_svg'  => isset($item['shape_svg']) ? (string) $item['shape_svg'] : '',
+                'privacy'    => isset($item['privacy']) ? (string) $item['privacy'] : 'public',
+                'enabled'    => isset($item['enabled']) ? (string) $item['enabled'] : 'yes',
+            ];
+        }
+        return $list;
     }
 
     public static function renewNonce()

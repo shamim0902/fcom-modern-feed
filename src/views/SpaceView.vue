@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '@/api/client';
 import type { SpaceFull, Feed, FeedsResponse } from '@/api/types';
@@ -13,14 +13,24 @@ const authStore = useAuthStore();
 
 const space = ref<SpaceFull | null>(null);
 const feeds = ref<Feed[]>([]);
+const stickyFeed = ref<Feed | null>(null);
 const loading = ref(true);
 const loadingFeeds = ref(false);
 const hasMore = ref(true);
 const currentPage = ref(1);
 const activeTab = ref<'posts' | 'about' | 'members'>('posts');
 const error = ref<string | null>(null);
+const loadMoreRef = ref<HTMLElement | null>(null);
+const scrollObserver = ref<IntersectionObserver | null>(null);
 
 const spaceSlug = computed(() => route.params.slug as string);
+
+/** True when the current user is already a member (so we show Leave Space, not Join Space). */
+const isSpaceMember = computed(() => {
+    const s = space.value;
+    if (!s) return false;
+    return !!(s.is_member ?? (s as SpaceFull & { membership?: unknown }).membership);
+});
 
 async function fetchSpace(): Promise<void> {
     loading.value = true;
@@ -52,6 +62,7 @@ async function fetchFeeds(page = 1, append = false): Promise<void> {
             feeds.value = [...feeds.value, ...response.feeds.data];
         } else {
             feeds.value = response.feeds.data;
+            stickyFeed.value = response.sticky ?? null;
         }
 
         hasMore.value = response.feeds.has_more;
@@ -68,6 +79,26 @@ function loadMoreFeeds(): void {
         fetchFeeds(currentPage.value + 1, true);
     }
 }
+
+function setupInfiniteScroll(): void {
+    if (typeof window === 'undefined' || !window.fcomModernFeed?.features?.infiniteScroll) return;
+    scrollObserver.value = new IntersectionObserver(
+        (entries) => {
+            if (!entries[0].isIntersecting || loadingFeeds.value || !hasMore.value) return;
+            loadMoreFeeds();
+        },
+        { root: null, rootMargin: '200px', threshold: 0 }
+    );
+    if (loadMoreRef.value) {
+        scrollObserver.value.observe(loadMoreRef.value);
+    }
+}
+
+watch(loadMoreRef, (el) => {
+    if (el && scrollObserver.value) {
+        scrollObserver.value.observe(el);
+    }
+});
 
 async function joinSpace(): Promise<void> {
     if (!authStore.isLoggedIn || !space.value) return;
@@ -107,6 +138,14 @@ function goBack(): void {
 
 onMounted(() => {
     fetchSpace();
+    setupInfiniteScroll();
+});
+
+onUnmounted(() => {
+    if (scrollObserver.value) {
+        scrollObserver.value.disconnect();
+        scrollObserver.value = null;
+    }
 });
 
 watch(() => route.params.slug, () => {
@@ -193,18 +232,30 @@ function formatNumber(num: number | undefined | null): string {
                         </h1>
 
                         <div class="fcom-mf-space-header__stats">
-                            <span>{{ formatNumber(space.members_count) }} members</span>
-                            <span v-if="space.posts_count">{{ formatNumber(space.posts_count) }} posts</span>
+                            <span class="fcom-mf-space-header__stat">
+                                {{ formatNumber(space.members_count ?? 0) }} members
+                            </span>
+                            <span class="fcom-mf-space-header__stat-sep" aria-hidden="true">·</span>
+                            <span class="fcom-mf-space-header__stat">
+                                {{ formatNumber(space.posts_count ?? 0) }} posts
+                            </span>
                         </div>
                     </div>
 
                     <div v-if="authStore.isLoggedIn" class="fcom-mf-space-header__actions">
                         <button
-                            class="fcom-mf-btn"
-                            :class="space.is_member ? 'fcom-mf-btn--secondary' : 'fcom-mf-btn--primary'"
-                            @click="space.is_member ? leaveSpace() : joinSpace()"
+                            v-if="isSpaceMember"
+                            class="fcom-mf-btn fcom-mf-btn--secondary"
+                            @click="leaveSpace()"
                         >
-                            {{ space.is_member ? 'Leave Space' : 'Join Space' }}
+                            Leave Space
+                        </button>
+                        <button
+                            v-else
+                            class="fcom-mf-btn fcom-mf-btn--primary"
+                            @click="joinSpace()"
+                        >
+                            Join Space
                         </button>
                     </div>
                 </div>
@@ -232,10 +283,18 @@ function formatNumber(num: number | undefined | null): string {
             <div v-if="activeTab === 'posts'" class="fcom-mf-space-posts">
                 <!-- Create Post -->
                 <CreatePost
-                    v-if="!authStore.isLoggedIn || space.is_member"
+                    v-if="!authStore.isLoggedIn || isSpaceMember"
                     :space-id="space.id"
                     @post-created="handlePostCreated"
                 />
+
+                <!-- Pinned Post -->
+                <div v-if="stickyFeed" class="fcom-mf-space-posts__sticky-wrap">
+                    <FeedItem
+                        :feed="stickyFeed"
+                        :is-sticky="true"
+                    />
+                </div>
 
                 <!-- Feed Items -->
                 <div v-if="feeds.length > 0" class="fcom-mf-space-feed">
@@ -245,6 +304,9 @@ function formatNumber(num: number | undefined | null): string {
                         :feed="feed"
                     />
                 </div>
+
+                <!-- Infinite scroll sentinel -->
+                <div ref="loadMoreRef" class="fcom-mf-space-feed__trigger" aria-hidden="true"></div>
 
                 <!-- Loading More -->
                 <div v-if="loadingFeeds" class="fcom-mf-loading-more">
@@ -259,7 +321,7 @@ function formatNumber(num: number | undefined | null): string {
                 </div>
 
                 <!-- Empty State -->
-                <div v-if="!loadingFeeds && feeds.length === 0" class="fcom-mf-empty-posts">
+                <div v-if="!loadingFeeds && feeds.length === 0 && !stickyFeed" class="fcom-mf-empty-posts">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                     </svg>
@@ -493,15 +555,22 @@ function formatNumber(num: number | undefined | null): string {
 
     &__stats {
         display: flex;
-        gap: $spacing-md;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: $spacing-xs $spacing-md;
         font-size: $font-size-sm;
         color: $text-secondary;
+        line-height: 1.4;
+    }
 
-        span {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
+    &__stat {
+        display: inline-flex;
+        align-items: center;
+    }
+
+    &__stat-sep {
+        color: $text-tertiary;
+        user-select: none;
     }
 
     &__actions {
@@ -545,12 +614,21 @@ function formatNumber(num: number | undefined | null): string {
     display: flex;
     flex-direction: column;
     gap: $spacing-md;
+
+    &__sticky-wrap {
+        margin: $spacing-md 0;
+    }
 }
 
 .fcom-mf-space-feed {
     display: flex;
     flex-direction: column;
     gap: $spacing-md;
+}
+
+.fcom-mf-space-feed__trigger {
+    min-height: 1px;
+    pointer-events: none;
 }
 
 .fcom-mf-loading-more {

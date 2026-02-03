@@ -25,25 +25,38 @@ function isSpaceMember(space: SpaceFull, memberIds: Set<number>, memberSlugs: Se
     return Boolean(space.is_member || inferredMember || memberIds.has(space.id) || memberSlugs.has(space.slug));
 }
 
+/** True when this space should show "View Space" (not "Join") – always true in "Your spaces" tab. */
+function showAsMember(space: SpaceFull): boolean {
+    return activeTab.value === 'my' || !!space.is_member;
+}
+
 async function fetchSpaces(): Promise<void> {
     loading.value = true;
     try {
-        const response = await api.get<SpacesResponse>('spaces', {
+        // GET spaces returns only the user's joined spaces (SpaceController@get)
+        const myResponse = await api.get<{ spaces: SpaceFull[] } | { spaces: { data: SpaceFull[] } }>('spaces');
+        const rawMy = myResponse.spaces;
+        const myList = Array.isArray(rawMy) ? rawMy : (rawMy && 'data' in rawMy ? rawMy.data : []);
+        const myArr = Array.isArray(myList) ? myList : [];
+        mySpaces.value = myArr.map((s) => ({ ...s, is_member: true }));
+
+        const memberIds = new Set(mySpaces.value.map((s) => s.id));
+        const memberSlugs = new Set(mySpaces.value.map((s) => s.slug));
+
+        // Discover tab: spaces from GET spaces/discover (paginated: { spaces: { data: [...] } })
+        const discoverResponse = await api.get<SpacesResponse>('spaces/discover', {
             per_page: 50,
         });
-
-        if (response.spaces?.data) {
-            spaces.value = response.spaces.data;
-        } else if (Array.isArray(response.spaces)) {
-            spaces.value = response.spaces;
-        } else {
-            spaces.value = [];
-        }
-        mySpaces.value = response.my_spaces || [];
-        const memberIds = new Set(mySpaces.value.map(space => space.id));
-        const memberSlugs = new Set(mySpaces.value.map(space => space.slug));
+        const rawDiscover = discoverResponse.spaces;
+        const discoverList =
+            rawDiscover && 'data' in rawDiscover && Array.isArray(rawDiscover.data)
+                ? rawDiscover.data
+                : Array.isArray(rawDiscover)
+                  ? rawDiscover
+                  : [];
+        spaces.value = discoverList;
         if (spaces.value.length) {
-            spaces.value = spaces.value.map(space => ({
+            spaces.value = spaces.value.map((space) => ({
                 ...space,
                 is_member: isSpaceMember(space, memberIds, memberSlugs),
             }));
@@ -208,17 +221,17 @@ function formatNumber(num: number | undefined | null): string {
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                             </svg>
-                            {{ formatNumber(space.members_count) }}
+                            {{ formatNumber(space.members_count ?? 0) }}
                         </span>
-                        <span v-if="space.posts_count" class="space-card__stat">
+                        <span class="space-card__stat">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
                             </svg>
-                            {{ formatNumber(space.posts_count) }}
+                            {{ formatNumber(space.posts_count ?? 0) }}
                         </span>
                     </div>
                     <button
-                        v-if="authStore.isLoggedIn && !space.is_member"
+                        v-if="authStore.isLoggedIn && !showAsMember(space)"
                         class="space-card__btn"
                         :disabled="joining[space.id]"
                         @click.stop="joinSpace(space)"
@@ -229,7 +242,7 @@ function formatNumber(num: number | undefined | null): string {
                         Join
                     </button>
                     <button
-                        v-else-if="authStore.isLoggedIn && space.is_member"
+                        v-else-if="authStore.isLoggedIn && showAsMember(space)"
                         class="space-card__view-btn"
                         @click.stop="navigateToSpace(space.slug)"
                     >
