@@ -38,7 +38,13 @@ async function fetchSpace(): Promise<void> {
 
     try {
         const response = await api.get<{ space: SpaceFull }>(`spaces/${spaceSlug.value}/by-slug`);
-        space.value = response.space;
+        const raw = response.space as Record<string, unknown>;
+        // Normalize stats (API may use snake_case; ensure numbers for header stats)
+        space.value = {
+            ...raw,
+            members_count: Number(raw.members_count ?? raw.membersCount ?? 0) || 0,
+            posts_count: Number(raw.posts_count ?? raw.postsCount ?? 0) || 0,
+        } as SpaceFull;
         await fetchFeeds();
     } catch (e) {
         error.value = e instanceof Error ? e.message : 'Failed to load space';
@@ -106,7 +112,7 @@ async function joinSpace(): Promise<void> {
     try {
         await api.post(`spaces/${space.value.slug}/join`);
         space.value.is_member = true;
-        space.value.members_count++;
+        space.value.members_count = (space.value.members_count ?? 0) + 1;
     } catch (e) {
         console.error('Failed to join space:', e);
     }
@@ -118,7 +124,7 @@ async function leaveSpace(): Promise<void> {
     try {
         await api.post(`spaces/${space.value.slug}/leave`);
         space.value.is_member = false;
-        space.value.members_count--;
+        space.value.members_count = Math.max(0, (space.value.members_count ?? 0) - 1);
     } catch (e) {
         console.error('Failed to leave space:', e);
     }
@@ -153,10 +159,10 @@ watch(() => route.params.slug, () => {
 });
 
 function formatNumber(num: number | undefined | null): string {
-    if (num == null) return '0';
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toString();
+    const n = num == null || Number.isNaN(Number(num)) ? 0 : Number(num);
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return String(n);
 }
 </script>
 

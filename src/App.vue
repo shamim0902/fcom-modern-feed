@@ -2,15 +2,14 @@
 import { ref, computed, onMounted, onUnmounted, provide, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useUiStore, useAuthStore, useFeedStore } from './stores';
+import { api } from './api/client';
+import type { NotificationsResponse } from './api/types';
 import ToastContainer from './components/common/ToastContainer.vue';
 import ImageLightbox from './components/common/ImageLightbox.vue';
 import AppHeader from './components/layout/AppHeader.vue';
 import LeftSidebar from './components/layout/LeftSidebar.vue';
 import RightSidebar from './components/layout/RightSidebar.vue';
 import MobileNav from './components/layout/MobileNav.vue';
-
-// Notification count for mobile nav (placeholder - can be connected to notification store)
-const notificationCount = ref(0);
 
 interface Config {
     containerId: string;
@@ -31,6 +30,16 @@ const route = useRoute();
 const uiStore = useUiStore();
 const authStore = useAuthStore();
 const feedStore = useFeedStore();
+
+async function fetchNotificationUnreadCount(): Promise<void> {
+    if (!authStore.isLoggedIn) return;
+    try {
+        const response = await api.get<NotificationsResponse>('notifications', { page: 1, per_page: 1 });
+        uiStore.setNotificationUnreadCount(response.unread_count ?? 0);
+    } catch {
+        // Ignore; user may not have access
+    }
+}
 
 // Provide config to child components
 provide('config', props.config);
@@ -71,6 +80,8 @@ onMounted(() => {
         fetchFeedWithSearch();
     }
 
+    fetchNotificationUnreadCount();
+
     // Start ticker for real-time updates
     if (window.fcomModernFeed?.features?.realTimeUpdates) {
         startTicker();
@@ -78,7 +89,16 @@ onMounted(() => {
 
     // Listen for scroll
     window.addEventListener('scroll', handleScroll);
+
+    // Refresh notification count when tab becomes visible
+    document.addEventListener('visibilitychange', onVisibilityChange);
 });
+
+function onVisibilityChange(): void {
+    if (document.visibilityState === 'visible') {
+        fetchNotificationUnreadCount();
+    }
+}
 
 // Refetch feed when search query changes (header search)
 watch(
@@ -136,6 +156,7 @@ onUnmounted(() => {
         clearInterval(tickerInterval);
     }
     window.removeEventListener('scroll', handleScroll);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
 });
 </script>
 
@@ -187,7 +208,7 @@ onUnmounted(() => {
         <ImageLightbox />
 
         <!-- Mobile Bottom Navigation -->
-        <MobileNav :notification-count="notificationCount" />
+        <MobileNav :notification-count="uiStore.notificationUnreadCount" />
     </div>
 </template>
 

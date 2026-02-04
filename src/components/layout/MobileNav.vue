@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores';
 
@@ -23,18 +23,36 @@ defineProps<{
     notificationCount?: number;
 }>();
 
-const navItems: NavItem[] = [
+const allNavItems: NavItem[] = [
     { name: 'home', route: '/', icon: 'home', label: 'Home' },
     { name: 'members', route: '/members', icon: 'users', label: 'Members' },
     { name: 'notifications', route: '/notifications', icon: 'bell', label: 'Alerts' },
 ];
 
-// Menu items shown in the drawer
-const menuItems = [
+const allMenuItems = [
     { name: 'spaces', route: '/spaces', icon: 'grid', label: 'Spaces' },
     { name: 'bookmarks', route: '/bookmarks', icon: 'bookmark', label: 'Saved' },
     { name: 'leaderboard', route: '/leaderboard', icon: 'trophy', label: 'Leaderboard' },
 ];
+
+/** Filter by Privacy Settings (members page, leaderboard visibility) */
+const navItems = computed<NavItem[]>(() => {
+    const privacy = window.fcomModernFeed?.privacy;
+    const canViewMembers = privacy?.canViewMembersPage !== false;
+    return allNavItems.filter((item) => {
+        if (item.name === 'members') return canViewMembers;
+        return true;
+    });
+});
+
+const menuItems = computed(() => {
+    const privacy = window.fcomModernFeed?.privacy;
+    const canViewLeaderboard = privacy?.canViewLeaderboardMembers !== false;
+    return allMenuItems.filter((item: { name: string }) => {
+        if (item.name === 'leaderboard') return canViewLeaderboard;
+        return true;
+    });
+});
 
 function isActive(itemRoute: string): boolean {
     if (itemRoute === '/') {

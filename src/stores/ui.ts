@@ -17,6 +17,8 @@ export const useUiStore = defineStore('ui', () => {
     const toasts = ref<Toast[]>([]);
     const createPostModalOpen = ref(false);
     const scrollPositions = ref<Record<string, number>>({});
+    /** Unread notification count for sidebar/mobile nav badge */
+    const notificationUnreadCount = ref(0);
 
     // Getters
     const currentLayout = computed(() => layout.value);
@@ -110,8 +112,12 @@ export const useUiStore = defineStore('ui', () => {
         return scrollPositions.value[key] || 0;
     }
 
+    function setNotificationUnreadCount(count: number): void {
+        notificationUnreadCount.value = Math.max(0, count);
+    }
+
     function t(key: string, ...args: (string | number)[]): string {
-        let text = window.fcomModernFeed.i18n[key] || key;
+        let text = window.fcomModernFeed?.i18n?.[key] || key;
 
         // Simple sprintf-like replacement
         if (args.length > 0) {
@@ -132,6 +138,7 @@ export const useUiStore = defineStore('ui', () => {
         toasts,
         createPostModalOpen,
         scrollPositions,
+        notificationUnreadCount,
 
         // Getters
         currentLayout,
@@ -157,6 +164,7 @@ export const useUiStore = defineStore('ui', () => {
         closeCreatePostModal,
         saveScrollPosition,
         getScrollPosition,
+        setNotificationUnreadCount,
         t,
     };
 });

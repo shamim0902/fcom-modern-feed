@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useAuthStore } from '@/stores';
+import { useAuthStore, useUiStore } from '@/stores';
 import { api } from '@/api/client';
 import type { SpaceFull } from '@/api/types';
-import type { PrimaryMenuItem } from '@/api/client';
+import type { PrimaryMenuItem, SidebarBottomLinkGroup } from '@/api/client';
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const uiStore = useUiStore();
 
 const spaces = ref<SpaceFull[]>([]);
 const loadingSpaces = ref(false);
@@ -58,14 +59,34 @@ interface SidebarItem {
     badge?: number;
 }
 
-const menuItems: SidebarItem[] = [
+const allMenuItems: SidebarItem[] = [
     { id: 'home', icon: 'home', label: 'Home', route: '/' },
     { id: 'members', icon: 'users', label: 'Members', route: '/members' },
     { id: 'spaces', icon: 'grid', label: 'Spaces', route: '/spaces' },
     { id: 'leaderboard', icon: 'award', label: 'Leaderboard', route: '/leaderboard' },
-    { id: 'notifications', icon: 'bell', label: 'Notifications', route: '/notifications', requireAuth: true, badge: 3 },
+    { id: 'notifications', icon: 'bell', label: 'Notifications', route: '/notifications', requireAuth: true },
     { id: 'bookmarks', icon: 'bookmark', label: 'Saved Posts', route: '/bookmarks', requireAuth: true },
 ];
+
+/** Filter menu items by Privacy Settings and set notification badge from API unread count */
+const menuItems = computed<SidebarItem[]>(() => {
+    const privacy = window.fcomModernFeed?.privacy;
+    const canViewMembers = privacy?.canViewMembersPage !== false;
+    const canViewLeaderboard = privacy?.canViewLeaderboardMembers !== false;
+    const unreadCount = uiStore.notificationUnreadCount;
+    return allMenuItems
+        .filter((item) => {
+            if (item.id === 'members') return canViewMembers;
+            if (item.id === 'leaderboard') return canViewLeaderboard;
+            return true;
+        })
+        .map((item) => {
+            if (item.id === 'notifications' && unreadCount > 0) {
+                return { ...item, badge: unreadCount };
+            }
+            return item;
+        });
+});
 
 const icons: Record<string, string> = {
     home: `<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>`,
@@ -75,6 +96,22 @@ const icons: Record<string, string> = {
     grid: `<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>`,
     award: `<circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>`,
 };
+
+/** Sidebar bottom link groups from settings (footer links) */
+const sidebarBottomLinks = computed<{ title: string; permalink: string }[]>(() => {
+    const groups = (window.fcomModernFeed?.sidebarBottomLinkGroups ?? []) as SidebarBottomLinkGroup[];
+    const links: { title: string; permalink: string }[] = [];
+    for (const group of groups) {
+        if (group.items?.length) {
+            for (const item of group.items) {
+                if (item.title || item.permalink) {
+                    links.push({ title: item.title || item.permalink, permalink: item.permalink || '#' });
+                }
+            }
+        }
+    }
+    return links;
+});
 
 /** Primary menu items from settings (shown after break at bottom of nav) */
 const primaryMenuItemsFromSettings = computed<ResolvedMenuItem[]>(() => {
@@ -273,17 +310,16 @@ onMounted(() => {
             </div>
         </div>
 
-        <!-- Footer -->
+        <!-- Footer (links from Settings → Menu Settings → Sidebar Bottom Link Groups) -->
         <div class="fcom-mf-sidebar-footer">
-            <div class="fcom-mf-sidebar-footer__links">
-                <a href="#">Privacy</a>
-                <span>·</span>
-                <a href="#">Terms</a>
-                <span>·</span>
-                <a href="#">Help</a>
+            <div v-if="sidebarBottomLinks.length > 0" class="fcom-mf-sidebar-footer__links">
+                <template v-for="(link, idx) in sidebarBottomLinks" :key="idx">
+                    <span v-if="idx > 0" class="fcom-mf-sidebar-footer__sep" aria-hidden="true">·</span>
+                    <a :href="link.permalink" :target="link.permalink.startsWith('http') ? '_blank' : undefined" :rel="link.permalink.startsWith('http') ? 'noopener noreferrer' : undefined">{{ link.title }}</a>
+                </template>
             </div>
             <div class="fcom-mf-sidebar-footer__copyright">
-                © 2025 Community
+                © {{ new Date().getFullYear() }}
             </div>
         </div>
     </div>
@@ -563,7 +599,8 @@ onMounted(() => {
     &__links {
         display: flex;
         flex-wrap: wrap;
-        gap: $spacing-xs;
+        align-items: center;
+        gap: $spacing-xs $spacing-sm;
 
         a {
             color: $text-tertiary;
@@ -573,6 +610,11 @@ onMounted(() => {
                 text-decoration: underline;
             }
         }
+    }
+
+    &__sep {
+        user-select: none;
+        color: $text-tertiary;
     }
 
     &__copyright {

@@ -58,7 +58,7 @@ async function loadMore(): Promise<void> {
 }
 
 function setupObserver(): void {
-    if (!window.fcomModernFeed.features.infiniteScroll) return;
+    if (!window.fcomModernFeed?.features?.infiniteScroll) return;
 
     observer.value = new IntersectionObserver(
         (entries) => {

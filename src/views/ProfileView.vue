@@ -321,7 +321,7 @@ function formatNumber(num: number | undefined | null): string {
                     Posts
                 </button>
                 <button
-                    v-if="profile.spaces && profile.spaces.length > 0"
+                    v-if="profile.canViewUserSpaces && profile.spaces && profile.spaces.length > 0"
                     class="fcom-mf-profile-tab"
                     :class="{ 'fcom-mf-profile-tab--active': activeTab === 'spaces' }"
                     @click="activeTab = 'spaces'"
@@ -368,8 +368,8 @@ function formatNumber(num: number | undefined | null): string {
                 </div>
             </div>
 
-            <!-- Spaces Tab -->
-            <div v-if="activeTab === 'spaces'" class="fcom-mf-profile-spaces">
+            <!-- Spaces Tab (only when viewer can see user spaces per privacy settings) -->
+            <div v-if="activeTab === 'spaces' && profile.canViewUserSpaces" class="fcom-mf-profile-spaces">
                 <div v-if="profile.spaces && profile.spaces.length > 0" class="fcom-mf-spaces-list">
                     <div
                         v-for="space in profile.spaces"

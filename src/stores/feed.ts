@@ -113,7 +113,7 @@ export const useFeedStore = defineStore('feed', () => {
         try {
             const response = await api.get<FeedsResponse>('feeds', {
                 page,
-                per_page: params.perPage || window.fcomModernFeed.settings.perPage,
+                per_page: params.perPage ?? window.fcomModernFeed?.settings?.perPage ?? 10,
                 space: params.space,
                 user_id: params.userId,
                 search: params.search,

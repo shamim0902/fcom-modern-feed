@@ -360,13 +360,13 @@ onMounted(() => {
         <!-- Footer Links -->
         <div class="fcom-mf-sidebar-footer">
             <div class="fcom-mf-sidebar-footer__links">
-                <a href="#">About</a>
+                <!-- <a href="#">About</a>
                 <a href="#">Help</a>
                 <a href="#">Privacy</a>
-                <a href="#">Terms</a>
+                <a href="#">Terms</a> -->
             </div>
             <div class="fcom-mf-sidebar-footer__copyright">
-                © 2025 Community · v1.0.0
+                © 2026 Vibecoder BD · v1.0.0
             </div>
         </div>
     </div>

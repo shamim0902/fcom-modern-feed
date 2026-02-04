@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '@/api/client';
 import type { Notification, NotificationsResponse } from '@/api/types';
-import { useAuthStore } from '@/stores';
+import { useAuthStore, useUiStore } from '@/stores';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -11,6 +11,7 @@ dayjs.extend(relativeTime);
 
 const router = useRouter();
 const authStore = useAuthStore();
+const uiStore = useUiStore();
 
 const notifications = ref<Notification[]>([]);
 const loading = ref(true);
@@ -32,15 +33,23 @@ async function fetchNotifications(page = 1, append = false): Promise<void> {
             per_page: 20,
         });
 
+        const notifPayload = response?.notifications;
+        const data = Array.isArray(notifPayload)
+            ? notifPayload
+            : (notifPayload && 'data' in notifPayload ? notifPayload.data : []) || [];
         if (append) {
-            notifications.value = [...notifications.value, ...response.notifications.data];
+            notifications.value = [...notifications.value, ...data];
         } else {
-            notifications.value = response.notifications.data;
+            notifications.value = data;
         }
 
-        hasMore.value = response.notifications.has_more;
-        currentPage.value = response.notifications.current_page;
-        unreadCount.value = response.unread_count || 0;
+        const paginator = notifPayload && typeof notifPayload === 'object' && !Array.isArray(notifPayload) ? notifPayload as { next_page_url?: string | null; current_page?: number; has_more?: boolean } : null;
+        hasMore.value = paginator ? !!(paginator.next_page_url ?? paginator.has_more) : false;
+        currentPage.value = paginator?.current_page ?? page;
+        if (typeof (response as { unread_count?: number }).unread_count === 'number') {
+            unreadCount.value = (response as { unread_count: number }).unread_count;
+            uiStore.setNotificationUnreadCount(unreadCount.value);
+        }
     } catch (error) {
         console.error('Failed to fetch notifications:', error);
     } finally {
@@ -59,11 +68,12 @@ async function markAsRead(notification: Notification): Promise<void> {
     if (notification.subscriber?.is_read) return;
 
     try {
-        await api.post(`notifications/${notification.id}/read`);
+        await api.post(`notifications/mark-read/${notification.id}`);
         if (notification.subscriber) {
             notification.subscriber.is_read = 1;
         }
         unreadCount.value = Math.max(0, unreadCount.value - 1);
+        uiStore.setNotificationUnreadCount(unreadCount.value);
     } catch (error) {
         console.error('Failed to mark as read:', error);
     }
@@ -71,13 +81,14 @@ async function markAsRead(notification: Notification): Promise<void> {
 
 async function markAllAsRead(): Promise<void> {
     try {
-        await api.post('notifications/read-all');
+        await api.post('notifications/mark-all-read');
         notifications.value.forEach(n => {
             if (n.subscriber) {
                 n.subscriber.is_read = 1;
             }
         });
         unreadCount.value = 0;
+        uiStore.setNotificationUnreadCount(0);
     } catch (error) {
         console.error('Failed to mark all as read:', error);
     }

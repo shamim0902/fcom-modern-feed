@@ -24,18 +24,18 @@ const formattedDate = computed(() => {
         const diffDays = now.diff(d, 'day');
 
         if (diffMinutes < 1) {
-            return window.fcomModernFeed.i18n.justNow || 'Just now';
+            return window.fcomModernFeed?.i18n?.justNow || 'Just now';
         }
         if (diffMinutes < 60) {
-            const template = window.fcomModernFeed.i18n.minutesAgo || '%d minutes ago';
+            const template = window.fcomModernFeed?.i18n?.minutesAgo || '%d minutes ago';
             return template.replace('%d', String(diffMinutes));
         }
         if (diffHours < 24) {
-            const template = window.fcomModernFeed.i18n.hoursAgo || '%d hours ago';
+            const template = window.fcomModernFeed?.i18n?.hoursAgo || '%d hours ago';
             return template.replace('%d', String(diffHours));
         }
         if (diffDays < 7) {
-            const template = window.fcomModernFeed.i18n.daysAgo || '%d days ago';
+            const template = window.fcomModernFeed?.i18n?.daysAgo || '%d days ago';
             return template.replace('%d', String(diffDays));
         }
     }

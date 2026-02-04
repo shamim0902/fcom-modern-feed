@@ -49,9 +49,18 @@ class Assets
         } else {
             // Production mode
             $manifest = self::getManifest();
+            $entry = $manifest['src/main.ts'] ?? $manifest['main'] ?? null;
 
-            if (isset($manifest['src/main.ts'])) {
-                $entry = $manifest['src/main.ts'];
+            if ($entry && !empty($entry['file'])) {
+                // Cache-bust: use manifest or entry file mtime so each new deploy loads fresh assets
+                $manifestPath = FCOM_MF_PLUGIN_DIR . 'assets/.vite/manifest.json';
+                $entryPath = FCOM_MF_PLUGIN_DIR . 'assets/' . $entry['file'];
+                $version = FCOM_MF_VERSION;
+                if (file_exists($manifestPath)) {
+                    $version .= '.' . filemtime($manifestPath);
+                } elseif (file_exists($entryPath)) {
+                    $version .= '.' . filemtime($entryPath);
+                }
 
                 // Enqueue CSS
                 if (!empty($entry['css'])) {
@@ -60,7 +69,7 @@ class Assets
                             'fcom-mf-app-' . $index,
                             FCOM_MF_PLUGIN_URL . 'assets/' . $cssFile,
                             [],
-                            FCOM_MF_VERSION
+                            $version
                         );
                     }
                 }
@@ -70,7 +79,7 @@ class Assets
                     'fcom-mf-app',
                     FCOM_MF_PLUGIN_URL . 'assets/' . $entry['file'],
                     [],
-                    FCOM_MF_VERSION,
+                    $version,
                     true
                 );
                 add_filter('script_loader_tag', function ($tag, $handle) {
@@ -119,10 +128,36 @@ class Assets
             'socialLinkProviders' => self::getSocialLinkProviders(),
             'primaryMenuItems' => self::getPrimaryMenuItems(),
             'profileDropdownItems' => self::getProfileDropdownItems(),
+            'sidebarBottomLinkGroups' => self::getSidebarBottomLinkGroups(),
+            'privacy' => self::getPrivacyFlags(),
             'settings' => [
                 'tickerInterval' => 45000, // 45 seconds
                 'perPage' => 10,
             ],
+        ];
+    }
+
+    /**
+     * Privacy flags from Fluent Community Privacy Settings (who can view members/leaderboard, can deactivate).
+     *
+     * @return array{canViewMembersPage: bool, canViewLeaderboardMembers: bool, canDeactivateAccount: bool}
+     */
+    private static function getPrivacyFlags()
+    {
+        $defaults = [
+            'canViewMembersPage'      => true,
+            'canViewLeaderboardMembers' => true,
+            'canDeactivateAccount'    => false,
+        ];
+        if (!class_exists(\FluentCommunity\App\Functions\Utility::class)) {
+            return $defaults;
+        }
+        $utility = \FluentCommunity\App\Functions\Utility::class;
+        $helper = class_exists(\FluentCommunity\App\Services\Helper::class) ? \FluentCommunity\App\Services\Helper::class : null;
+        return [
+            'canViewMembersPage'       => $utility::canViewMembersPage(),
+            'canViewLeaderboardMembers' => $utility::canViewLeaderboardMembers(),
+            'canDeactivateAccount'     => $utility::getPrivacySetting('can_deactive_account') === 'yes' || ($helper && $helper::isSiteAdmin()),
         ];
     }
 
@@ -240,6 +275,48 @@ class Assets
             ];
         }
         return $list;
+    }
+
+    /**
+     * Get Sidebar Bottom Link Groups from Fluent Community "Sidebar Bottom Link Groups" (Menu Settings).
+     * Each group has title and items; each item has title and permalink.
+     *
+     * @return list<array{title?: string, items: list<array{title: string, permalink: string}>}>
+     */
+    private static function getSidebarBottomLinkGroups()
+    {
+        if (!class_exists(\FluentCommunity\App\Functions\Utility::class)) {
+            return [];
+        }
+        $data = \FluentCommunity\App\Functions\Utility::getPortalSidebarData('sidebar');
+        $groups = isset($data['bottomLinkGroups']) && is_array($data['bottomLinkGroups']) ? $data['bottomLinkGroups'] : [];
+        $out = [];
+        foreach ($groups as $group) {
+            if (empty($group['items']) || !is_array($group['items'])) {
+                continue;
+            }
+            $items = [];
+            foreach ($group['items'] as $item) {
+                if (empty($item['title']) && empty($item['permalink'])) {
+                    continue;
+                }
+                $enabled = isset($item['enabled']) ? (string) $item['enabled'] : 'yes';
+                if ($enabled !== 'yes') {
+                    continue;
+                }
+                $items[] = [
+                    'title'     => isset($item['title']) ? (string) $item['title'] : '',
+                    'permalink' => isset($item['permalink']) ? (string) $item['permalink'] : '',
+                ];
+            }
+            if (!empty($items)) {
+                $out[] = [
+                    'title' => isset($group['title']) ? (string) $group['title'] : '',
+                    'items' => $items,
+                ];
+            }
+        }
+        return $out;
     }
 
     public static function renewNonce()

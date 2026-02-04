@@ -322,6 +322,8 @@ export interface Profile {
     /** From API: follow level (0=blocked, 1=following, 2=notify). We derive is_following from this. */
     follow?: number;
     is_self?: boolean;
+    /** Whether the current viewer can see this profile's spaces (privacy: user_space_visibility). */
+    canViewUserSpaces?: boolean;
     spaces?: SpaceFull[];
     badges?: Array<{
         id: number;

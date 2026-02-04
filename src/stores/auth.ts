@@ -35,24 +35,29 @@ export const useAuthStore = defineStore('auth', () => {
     // Actions
     function initialize(): void {
         const config = window.fcomModernFeed;
-        isLoggedIn.value = config.isLoggedIn;
-        user.value = config.user;
+        if (!config) {
+            isLoggedIn.value = false;
+            user.value = null;
+            return;
+        }
+        isLoggedIn.value = config.isLoggedIn ?? false;
+        user.value = config.user ?? null;
     }
 
     function requireAuth(): boolean {
         if (!isLoggedIn.value) {
-            window.location.href = window.fcomModernFeed.loginUrl;
+            window.location.href = window.fcomModernFeed?.loginUrl || '/wp-login.php';
             return false;
         }
         return true;
     }
 
     function canCreatePost(): boolean {
-        return window.fcomModernFeed.features.createPost;
+        return window.fcomModernFeed?.features?.createPost ?? false;
     }
 
     function canUploadMedia(): boolean {
-        return window.fcomModernFeed.features.mediaUpload;
+        return window.fcomModernFeed?.features?.mediaUpload ?? false;
     }
 
     return {

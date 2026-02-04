@@ -15,6 +15,16 @@ export interface ProfileDropdownItem {
     enabled: string;
 }
 
+export interface SidebarBottomLinkItem {
+    title: string;
+    permalink: string;
+}
+
+export interface SidebarBottomLinkGroup {
+    title?: string;
+    items: SidebarBottomLinkItem[];
+}
+
 declare global {
     interface Window {
         fcomModernFeed: {
@@ -55,6 +65,14 @@ declare global {
             primaryMenuItems?: PrimaryMenuItem[];
             /** Profile Dropdown Items from Fluent Community settings (order preserved, URLs resolved) */
             profileDropdownItems?: ProfileDropdownItem[];
+            /** Sidebar Bottom Link Groups from Fluent Community "Sidebar Bottom Link Groups" (Menu Settings) */
+            sidebarBottomLinkGroups?: SidebarBottomLinkGroup[];
+            /** Privacy flags from Fluent Community Privacy Settings */
+            privacy?: {
+                canViewMembersPage: boolean;
+                canViewLeaderboardMembers: boolean;
+                canDeactivateAccount: boolean;
+            };
             settings: {
                 tickerInterval: number;
                 perPage: number;
@@ -69,14 +87,23 @@ export interface ApiError {
     errors?: Record<string, string[]>;
 }
 
-class ApiClient {
-    private baseUrl: string;
-    private nonce: string;
+function getConfig(): NonNullable<typeof window.fcomModernFeed> {
+    const config = window.fcomModernFeed;
+    if (!config?.rest?.url) {
+        throw new Error(
+            '[FcomModernFeed] Configuration not loaded. Clear cache and reload, or ensure the plugin outputs fcomModernFeed before the app script.'
+        );
+    }
+    return config;
+}
 
-    constructor() {
-        const config = window.fcomModernFeed;
-        this.baseUrl = config.rest.url;
-        this.nonce = config.rest.nonce;
+class ApiClient {
+    private get baseUrl(): string {
+        return getConfig().rest.url;
+    }
+
+    private get nonce(): string {
+        return getConfig().rest.nonce;
     }
 
     private async request<T>(
@@ -171,11 +198,12 @@ class ApiClient {
     }
 
     private async renewNonce(): Promise<void> {
+        const config = getConfig();
         const formData = new FormData();
         formData.append('action', 'fcom_mf_renew_nonce');
-        formData.append('security', window.fcomModernFeed.ajaxNonce);
+        formData.append('security', config.ajaxNonce);
 
-        const response = await fetch(window.fcomModernFeed.ajaxUrl, {
+        const response = await fetch(config.ajaxUrl, {
             method: 'POST',
             credentials: 'same-origin',
             body: formData,
@@ -183,9 +211,8 @@ class ApiClient {
 
         if (response.ok) {
             const data = await response.json();
-            if (data.success && data.data.nonce) {
-                this.nonce = data.data.nonce;
-                window.fcomModernFeed.rest.nonce = data.data.nonce;
+            if (data.success && data.data?.nonce) {
+                config.rest.nonce = data.data.nonce;
             }
         }
     }

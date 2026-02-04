@@ -18,6 +18,7 @@ interface ProfileData {
     social_links?: Record<string, string>;
     can_change_username?: boolean;
     can_change_email?: boolean;
+    can_deactivate_account?: boolean;
 }
 
 interface SocialPlatform {
@@ -72,6 +73,8 @@ const uploadingAvatar = ref(false);
 const uploadingCover = ref(false);
 const error = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
+const deactivateStep = ref<'init' | 'confirm'>('init');
+const deactivating = ref(false);
 
 const profile = ref<ProfileData | null>(null);
 const avatarInput = ref<HTMLInputElement | null>(null);
@@ -343,6 +346,38 @@ async function removeCover(): Promise<void> {
     }
 }
 
+function showDeactivateConfirm(): void {
+    deactivateStep.value = 'confirm';
+}
+
+function cancelDeactivate(): void {
+    deactivateStep.value = 'init';
+}
+
+async function deactivateAccount(): Promise<void> {
+    if (!profile.value || deactivating.value) return;
+
+    deactivating.value = true;
+    error.value = null;
+
+    try {
+        await api.put(`profile/${profile.value.username}`, {
+            data: { status: 'deactivated' },
+        });
+        successMessage.value = 'Your profile has been deactivated successfully.';
+        window.location.reload();
+    } catch (e: unknown) {
+        console.error('Deactivate error:', e);
+        if (e && typeof e === 'object' && 'message' in e) {
+            error.value = (e as { message: string }).message;
+        } else {
+            error.value = 'Failed to deactivate account. Please try again.';
+        }
+    } finally {
+        deactivating.value = false;
+    }
+}
+
 onMounted(() => {
     fetchProfile();
 });
@@ -582,6 +617,33 @@ onMounted(() => {
                     </div>
                 </div>
 
+                <!-- Deactivate account (only when allowed by privacy settings) -->
+                <div v-if="profile.can_deactivate_account" class="fcom-mf-form-section fcom-mf-form-section--danger">
+                    <h3>Account Deactivation</h3>
+                    <template v-if="deactivateStep === 'init'">
+                        <p class="fcom-mf-form-section__description">
+                            If you no longer wish to keep your community account, you can deactivate it. Your content and profile will become invisible to others until you reactivate.
+                        </p>
+                        <button type="button" class="fcom-mf-btn fcom-mf-btn--outline fcom-mf-btn--danger-outline" @click="showDeactivateConfirm">
+                            Continue to Deactivate Account
+                        </button>
+                    </template>
+                    <template v-else>
+                        <p class="fcom-mf-form-section__description">
+                            Deactivating your account will make your content and profile invisible to others. You will lose access to the community until you reactivate your account.
+                        </p>
+                        <div class="fcom-mf-form-actions fcom-mf-form-actions--inline">
+                            <button type="button" class="fcom-mf-btn fcom-mf-btn--outline" @click="cancelDeactivate" :disabled="deactivating">
+                                Go Back
+                            </button>
+                            <button type="button" class="fcom-mf-btn fcom-mf-btn--danger" @click="deactivateAccount" :disabled="deactivating">
+                                <span v-if="deactivating">Deactivating...</span>
+                                <span v-else>Confirm Account Deactivation</span>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
                 <!-- Actions -->
                 <div class="fcom-mf-form-actions">
                     <button type="button" class="fcom-mf-btn fcom-mf-btn--outline" @click="goBack">
@@ -719,6 +781,10 @@ onMounted(() => {
     &:last-of-type {
         border-bottom: none;
         margin-bottom: $spacing-lg;
+    }
+
+    &--danger {
+        border-color: rgba($danger-color, 0.2);
     }
 
     h3 {
@@ -1000,6 +1066,11 @@ onMounted(() => {
     gap: $spacing-md;
     padding-top: $spacing-lg;
     border-top: 1px solid $border-color;
+
+    &--inline {
+        border-top: none;
+        padding-top: $spacing-md;
+    }
 }
 
 .fcom-mf-btn {
@@ -1052,6 +1123,15 @@ onMounted(() => {
 
         &:hover:not(:disabled) {
             background: rgba($error-color, 0.05);
+        }
+    }
+
+    &--danger {
+        background: $danger-color;
+        color: $white;
+
+        &:hover:not(:disabled) {
+            background: darken($danger-color, 8%);
         }
     }
 }
