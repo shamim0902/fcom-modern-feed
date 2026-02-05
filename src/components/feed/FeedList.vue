@@ -142,8 +142,6 @@ onUnmounted(() => {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-feed-list {
     display: flex;
     flex-direction: column;

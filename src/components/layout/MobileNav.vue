@@ -256,8 +256,6 @@ onUnmounted(() => {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-mobile-nav-wrapper {
     // Container for nav and menu drawer
 }

@@ -64,8 +64,6 @@ function handleLoadNewPosts(): void {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-feed-view {
     width: 100%;
     max-width: $card-max-width;

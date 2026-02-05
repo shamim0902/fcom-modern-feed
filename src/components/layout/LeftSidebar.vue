@@ -374,8 +374,6 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-left-sidebar {
     display: flex;
     flex-direction: column;

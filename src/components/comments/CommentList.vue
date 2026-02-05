@@ -172,8 +172,6 @@ async function handleReaction(commentId: number): Promise<void> {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-comments {
     padding: 0 $spacing-md $spacing-md;
 

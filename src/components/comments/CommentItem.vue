@@ -164,8 +164,6 @@ function toggleReplies(): void {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-comment {
     display: flex;
     gap: $spacing-sm;

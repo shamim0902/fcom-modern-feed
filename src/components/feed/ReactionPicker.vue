@@ -71,8 +71,6 @@ defineExpose({ reactions, getReactionByType });
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-reaction-picker {
     position: absolute;
     bottom: 100%;

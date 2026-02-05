@@ -198,8 +198,6 @@ onUnmounted(() => {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-feed-actions {
     display: flex;
     padding: $spacing-xs $spacing-lg $spacing-md;

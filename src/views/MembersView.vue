@@ -273,8 +273,6 @@ const filteredMembers = computed(() => {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-members-view {
     width: 100%;
 }

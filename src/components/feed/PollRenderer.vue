@@ -165,8 +165,6 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-poll {
     margin: $spacing-md $spacing-lg;
 

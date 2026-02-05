@@ -35,8 +35,6 @@ function navigateToProfile(username: string): void {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-author {
     display: flex;
     align-items: flex-start;

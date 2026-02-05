@@ -278,8 +278,6 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-leaderboard-view {
     width: 100%;
 }

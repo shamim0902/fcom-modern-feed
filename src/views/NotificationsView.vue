@@ -264,8 +264,6 @@ const icons: Record<string, string> = {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-notifications-view {
     width: 100%;
 }

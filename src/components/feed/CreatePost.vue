@@ -1274,7 +1274,7 @@ function insertEmoji(emoji: string): void {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
+@use "sass:color";
 
 .fcom-mf-create-post {
     // Note: margin-bottom removed - gaps handled by parent flex container
@@ -1566,7 +1566,7 @@ function insertEmoji(emoji: string): void {
         &--required {
             background: rgba($warning-color, 0.1);
             border: 1px solid rgba($warning-color, 0.3);
-            color: darken($warning-color, 15%);
+            color: color.adjust($warning-color, $lightness: -15%);
 
             svg:first-child {
                 color: $warning-color;

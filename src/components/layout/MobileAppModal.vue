@@ -145,8 +145,6 @@ function close(): void {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-mobile-app-overlay {
     position: fixed;
     top: 0;

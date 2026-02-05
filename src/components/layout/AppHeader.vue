@@ -288,8 +288,6 @@ const defaultIcons: Record<string, string> = {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .header {
     position: fixed;
     top: 0;

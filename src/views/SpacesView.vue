@@ -273,8 +273,6 @@ function formatNumber(num: number | undefined | null): string {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-spaces-view {
     width: 100%;
 }

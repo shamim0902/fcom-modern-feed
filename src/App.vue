@@ -213,8 +213,6 @@ onUnmounted(() => {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-app {
     min-height: 100vh;
     background: $bg-secondary;

@@ -538,8 +538,6 @@ function closeModal(): void {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-modal-overlay {
     position: fixed;
     top: 0;

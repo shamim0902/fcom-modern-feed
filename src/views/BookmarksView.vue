@@ -142,8 +142,6 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-bookmarks-view {
     width: 100%;
 }

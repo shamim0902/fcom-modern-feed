@@ -396,8 +396,6 @@ function formatNumber(num: number | undefined | null): string {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-profile-view {
     width: 100%;
 

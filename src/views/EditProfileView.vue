@@ -660,7 +660,7 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
+@use "sass:color";
 
 .fcom-mf-edit-profile {
     width: 100%;
@@ -744,7 +744,7 @@ onMounted(() => {
 
     &--success {
         background: rgba($success-color, 0.1);
-        color: darken($success-color, 10%);
+        color: color.adjust($success-color, $lightness: -10%);
 
         svg {
             color: $success-color;
@@ -753,7 +753,7 @@ onMounted(() => {
 
     &--error {
         background: rgba($error-color, 0.1);
-        color: darken($error-color, 10%);
+        color: color.adjust($error-color, $lightness: -10%);
 
         svg {
             color: $error-color;
@@ -1131,7 +1131,7 @@ onMounted(() => {
         color: $white;
 
         &:hover:not(:disabled) {
-            background: darken($danger-color, 8%);
+            background: color.adjust($danger-color, $lightness: -8%);
         }
     }
 }

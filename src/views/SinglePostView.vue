@@ -168,8 +168,6 @@ watch([() => route.params.id, () => route.params.slug], () => {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-single-post {
     width: 100%;
 

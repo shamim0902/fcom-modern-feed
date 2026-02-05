@@ -578,8 +578,6 @@ function handlePostUpdated(): void {
 </template>
 
 <style lang="scss" scoped>
-@import "@/styles/variables.scss";
-
 .fcom-mf-feed-item {
     padding: 0;
     transition: box-shadow $transition-normal;
