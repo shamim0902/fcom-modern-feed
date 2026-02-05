@@ -287,7 +287,7 @@ onUnmounted(() => {
     right: 0;
     max-height: 80vh;
     background: $white;
-    border-radius: $border-radius-lg $border-radius-lg 0 0;
+    border-radius: var(--fcom-mf-radius-card, 12px) var(--fcom-mf-radius-card, 12px) 0 0;
     z-index: $z-modal;
     overflow-y: auto;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
@@ -414,11 +414,11 @@ onUnmounted(() => {
         }
 
         &--active {
-            color: $primary-color;
-            background: rgba($primary-color, 0.08);
+            color: var(--fcom-mf-primary, #1877f2);
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.08);
 
             svg {
-                color: $primary-color;
+                color: var(--fcom-mf-primary, #1877f2);
             }
         }
 
@@ -431,10 +431,10 @@ onUnmounted(() => {
         }
 
         &--login {
-            color: $primary-color;
+            color: var(--fcom-mf-primary, #1877f2);
 
             svg {
-                color: $primary-color;
+                color: var(--fcom-mf-primary, #1877f2);
             }
         }
     }
@@ -485,7 +485,7 @@ onUnmounted(() => {
         transition: color $transition-instant;
 
         &--active {
-            color: $primary-color;
+            color: var(--fcom-mf-primary, #1877f2);
         }
 
         &:active {

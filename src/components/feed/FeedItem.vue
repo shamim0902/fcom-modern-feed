@@ -593,13 +593,13 @@ function handlePostUpdated(): void {
     }
 
     &--sticky {
-        border: 2px solid $primary-color;
+        border: 2px solid var(--fcom-mf-primary, #1877f2);
     }
 
     &__sticky-badge {
         padding: $spacing-xs $spacing-md;
-        background: rgba($primary-color, 0.1);
-        color: $primary-color;
+        background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1);
+        color: var(--fcom-mf-primary, #1877f2);
         font-size: $font-size-xs;
         font-weight: $font-weight-semibold;
         border-bottom: 1px solid $border-color;

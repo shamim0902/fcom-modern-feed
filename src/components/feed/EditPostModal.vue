@@ -750,14 +750,14 @@ function closeModal(): void {
 
             &:focus {
                 outline: none;
-                border-color: $primary-color;
+                border-color: var(--fcom-mf-primary, #1877f2);
             }
         }
     }
 
     &__embed-btn {
         padding: $spacing-sm $spacing-lg;
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
         border: none;
         border-radius: $border-radius-sm;
@@ -766,7 +766,7 @@ function closeModal(): void {
         cursor: pointer;
 
         &:hover:not(:disabled) {
-            background: $primary-hover;
+            background: var(--fcom-mf-primary-hover, #166fe5);
         }
 
         &:disabled {
@@ -801,7 +801,7 @@ function closeModal(): void {
 
     &__progress-bar {
         height: 100%;
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         transition: width 0.3s ease;
     }
 
@@ -858,8 +858,8 @@ function closeModal(): void {
         }
 
         &--active {
-            background: rgba($primary-color, 0.1) !important;
-            color: $primary-color !important;
+background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1) !important;
+        color: var(--fcom-mf-primary, #1877f2) !important;
         }
     }
 
@@ -924,11 +924,11 @@ function closeModal(): void {
     gap: $spacing-xs;
 
     &--primary {
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
 
         &:hover:not(:disabled) {
-            background: $primary-hover;
+            background: var(--fcom-mf-primary-hover, #166fe5);
         }
 
         &:disabled {

@@ -1428,7 +1428,7 @@ function insertEmoji(emoji: string): void {
 
     &__progress-bar {
         height: 100%;
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         transition: width 0.3s ease;
     }
 
@@ -1519,17 +1519,17 @@ function insertEmoji(emoji: string): void {
         cursor: not-allowed;
 
         &--ready {
-            background-color: $primary-color;
+            background-color: var(--fcom-mf-primary, #1877f2);
             color: $white;
             cursor: pointer;
 
             &:hover {
-                background-color: $primary-hover;
+                background-color: var(--fcom-mf-primary-hover, #166fe5);
             }
 
             &:active {
                 opacity: 0.9;
-                background-color: darken($primary-color, 8%);
+                background-color: var(--fcom-mf-primary-hover, #166fe5);
             }
         }
 
@@ -1560,7 +1560,7 @@ function insertEmoji(emoji: string): void {
         }
 
         svg:first-child {
-            color: $primary-color;
+            color: var(--fcom-mf-primary, #1877f2);
         }
 
         &--required {
@@ -1640,8 +1640,8 @@ function insertEmoji(emoji: string): void {
         }
 
         &--selected {
-            background: rgba($primary-color, 0.1);
-            color: $primary-color;
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1);
+            color: var(--fcom-mf-primary, #1877f2);
         }
 
         svg {
@@ -1668,17 +1668,17 @@ function insertEmoji(emoji: string): void {
         align-items: center;
         gap: $spacing-xs;
         padding: $spacing-sm $spacing-md;
-        background: rgba($primary-color, 0.1);
-        border: 1px solid rgba($primary-color, 0.2);
+        background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1);
+        border: 1px solid rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.2);
         border-radius: $border-radius-md;
         margin-bottom: $spacing-md;
-        color: $primary-color;
+        color: var(--fcom-mf-primary, #1877f2);
         font-size: $font-size-sm;
         cursor: pointer;
         transition: background $transition-fast;
 
         &:hover {
-            background: rgba($primary-color, 0.15);
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.15);
         }
 
         svg {
@@ -1699,10 +1699,10 @@ function insertEmoji(emoji: string): void {
         justify-content: center;
         border-radius: $border-radius-full;
         font-size: 12px;
-        color: $primary-color;
+        color: var(--fcom-mf-primary, #1877f2);
 
         &:hover {
-            background: rgba($primary-color, 0.2);
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.2);
         }
     }
 
@@ -1800,14 +1800,14 @@ function insertEmoji(emoji: string): void {
 
             &:focus {
                 outline: none;
-                border-color: $primary-color;
+                border-color: var(--fcom-mf-primary, #1877f2);
             }
         }
     }
 
     &__embed-btn {
         padding: $spacing-sm $spacing-lg;
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
         border: none;
         border-radius: $border-radius-sm;
@@ -1817,7 +1817,7 @@ function insertEmoji(emoji: string): void {
         transition: background $transition-fast;
 
         &:hover:not(:disabled) {
-            background: $primary-hover;
+            background: var(--fcom-mf-primary-hover, #166fe5);
         }
 
         &:disabled {
@@ -1881,7 +1881,7 @@ function insertEmoji(emoji: string): void {
 
             &:focus {
                 outline: none;
-                border-color: $primary-color;
+                border-color: var(--fcom-mf-primary, #1877f2);
             }
         }
     }
@@ -1906,7 +1906,7 @@ function insertEmoji(emoji: string): void {
     &__poll-add {
         @include button-reset;
         padding: $spacing-sm $spacing-md;
-        color: $primary-color;
+        color: var(--fcom-mf-primary, #1877f2);
         font-size: $font-size-sm;
         font-weight: $font-weight-medium;
 
@@ -1955,7 +1955,7 @@ function insertEmoji(emoji: string): void {
 
             &:focus {
                 outline: none;
-                border-color: $primary-color;
+                border-color: var(--fcom-mf-primary, #1877f2);
             }
         }
     }
@@ -2002,8 +2002,8 @@ function insertEmoji(emoji: string): void {
 
     // Attach icon active state
     &__attach-icon--active {
-        background: rgba($primary-color, 0.1) !important;
-        color: $primary-color !important;
+        background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1) !important;
+        color: var(--fcom-mf-primary, #1877f2) !important;
     }
 
     &__attach-icon--poll {
@@ -2124,7 +2124,7 @@ function insertEmoji(emoji: string): void {
 
             &:focus {
                 outline: none;
-                border-color: $primary-color;
+                border-color: var(--fcom-mf-primary, #1877f2);
             }
         }
     }
@@ -2185,17 +2185,17 @@ function insertEmoji(emoji: string): void {
         font-family: inherit;
 
         &--primary {
-            background: $primary-color;
+            background: var(--fcom-mf-primary, #1877f2);
             color: $white;
 
             &:hover {
-                background: $primary-hover;
+                background: var(--fcom-mf-primary-hover, #166fe5);
             }
         }
 
         &--secondary {
             background: transparent;
-            color: $primary-color;
+            color: var(--fcom-mf-primary, #1877f2);
             border: 1px solid $border-color;
 
             &:hover {
@@ -2224,11 +2224,11 @@ function insertEmoji(emoji: string): void {
     transition: all $transition-fast;
 
     &--primary {
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
 
         &:hover:not(:disabled) {
-            background: $primary-hover;
+            background: var(--fcom-mf-primary-hover, #166fe5);
         }
 
         &:disabled {

@@ -296,7 +296,7 @@ const icons: Record<string, string> = {
 
     &__badge {
         padding: 2px 8px;
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
         font-size: $font-size-xs;
         font-weight: $font-weight-semibold;
@@ -326,7 +326,7 @@ const icons: Record<string, string> = {
     padding: $spacing-sm $spacing-md;
     border: none;
     background: transparent;
-    color: $primary-color;
+    color: var(--fcom-mf-primary, #1877f2);
     font-size: $font-size-sm;
     font-weight: $font-weight-medium;
     cursor: pointer;
@@ -410,10 +410,10 @@ const icons: Record<string, string> = {
     }
 
     &--unread {
-        background: rgba($primary-color, 0.03);
+        background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.03);
 
         &:hover {
-            background: rgba($primary-color, 0.06);
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.06);
         }
     }
 
@@ -451,12 +451,12 @@ const icons: Record<string, string> = {
         display: flex;
         align-items: center;
         justify-content: center;
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
 
         &--comment,
         &--comment_reply {
-            background: $primary-color;
+            background: var(--fcom-mf-primary, #1877f2);
         }
 
         &--reaction,
@@ -497,7 +497,7 @@ const icons: Record<string, string> = {
     &__unread-dot {
         width: 10px;
         height: 10px;
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         border-radius: $border-radius-full;
         flex-shrink: 0;
     }

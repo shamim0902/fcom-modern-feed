@@ -24,10 +24,12 @@ class Assets
         $isDev = self::isDev();
 
         if ($isDev) {
-            // Development mode - load from Vite dev server
+            // Development mode - load from Vite dev server (port must match vite.config.js server.port)
+            $vitePort = defined('FCOM_MF_VITE_PORT') ? (int) FCOM_MF_VITE_PORT : 8120;
+            $viteOrigin = 'http://localhost:' . $vitePort;
             wp_enqueue_script(
                 'fcom-mf-vite-client',
-                'http://localhost:5173/@vite/client',
+                $viteOrigin . '/@vite/client',
                 [],
                 null,
                 true
@@ -41,7 +43,7 @@ class Assets
 
             wp_enqueue_script(
                 'fcom-mf-app',
-                'http://localhost:5173/src/main.ts',
+                $viteOrigin . '/src/main.ts',
                 ['fcom-mf-vite-client'],
                 null,
                 true
@@ -130,10 +132,13 @@ class Assets
             'profileDropdownItems' => self::getProfileDropdownItems(),
             'sidebarBottomLinkGroups' => self::getSidebarBottomLinkGroups(),
             'privacy' => self::getPrivacyFlags(),
-            'settings' => [
-                'tickerInterval' => 45000, // 45 seconds
-                'perPage' => 10,
-            ],
+            'settings' => array_merge(
+                [
+                    'tickerInterval' => 45000, // 45 seconds
+                    'perPage' => 10,
+                ],
+                self::getThemeSettingsForFrontend()
+            ),
         ];
     }
 
@@ -348,8 +353,9 @@ class Assets
             return false;
         }
 
-        // Check if Vite dev server is actually running (quick check)
-        $connection = @fsockopen('localhost', 5173, $errno, $errstr, 0.3);
+        // Check if Vite dev server is actually running (port must match vite.config.js server.port)
+        $vitePort = defined('FCOM_MF_VITE_PORT') ? (int) FCOM_MF_VITE_PORT : 8120;
+        $connection = @fsockopen('localhost', $vitePort, $errno, $errstr, 0.3);
         if ($connection) {
             fclose($connection);
             return true;
@@ -446,6 +452,22 @@ class Assets
         }
 
         return home_url('/portal');
+    }
+
+    /**
+     * Theme settings for the frontend (from Modern Feed admin settings).
+     *
+     * @return array{theme: string, primary_color: string, border_radius: string, perPage: int}
+     */
+    private static function getThemeSettingsForFrontend()
+    {
+        $settings = Admin::getSettings();
+        return [
+            'theme'         => (string) ($settings['theme'] ?? 'default'),
+            'primary_color' => (string) ($settings['primary_color'] ?? '#1877f2'),
+            'border_radius' => (string) ($settings['border_radius'] ?? 'rounded'),
+            'perPage'       => (int) ($settings['posts_per_page'] ?? 10),
+        ];
     }
 
     private static function getTranslations()

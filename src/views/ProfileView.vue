@@ -430,7 +430,7 @@ function formatNumber(num: number | undefined | null): string {
 
 .fcom-mf-breadcrumb {
     &__link {
-        color: $primary-color;
+        color: var(--fcom-mf-primary, #1877f2);
         background: none;
         border: none;
         padding: 0;
@@ -547,7 +547,7 @@ function formatNumber(num: number | undefined | null): string {
 
     &__cover {
         height: 180px;
-        background: linear-gradient(135deg, $primary-color 0%, darken($primary-color, 15%) 100%);
+        background: linear-gradient(135deg, var(--fcom-mf-primary, #1877f2) 0%, var(--fcom-mf-primary-hover, #166fe5) 100%);
         background-size: cover;
         background-position: center;
     }
@@ -636,7 +636,7 @@ function formatNumber(num: number | undefined | null): string {
 }
 
 .fcom-mf-verified {
-    color: $primary-color;
+    color: var(--fcom-mf-primary, #1877f2);
 }
 
 .fcom-mf-profile-bio {
@@ -713,7 +713,7 @@ function formatNumber(num: number | undefined | null): string {
     }
 
     &--active {
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
     }
 }
@@ -739,7 +739,7 @@ function formatNumber(num: number | undefined | null): string {
     width: 32px;
     height: 32px;
     border: 3px solid $gray-200;
-    border-top-color: $primary-color;
+    border-top-color: var(--fcom-mf-primary, #1877f2);
     border-radius: $border-radius-full;
     animation: spin 1s linear infinite;
     margin: 0 auto;
@@ -804,7 +804,7 @@ function formatNumber(num: number | undefined | null): string {
         width: 48px;
         height: 48px;
         border-radius: $border-radius-md;
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -867,11 +867,11 @@ function formatNumber(num: number | undefined | null): string {
     }
 
     &--primary {
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
 
         &:hover {
-            background: $primary-hover;
+            background: var(--fcom-mf-primary-hover, #166fe5);
         }
     }
 

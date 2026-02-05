@@ -17,13 +17,14 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 main: resolve(__dirname, 'src/main.ts'),
+                admin: resolve(__dirname, 'src/admin/main.ts'),
             },
             output: {
                 entryFileNames: '[name].js',
                 chunkFileNames: '[name]-[hash].js',
                 assetFileNames: (assetInfo) => {
                     if (assetInfo.name?.endsWith('.css')) {
-                        return 'style.css';
+                        return '[name].[ext]';
                     }
                     return '[name].[ext]';
                 },
@@ -46,8 +47,12 @@ export default defineConfig({
         port: 8120,
         strictPort: true,
         cors: true,
+        // HMR: connect to dev server when the page is served from WordPress (different host/port)
         hmr: {
+            host: 'localhost',
             port: 8120,
+            protocol: 'ws',
+            clientPort: 8120,
         },
     },
 

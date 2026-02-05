@@ -86,7 +86,7 @@ function navigateToProfile(username: string): void {
         justify-content: center;
         width: 14px;
         height: 14px;
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
         font-size: 9px;
         border-radius: $border-radius-full;

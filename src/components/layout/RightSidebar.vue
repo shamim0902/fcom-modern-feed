@@ -383,8 +383,8 @@ onMounted(() => {
 
 // Stats Card
 .fcom-mf-stats-card {
-    background: linear-gradient(135deg, $primary-color 0%, darken($primary-color, 15%) 100%);
-    border-radius: $border-radius-lg;
+    background: linear-gradient(135deg, var(--fcom-mf-primary, #1877f2) 0%, var(--fcom-mf-primary-hover, #166fe5) 100%);
+    border-radius: var(--fcom-mf-radius-card, 12px);
     padding: $spacing-md;
     color: $white;
 
@@ -407,7 +407,7 @@ onMounted(() => {
         text-align: center;
         padding: $spacing-sm;
         background: rgba($white, 0.1);
-        border-radius: $border-radius-md;
+        border-radius: var(--fcom-mf-radius-md, 8px);
 
         &--online .fcom-mf-stats-card__value {
             color: $success-color;
@@ -431,7 +431,7 @@ onMounted(() => {
 // Sidebar Card
 .fcom-mf-sidebar-card {
     background: $white;
-    border-radius: $border-radius-lg;
+    border-radius: var(--fcom-mf-radius-card, 12px);
     padding: $spacing-md;
     box-shadow: $shadow-sm;
 
@@ -453,7 +453,7 @@ onMounted(() => {
 
     &__link {
         font-size: $font-size-sm;
-        color: $primary-color;
+        color: var(--fcom-mf-primary, #1877f2);
         text-decoration: none;
         font-weight: $font-weight-medium;
         background: none;
@@ -479,7 +479,7 @@ onMounted(() => {
     gap: $spacing-sm;
     padding: $spacing-sm;
     margin: 0 (-$spacing-sm);
-    border-radius: $border-radius-md;
+    border-radius: var(--fcom-mf-radius-md, 8px);
     text-decoration: none;
     color: inherit;
     background: none;
@@ -519,7 +519,7 @@ onMounted(() => {
         overflow: hidden;
 
         :deep(a) {
-            color: $primary-color;
+            color: var(--fcom-mf-primary, #1877f2);
             text-decoration: none;
             font-weight: $font-weight-semibold;
         }
@@ -581,7 +581,7 @@ onMounted(() => {
 
     &__line {
         height: 12px;
-        border-radius: $border-radius-sm;
+        border-radius: var(--fcom-mf-radius-sm, 6px);
         background: linear-gradient(90deg, $gray-100 25%, $gray-200 50%, $gray-100 75%);
         background-size: 200% 100%;
         animation: shimmer 1.5s infinite;
@@ -621,7 +621,7 @@ onMounted(() => {
     &__name {
         height: 14px;
         width: 70%;
-        border-radius: $border-radius-sm;
+        border-radius: var(--fcom-mf-radius-sm, 6px);
         background: linear-gradient(90deg, $gray-100 25%, $gray-200 50%, $gray-100 75%);
         background-size: 200% 100%;
         animation: shimmer 1.5s infinite;
@@ -631,7 +631,7 @@ onMounted(() => {
     &__meta {
         height: 10px;
         width: 50%;
-        border-radius: $border-radius-sm;
+        border-radius: var(--fcom-mf-radius-sm, 6px);
         background: linear-gradient(90deg, $gray-100 25%, $gray-200 50%, $gray-100 75%);
         background-size: 200% 100%;
         animation: shimmer 1.5s infinite;
@@ -697,7 +697,7 @@ onMounted(() => {
         width: 100%;
 
         &:hover {
-            color: $primary-color;
+            color: var(--fcom-mf-primary, #1877f2);
         }
     }
 
@@ -709,8 +709,8 @@ onMounted(() => {
     &__btn {
         padding: $spacing-xs $spacing-md;
         border: none;
-        border-radius: $border-radius-xs;
-        background: $primary-color;
+        border-radius: var(--fcom-mf-radius-sm, 6px);
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
         font-size: $font-size-xs;
         font-weight: $font-weight-semibold;
@@ -719,7 +719,7 @@ onMounted(() => {
         flex-shrink: 0;
 
         &:hover {
-            background: $primary-hover;
+            background: var(--fcom-mf-primary-hover, #166fe5);
         }
 
         &:disabled {
@@ -751,7 +751,7 @@ onMounted(() => {
     gap: $spacing-sm;
     padding: $spacing-sm $spacing-md;
     background: $white;
-    border-radius: $border-radius-lg;
+    border-radius: var(--fcom-mf-radius-card, 12px);
     color: $text-primary;
     font-size: $font-size-sm;
     font-weight: $font-weight-medium;
@@ -770,7 +770,7 @@ onMounted(() => {
     }
 
     svg {
-        color: $primary-color;
+        color: var(--fcom-mf-primary, #1877f2);
     }
 }
 

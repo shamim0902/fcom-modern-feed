@@ -76,6 +76,9 @@ declare global {
             settings: {
                 tickerInterval: number;
                 perPage: number;
+                theme?: string;
+                primary_color?: string;
+                border_radius?: string;
             };
         };
     }

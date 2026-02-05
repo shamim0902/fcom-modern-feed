@@ -29,12 +29,14 @@ class Plugin
         require_once FCOM_MF_PLUGIN_DIR . 'includes/class-gutenberg-block.php';
         require_once FCOM_MF_PLUGIN_DIR . 'includes/class-rewrite-handler.php';
         require_once FCOM_MF_PLUGIN_DIR . 'includes/class-fullpage-template.php';
+        require_once FCOM_MF_PLUGIN_DIR . 'includes/class-admin.php';
     }
 
     private function initHooks()
     {
         Assets::init();
         Shortcode::init();
+        Admin::init();
         GutenbergBlock::init();
         RewriteHandler::init();
         FullpageTemplate::init();

@@ -21,3 +21,6 @@ const newContent = content.replace(
 
 fs.writeFileSync(pluginFile, newContent);
 console.log(`Set FCOM_MF_DEV to ${isDev}`);
+if (isDev) {
+    console.log('WordPress will load the app from the Vite dev server (port 8120). Keep this process running and reload the page that contains the Modern Feed.');
+}

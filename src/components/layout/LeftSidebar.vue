@@ -337,8 +337,8 @@ onMounted(() => {
 // User Card
 .fcom-mf-user-card {
     padding: $spacing-md;
-    background: linear-gradient(135deg, $primary-color 0%, darken($primary-color, 10%) 100%);
-    border-radius: $border-radius-lg;
+    background: linear-gradient(135deg, var(--fcom-mf-primary, #1877f2) 0%, var(--fcom-mf-primary-hover, #166fe5) 100%);
+    border-radius: var(--fcom-mf-radius-card, 12px);
     color: $white;
 
     &__link {
@@ -370,7 +370,7 @@ onMounted(() => {
         width: 12px;
         height: 12px;
         background: $success-color;
-        border: 2px solid $primary-color;
+        border: 2px solid var(--fcom-mf-primary, #1877f2);
         border-radius: $border-radius-full;
     }
 
@@ -414,7 +414,7 @@ onMounted(() => {
         padding: $spacing-sm $spacing-md;
         border: none;
         background: transparent;
-        border-radius: $border-radius-lg;
+        border-radius: var(--fcom-mf-radius-lg, 12px);
         color: $text-primary;
         font-size: $font-size-md;
         font-weight: $font-weight-medium;
@@ -429,11 +429,11 @@ onMounted(() => {
         }
 
         &--active {
-            background: rgba($primary-color, 0.1);
-            color: $primary-color;
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1);
+            color: var(--fcom-mf-primary, #1877f2);
 
             .fcom-mf-sidebar-nav__icon {
-                background: $primary-color;
+                background: var(--fcom-mf-primary, #1877f2);
                 color: $white;
             }
         }
@@ -446,7 +446,7 @@ onMounted(() => {
         align-items: center;
         justify-content: center;
         background: $gray-100;
-        border-radius: $border-radius-md;
+        border-radius: var(--fcom-mf-radius-md, 8px);
         transition: all $transition-fast;
         flex-shrink: 0;
 
@@ -502,7 +502,7 @@ onMounted(() => {
 
     &__action {
         font-size: $font-size-sm;
-        color: $primary-color;
+        color: var(--fcom-mf-primary, #1877f2);
         text-decoration: none;
         font-weight: $font-weight-medium;
         background: none;
@@ -528,7 +528,7 @@ onMounted(() => {
     align-items: center;
     gap: $spacing-md;
     padding: $spacing-sm $spacing-md;
-    border-radius: $border-radius-lg;
+    border-radius: var(--fcom-mf-radius-lg, 12px);
     color: $text-primary;
     text-decoration: none;
     transition: background-color $transition-fast;
@@ -552,7 +552,7 @@ onMounted(() => {
     &__logo {
         width: 36px;
         height: 36px;
-        border-radius: $border-radius-md;
+        border-radius: var(--fcom-mf-radius-md, 8px);
         object-fit: cover;
     }
 
@@ -564,9 +564,9 @@ onMounted(() => {
         justify-content: center;
         font-size: 16px;
         font-weight: $font-weight-bold;
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
-        border-radius: $border-radius-md;
+        border-radius: var(--fcom-mf-radius-md, 8px);
     }
 
     &__info {

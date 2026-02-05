@@ -33,6 +33,11 @@ interface FcomMfConfig {
 // Store Vue app instances
 const appInstances: Map<string, VueApp> = new Map();
 
+// Theme override: user preference in localStorage (overrides admin theme)
+const THEME_OVERRIDE_KEY = 'fcom_mf_theme_override';
+const themeContainers: HTMLElement[] = [];
+let themeAutoAbort: AbortController | null = null;
+
 function createAppRouter(useMemoryHistory = false, baseUrl = '/') {
     const routes: RouteRecordRaw[] = [
         {
@@ -128,6 +133,103 @@ function createAppRouter(useMemoryHistory = false, baseUrl = '/') {
     });
 }
 
+/** Parse hex #rrggbb to [r, g, b] (0–255). */
+function hexToRgb(hex: string): [number, number, number] {
+    const m = hex.replace(/^#/, '').match(/^([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/);
+    if (!m) return [24, 119, 242];
+    return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+}
+
+/** Darken hex color by a factor 0–1 (e.g. 0.08 = 8% darker). */
+function darkenHex(hex: string, amount: number): string {
+    const [r, g, b] = hexToRgb(hex);
+    const f = 1 - amount;
+    return '#' + [r, g, b].map((c) => Math.round(c * f).toString(16).padStart(2, '0')).join('');
+}
+
+function applyTheme(container: HTMLElement): void {
+    const cfg = (window as unknown as { fcomModernFeed?: { settings?: { theme?: string; primary_color?: string; border_radius?: string } } }).fcomModernFeed?.settings;
+    const adminTheme = (cfg?.theme ?? 'default') as string;
+    const primary = typeof cfg?.primary_color === 'string' && /^#[0-9a-fA-F]{6}$/.test(cfg.primary_color) ? cfg.primary_color : '#1877f2';
+    const radius = (cfg?.border_radius ?? 'rounded') as string;
+
+    const [r, g, b] = hexToRgb(primary);
+    const primaryHover = darkenHex(primary, 0.08);
+
+    container.style.setProperty('--fcom-mf-primary', primary);
+    container.style.setProperty('--fcom-mf-primary-hover', primaryHover);
+    container.style.setProperty('--fcom-mf-primary-rgb', `${r}, ${g}, ${b}`);
+
+    const radiusMap: Record<string, string> = { sharp: '2px', rounded: '8px', pill: '24px' };
+    container.style.setProperty('--fcom-mf-radius-md', radiusMap[radius] ?? '8px');
+    container.style.setProperty('--fcom-mf-radius-sm', radius === 'pill' ? '20px' : radius === 'sharp' ? '2px' : '6px');
+    container.style.setProperty('--fcom-mf-radius-lg', radius === 'pill' ? '999px' : radius === 'sharp' ? '4px' : '12px');
+    container.style.setProperty('--fcom-mf-radius-card', radius === 'pill' ? '16px' : radius === 'sharp' ? '4px' : '12px');
+
+    const override = localStorage.getItem(THEME_OVERRIDE_KEY);
+    let effective: 'dark' | 'light';
+
+    container.classList.remove('fcom-mf-theme-default', 'fcom-mf-theme-dark', 'fcom-mf-theme-auto');
+
+    if (override === 'dark' || override === 'light') {
+        effective = override;
+        container.classList.add(effective === 'dark' ? 'fcom-mf-theme-dark' : 'fcom-mf-theme-default');
+    } else if (adminTheme === 'auto') {
+        container.classList.add('fcom-mf-theme-auto');
+        const mq = window.matchMedia('(prefers-color-scheme: dark)');
+        const update = () => {
+            themeContainers.forEach((el) => {
+                el.classList.toggle('fcom-mf-theme-dark', mq.matches);
+                el.classList.toggle('fcom-mf-theme-default', !mq.matches);
+            });
+            const win = window as unknown as { fcomModernFeed?: { effectiveTheme?: 'dark' | 'light' } };
+            if (win.fcomModernFeed) win.fcomModernFeed.effectiveTheme = mq.matches ? 'dark' : 'light';
+            window.dispatchEvent(new CustomEvent('fcom-mf-theme-changed', { detail: { theme: mq.matches ? 'dark' : 'light' } }));
+        };
+        themeAutoAbort?.abort();
+        themeAutoAbort = new AbortController();
+        mq.addEventListener('change', update, { signal: themeAutoAbort.signal });
+        update();
+        effective = mq.matches ? 'dark' : 'light';
+    } else {
+        effective = adminTheme === 'dark' ? 'dark' : 'light';
+        container.classList.add(effective === 'dark' ? 'fcom-mf-theme-dark' : 'fcom-mf-theme-default');
+    }
+
+    const win = window as unknown as { fcomModernFeed?: { effectiveTheme?: 'dark' | 'light'; setThemeOverride?: (v: 'dark' | 'light' | null) => void; getThemeOverride?: () => 'dark' | 'light' | null; isDarkMode?: () => boolean } };
+    if (!win.fcomModernFeed) win.fcomModernFeed = {} as NonNullable<typeof win.fcomModernFeed>;
+    win.fcomModernFeed.effectiveTheme = effective;
+    window.dispatchEvent(new CustomEvent('fcom-mf-theme-changed', { detail: { theme: effective } }));
+}
+
+function applyThemeToAllContainers(): void {
+    themeContainers.forEach((container) => applyTheme(container));
+}
+
+/** Set user theme override (saved in localStorage). Pass null to use admin/system theme again. */
+function setThemeOverride(value: 'dark' | 'light' | null): void {
+    if (value) {
+        localStorage.setItem(THEME_OVERRIDE_KEY, value);
+    } else {
+        localStorage.removeItem(THEME_OVERRIDE_KEY);
+    }
+    themeAutoAbort?.abort();
+    themeAutoAbort = null;
+    applyThemeToAllContainers();
+}
+
+/** Get current user override from localStorage. */
+function getThemeOverride(): 'dark' | 'light' | null {
+    const v = localStorage.getItem(THEME_OVERRIDE_KEY);
+    return v === 'dark' || v === 'light' ? v : null;
+}
+
+/** Whether the UI is currently in dark mode (override or effective). */
+function isDarkMode(): boolean {
+    const win = window as unknown as { fcomModernFeed?: { effectiveTheme?: 'dark' | 'light' } };
+    return win.fcomModernFeed?.effectiveTheme === 'dark';
+}
+
 function initApp(container: HTMLElement): void {
     const configAttr = container.getAttribute('data-fcom-mf-config');
     if (!configAttr) {
@@ -150,6 +252,28 @@ function initApp(container: HTMLElement): void {
 
     // Clear loading placeholder
     container.innerHTML = '';
+
+    // Register container for theme updates (override + auto system preference)
+    if (!themeContainers.includes(container)) {
+        themeContainers.push(container);
+    }
+
+    // Apply theme from admin settings (CSS vars + theme class)
+    applyTheme(container);
+
+    // Expose theme API for header toggle and other consumers
+    const win = window as unknown as {
+        fcomModernFeed?: {
+            setThemeOverride?: (v: 'dark' | 'light' | null) => void;
+            getThemeOverride?: () => 'dark' | 'light' | null;
+            isDarkMode?: () => boolean;
+        };
+    };
+    if (win.fcomModernFeed) {
+        win.fcomModernFeed.setThemeOverride = setThemeOverride;
+        win.fcomModernFeed.getThemeOverride = getThemeOverride;
+        win.fcomModernFeed.isDarkMode = isDarkMode;
+    }
 
     // Create Vue app
     const app = createApp(App, {

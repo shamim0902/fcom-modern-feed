@@ -132,24 +132,26 @@ function formatNumber(num: number | undefined | null): string {
 </script>
 
 <template>
-    <div class="spaces-view">
-        <!-- Compact Header -->
-        <div class="spaces-header">
-            <div class="spaces-header__left">
-                <div class="spaces-header__icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+    <div class="fcom-mf-spaces-view">
+        <!-- Page header (matches Members / Leaderboard) -->
+        <div class="fcom-mf-page-header">
+            <div class="fcom-mf-page-header__content">
+                <h1 class="fcom-mf-page-header__title">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M3 3h8v8H3V3zm0 10h8v8H3v-8zm10-10h8v8h-8V3zm0 10h8v8h-8v-8z"/>
                     </svg>
-                </div>
-                <div class="spaces-header__text">
-                    <h1>Spaces</h1>
-                    <span>Discover communities</span>
-                </div>
+                    Spaces
+                </h1>
+                <p class="fcom-mf-page-header__subtitle">Discover communities</p>
             </div>
-            <div class="spaces-header__search">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        </div>
+
+        <!-- Search & Tabs (matches design system) -->
+        <div class="fcom-mf-spaces-filters">
+            <div class="fcom-mf-search-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="11" cy="11" r="8"/>
-                    <path d="M21 21l-4.35-4.35"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
                 <input
                     v-model="searchQuery"
@@ -159,71 +161,70 @@ function formatNumber(num: number | undefined | null): string {
             </div>
         </div>
 
-        <!-- Tabs -->
-        <div class="spaces-tabs">
+        <div class="fcom-mf-spaces-tabs">
             <button
-                class="spaces-tab"
-                :class="{ 'spaces-tab--active': activeTab === 'discover' }"
+                class="fcom-mf-spaces-tab"
+                :class="{ 'fcom-mf-spaces-tab--active': activeTab === 'discover' }"
                 @click="activeTab = 'discover'"
             >
                 Discover
             </button>
             <button
                 v-if="authStore.isLoggedIn"
-                class="spaces-tab"
-                :class="{ 'spaces-tab--active': activeTab === 'my' }"
+                class="fcom-mf-spaces-tab"
+                :class="{ 'fcom-mf-spaces-tab--active': activeTab === 'my' }"
                 @click="activeTab = 'my'"
             >
                 Your Spaces
-                <span v-if="mySpaces.length" class="spaces-tab__count">{{ mySpaces.length }}</span>
+                <span v-if="mySpaces.length" class="fcom-mf-spaces-tab__count">{{ mySpaces.length }}</span>
             </button>
         </div>
 
         <!-- Loading -->
-        <div v-if="loading" class="spaces-grid">
-            <div v-for="i in 8" :key="i" class="space-card space-card--skeleton">
-                <div class="space-card__cover"></div>
-                <div class="space-card__body">
-                    <div class="skeleton-line skeleton-line--title"></div>
-                    <div class="skeleton-line skeleton-line--text"></div>
-                    <div class="skeleton-line skeleton-line--meta"></div>
+        <div v-if="loading" class="fcom-mf-spaces-grid">
+            <div v-for="i in 8" :key="i" class="fcom-mf-space-card fcom-mf-space-card--skeleton">
+                <div class="fcom-mf-space-card__cover"></div>
+                <div class="fcom-mf-space-card__body">
+                    <div class="fcom-mf-skeleton" style="height: 16px; width: 70%; margin-bottom: 8px;"></div>
+                    <div class="fcom-mf-skeleton" style="height: 12px; width: 100%; margin-bottom: 6px;"></div>
+                    <div class="fcom-mf-skeleton" style="height: 12px; width: 40%;"></div>
                 </div>
             </div>
         </div>
 
         <!-- Spaces Grid -->
-        <div v-else class="spaces-grid">
+        <div v-else class="fcom-mf-spaces-grid">
             <div
                 v-for="space in displayedSpaces"
                 :key="space.id"
-                class="space-card"
+                class="fcom-mf-space-card"
                 @click="navigateToSpace(space.slug)"
             >
                 <div
-                    class="space-card__cover"
+                    class="fcom-mf-space-card__cover"
                     :style="space.cover ? { backgroundImage: `url(${space.cover})` } : {}"
                 >
-                    <div class="space-card__logo">
+                    <div class="fcom-mf-space-card__logo">
                         <img v-if="space.logo" :src="space.logo" :alt="space.title" />
-                        <span v-else class="space-card__logo-text">{{ space.title?.charAt(0) || 'S' }}</span>
+                        <span v-else class="fcom-mf-space-card__logo-text">{{ space.title?.charAt(0) || 'S' }}</span>
                     </div>
-                    <span v-if="space.privacy === 'private'" class="space-card__privacy">
+                    <span v-if="space.privacy === 'private'" class="fcom-mf-space-card__privacy">
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/>
                         </svg>
                     </span>
                 </div>
-                <div class="space-card__body">
-                    <h3 class="space-card__title">{{ space.title }}</h3>
-                    <p v-if="space.description" class="space-card__desc">{{ space.description }}</p>
-                    <div class="space-card__meta">
-                        <span class="space-card__stat">
+                <div class="fcom-mf-space-card__body">
+                    <h3 class="fcom-mf-space-card__title">{{ space.title }}</h3>
+                    <p v-if="space.description" class="fcom-mf-space-card__desc">{{ space.description }}</p>
+                    <div class="fcom-mf-space-card__meta">
+                        <span class="fcom-mf-space-card__stat">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                             </svg>
                             {{ formatNumber(space.members_count ?? 0) }}
                         </span>
-                        <span class="space-card__stat">
+                        <span class="fcom-mf-space-card__stat">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
                             </svg>
@@ -232,7 +233,7 @@ function formatNumber(num: number | undefined | null): string {
                     </div>
                     <button
                         v-if="authStore.isLoggedIn && !showAsMember(space)"
-                        class="space-card__btn"
+                        class="fcom-mf-space-card__btn"
                         :disabled="joining[space.id]"
                         @click.stop="joinSpace(space)"
                     >
@@ -243,7 +244,7 @@ function formatNumber(num: number | undefined | null): string {
                     </button>
                     <button
                         v-else-if="authStore.isLoggedIn && showAsMember(space)"
-                        class="space-card__view-btn"
+                        class="fcom-mf-space-card__view-btn"
                         @click.stop="navigateToSpace(space.slug)"
                     >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -256,16 +257,16 @@ function formatNumber(num: number | undefined | null): string {
         </div>
 
         <!-- Empty State -->
-        <div v-if="!loading && displayedSpaces.length === 0" class="spaces-empty">
-            <div class="spaces-empty__icon">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <div v-if="!loading && displayedSpaces.length === 0" class="fcom-mf-empty-state">
+            <div class="fcom-mf-empty-state__icon">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                     <rect x="3" y="3" width="7" height="7" rx="1"/>
                     <rect x="14" y="3" width="7" height="7" rx="1"/>
                     <rect x="3" y="14" width="7" height="7" rx="1"/>
                     <rect x="14" y="14" width="7" height="7" rx="1"/>
                 </svg>
             </div>
-            <h3>{{ activeTab === 'my' ? 'No spaces joined yet' : 'No spaces found' }}</h3>
+            <h2>{{ activeTab === 'my' ? 'No spaces joined yet' : 'No spaces found' }}</h2>
             <p>{{ activeTab === 'my' ? 'Join spaces to connect with communities.' : 'Try a different search term.' }}</p>
         </div>
     </div>
@@ -274,14 +275,149 @@ function formatNumber(num: number | undefined | null): string {
 <style lang="scss" scoped>
 @import "@/styles/variables.scss";
 
-.spaces-view {
+.fcom-mf-spaces-view {
     width: 100%;
-    font-family: $font-family;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
 }
 
-.spaces-header {
+// Page header – matches Members / Leaderboard, uses theme primary
+.fcom-mf-page-header {
+    background: linear-gradient(135deg, var(--fcom-mf-primary, #1877f2) 0%, var(--fcom-mf-primary-hover, #0d65d9) 100%);
+    border-radius: var(--fcom-mf-radius-lg, #{$border-radius-lg});
+    padding: $spacing-xl;
+    margin-bottom: $spacing-lg;
+    color: $white;
+
+    &__content {
+        text-align: center;
+        color: $white;
+    }
+
+    &__title {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: $spacing-sm;
+        font-size: $font-size-xxl;
+        font-weight: $font-weight-bold;
+        margin: 0 0 $spacing-sm;
+        color: $white;
+
+        svg {
+            opacity: 0.9;
+        }
+    }
+
+    &__subtitle {
+        margin: 0;
+        opacity: 0.9;
+        font-size: $font-size-md;
+    }
+}
+
+.fcom-mf-spaces-filters {
+    margin-bottom: $spacing-md;
+}
+
+.fcom-mf-search-box {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    background: $white;
+    border-radius: 20px;
+    padding: $spacing-sm $spacing-lg;
+    box-shadow: $shadow-sm;
+    max-width: 400px;
+    border: 1px solid $border-color;
+    transition: border-color $transition-fast, box-shadow $transition-fast;
+
+    &:focus-within {
+        border-color: var(--fcom-mf-primary, #1877f2);
+        box-shadow: 0 0 0 2px rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1);
+    }
+
+    svg {
+        color: $text-tertiary;
+        flex-shrink: 0;
+    }
+
+    input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        font-size: $font-size-md;
+        font-family: inherit;
+        color: $text-primary;
+        min-width: 0;
+        width: 100%;
+        padding: $spacing-xs 0;
+
+        &::placeholder {
+            color: $text-tertiary;
+        }
+
+        &:focus {
+            outline: none;
+        }
+    }
+}
+
+.fcom-mf-spaces-tabs {
+    display: flex;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-lg;
+    background: $white;
+    padding: $spacing-sm;
+    border-radius: var(--fcom-mf-radius-lg, #{$border-radius-lg});
+    box-shadow: $shadow-sm;
+}
+
+.fcom-mf-spaces-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    padding: $spacing-sm $spacing-lg;
+    border: none;
+    background: transparent;
+    border-radius: var(--fcom-mf-radius-md, #{$border-radius-md});
+    color: $text-secondary;
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:hover {
+        background: $gray-50;
+    }
+
+    &--active {
+        background: var(--fcom-mf-primary, #1877f2);
+        color: $white;
+    }
+
+    &__count {
+        background: $gray-200;
+        color: $text-secondary;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: $font-size-xs;
+        font-weight: $font-weight-semibold;
+
+        .fcom-mf-spaces-tab--active & {
+            background: rgba($white, 0.25);
+            color: $white;
+        }
+    }
+}
+
+.fcom-mf-spaces-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: $spacing-md;
+}
+
+.fcom-mf-space-card {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -301,7 +437,7 @@ function formatNumber(num: number | undefined | null): string {
     &__icon {
         width: 40px;
         height: 40px;
-        background: linear-gradient(135deg, $primary-color, #0d65d9);
+        background: linear-gradient(135deg, var(--fcom-mf-primary, #1877f2), var(--fcom-mf-primary-hover, #0d65d9));
         border-radius: $border-radius-md;
         display: flex;
         align-items: center;
@@ -337,7 +473,7 @@ function formatNumber(num: number | undefined | null): string {
 
         &:focus-within {
             background: $white;
-            box-shadow: 0 0 0 2px rgba($primary-color, 0.2);
+            box-shadow: 0 0 0 2px rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.2);
         }
 
         svg {
@@ -394,8 +530,8 @@ function formatNumber(num: number | undefined | null): string {
     }
 
     &--active {
-        background: rgba($primary-color, 0.1);
-        color: $primary-color;
+        background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1);
+        color: var(--fcom-mf-primary, #1877f2);
     }
 
     &__count {
@@ -407,7 +543,7 @@ function formatNumber(num: number | undefined | null): string {
         font-weight: $font-weight-semibold;
 
         .spaces-tab--active & {
-            background: $primary-color;
+            background: var(--fcom-mf-primary, #1877f2);
             color: $white;
         }
     }
@@ -443,7 +579,7 @@ function formatNumber(num: number | undefined | null): string {
         background-position: center;
         position: relative;
 
-        .space-card--skeleton & {
+        .fcom-mf-space-card--skeleton & {
             background: linear-gradient(90deg, $gray-100 25%, $gray-200 50%, $gray-100 75%);
             background-size: 200% 100%;
             animation: shimmer 1.5s infinite;
@@ -456,7 +592,7 @@ function formatNumber(num: number | undefined | null): string {
         bottom: -18px;
         width: 44px;
         height: 44px;
-        border-radius: 10px;
+        border-radius: var(--fcom-mf-radius-md, #{$border-radius-md});
         border: 3px solid $white;
         background: $white;
         overflow: hidden;
@@ -472,7 +608,7 @@ function formatNumber(num: number | undefined | null): string {
     &__logo-text {
         width: 100%;
         height: 100%;
-        background: linear-gradient(135deg, $primary-color, #0d65d9);
+        background: linear-gradient(135deg, var(--fcom-mf-primary, #1877f2), var(--fcom-mf-primary-hover, #0d65d9));
         color: $white;
         display: flex;
         align-items: center;
@@ -507,7 +643,7 @@ function formatNumber(num: number | undefined | null): string {
         letter-spacing: $letter-spacing-normal;
 
         &:hover {
-            color: $primary-color;
+            color: var(--fcom-mf-primary, #1877f2);
         }
     }
 
@@ -549,10 +685,10 @@ function formatNumber(num: number | undefined | null): string {
         justify-content: center;
         gap: 6px;
         padding: 8px 14px;
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
         border: none;
-        border-radius: $border-radius-sm;
+        border-radius: var(--fcom-mf-radius-sm, #{$border-radius-sm});
         font-size: $font-size-sm;
         font-weight: $font-weight-semibold;
         font-family: inherit;
@@ -560,21 +696,12 @@ function formatNumber(num: number | undefined | null): string {
         transition: all $transition-fast;
 
         &:hover {
-            background: $primary-hover;
+            background: var(--fcom-mf-primary-hover, #166fe5);
         }
 
         &:disabled {
             opacity: 0.7;
             cursor: not-allowed;
-        }
-
-        &--joined {
-            background: $gray-100;
-            color: $text-secondary;
-
-            &:hover {
-                background: $gray-200;
-            }
         }
     }
 
@@ -588,7 +715,7 @@ function formatNumber(num: number | undefined | null): string {
         background: $gray-100;
         color: $text-secondary;
         border: none;
-        border-radius: $border-radius-sm;
+        border-radius: var(--fcom-mf-radius-sm, #{$border-radius-sm});
         font-size: $font-size-sm;
         font-weight: $font-weight-semibold;
         font-family: inherit;
@@ -601,82 +728,13 @@ function formatNumber(num: number | undefined | null): string {
     }
 }
 
-.skeleton-line {
-    background: linear-gradient(90deg, $gray-100 25%, $gray-200 50%, $gray-100 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 4px;
-
-    &--title {
-        height: 16px;
-        width: 70%;
-        margin-bottom: 8px;
-    }
-
-    &--text {
-        height: 12px;
-        width: 100%;
-        margin-bottom: 6px;
-    }
-
-    &--meta {
-        height: 12px;
-        width: 40%;
-    }
-}
-
-.spaces-empty {
-    text-align: center;
-    padding: $spacing-xxxl;
-    background: $white;
-    border-radius: $border-radius-md;
-    box-shadow: $shadow-card;
-
-    &__icon {
-        width: 72px;
-        height: 72px;
-        background: $gray-50;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto $spacing-lg;
-
-        svg {
-            color: $text-tertiary;
-        }
-    }
-
-    h3 {
-        font-size: $font-size-lg;
-        font-weight: $font-weight-semibold;
-        color: $text-primary;
-        margin: 0 0 $spacing-xs;
-    }
-
-    p {
-        font-size: $font-size-md;
-        color: $text-secondary;
-        margin: 0;
-    }
-}
-
 @keyframes shimmer {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
 }
 
 @media (max-width: $breakpoint-md) {
-    .spaces-header {
-        flex-direction: column;
-        align-items: stretch;
-
-        &__search {
-            min-width: auto;
-        }
-    }
-
-    .spaces-grid {
+    .fcom-mf-spaces-grid {
         grid-template-columns: 1fr;
     }
 }

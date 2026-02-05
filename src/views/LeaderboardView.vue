@@ -119,11 +119,13 @@ onMounted(() => {
 
 <template>
     <div class="fcom-mf-leaderboard-view">
-        <!-- Header -->
+        <!-- Header (matches settings design: theme primary + radius) -->
         <div class="fcom-mf-page-header">
             <div class="fcom-mf-page-header__content">
                 <h1 class="fcom-mf-page-header__title">
-                    <span class="fcom-mf-page-header__icon">🏆</span>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/>
+                    </svg>
                     Leaderboard
                 </h1>
                 <p class="fcom-mf-page-header__subtitle">Top contributors in our community</p>
@@ -283,15 +285,14 @@ onMounted(() => {
 }
 
 .fcom-mf-page-header {
-    background: linear-gradient(135deg, #ffd700 0%, #ff9500 100%);
-    border-radius: $border-radius-lg;
+    background: linear-gradient(135deg, var(--fcom-mf-primary, #1877f2) 0%, var(--fcom-mf-primary-hover, #166fe5) 100%);
+    border-radius: var(--fcom-mf-radius-lg, #{$border-radius-lg});
     padding: $spacing-xl;
     margin-bottom: $spacing-lg;
     color: $white;
-    text-align: center;
 
     &__content {
-        color: $white;
+        text-align: center;
     }
 
     &__title {
@@ -302,17 +303,14 @@ onMounted(() => {
         font-size: $font-size-xxl;
         font-weight: $font-weight-bold;
         margin: 0 0 $spacing-sm;
-        color: $white;
-    }
-
-    &__icon {
-        font-size: 32px;
+        color: inherit;
     }
 
     &__subtitle {
         margin: 0;
         opacity: 0.9;
         font-size: $font-size-md;
+        color: inherit;
     }
 }
 
@@ -322,7 +320,7 @@ onMounted(() => {
     margin-bottom: $spacing-lg;
     background: $white;
     padding: $spacing-sm;
-    border-radius: $border-radius-lg;
+    border-radius: var(--fcom-mf-radius-lg, #{$border-radius-lg});
     box-shadow: $shadow-sm;
 }
 
@@ -331,7 +329,7 @@ onMounted(() => {
     padding: $spacing-sm $spacing-lg;
     border: none;
     background: transparent;
-    border-radius: $border-radius-md;
+    border-radius: var(--fcom-mf-radius-md, #{$border-radius-md});
     color: $text-secondary;
     font-size: $font-size-sm;
     font-weight: $font-weight-medium;
@@ -343,7 +341,7 @@ onMounted(() => {
     }
 
     &--active {
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
     }
 }
@@ -364,8 +362,8 @@ onMounted(() => {
         display: flex;
         align-items: center;
         gap: $spacing-md;
-        background: linear-gradient(135deg, rgba($primary-color, 0.1) 0%, rgba($primary-color, 0.05) 100%);
-        border: 2px solid $primary-color;
+        background: linear-gradient(135deg, rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1) 0%, rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.05) 100%);
+        border: 2px solid var(--fcom-mf-primary, #1877f2);
         border-radius: $border-radius-lg;
         padding: $spacing-md $spacing-lg;
         cursor: pointer;
@@ -397,7 +395,7 @@ onMounted(() => {
 
     &__points {
         font-size: $font-size-sm;
-        color: $primary-color;
+        color: var(--fcom-mf-primary, #1877f2);
         font-weight: $font-weight-medium;
     }
 }
@@ -557,7 +555,7 @@ onMounted(() => {
 
     &__points {
         font-size: $font-size-xs;
-        color: $primary-color;
+        color: var(--fcom-mf-primary, #1877f2);
         font-weight: $font-weight-medium;
         margin-bottom: $spacing-sm;
     }
@@ -646,7 +644,7 @@ onMounted(() => {
             display: block;
             font-size: $font-size-lg;
             font-weight: $font-weight-bold;
-            color: $primary-color;
+            color: var(--fcom-mf-primary, #1877f2);
         }
 
         &-label {
@@ -657,7 +655,7 @@ onMounted(() => {
 }
 
 .fcom-mf-verified {
-    color: $primary-color;
+    color: var(--fcom-mf-primary, #1877f2);
 }
 
 .fcom-mf-load-more {

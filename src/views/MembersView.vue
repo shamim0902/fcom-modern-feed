@@ -280,7 +280,7 @@ const filteredMembers = computed(() => {
 }
 
 .fcom-mf-page-header {
-    background: linear-gradient(135deg, $primary-color 0%, darken($primary-color, 15%) 100%);
+    background: linear-gradient(135deg, var(--fcom-mf-primary, #1877f2) 0%, var(--fcom-mf-primary-hover, #166fe5) 100%);
     border-radius: $border-radius-lg;
     padding: $spacing-xl;
     margin-bottom: $spacing-lg;
@@ -330,8 +330,8 @@ const filteredMembers = computed(() => {
     transition: border-color $transition-fast, box-shadow $transition-fast;
 
     &:focus-within {
-        border-color: $primary-color;
-        box-shadow: 0 0 0 2px rgba($primary-color, 0.1);
+        border-color: var(--fcom-mf-primary, #1877f2);
+        box-shadow: 0 0 0 2px rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1);
     }
 
     svg {
@@ -528,7 +528,7 @@ const filteredMembers = computed(() => {
 }
 
 .fcom-mf-verified {
-    color: $primary-color;
+    color: var(--fcom-mf-primary, #1877f2);
 }
 
 .fcom-mf-btn {
@@ -542,11 +542,11 @@ const filteredMembers = computed(() => {
     transition: all $transition-fast;
 
     &--primary {
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
 
         &:hover {
-            background: $primary-hover;
+            background: var(--fcom-mf-primary-hover, #166fe5);
         }
     }
 

@@ -169,10 +169,10 @@ function autoResize(): void {
     }
 
     &__submit {
-        color: $primary-color;
+        color: var(--fcom-mf-primary, #1877f2);
 
         &:hover:not(:disabled) {
-            background: rgba($primary-color, 0.1);
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1);
         }
 
         &:disabled {

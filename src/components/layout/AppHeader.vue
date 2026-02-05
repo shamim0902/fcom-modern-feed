@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores';
 import type { ProfileDropdownItem } from '@/api/client';
@@ -10,6 +10,25 @@ const authStore = useAuthStore();
 
 const searchQuery = ref((route.query.search as string) || '');
 const showUserMenu = ref(false);
+
+// Dark mode: sync with localStorage override and theme-changed events
+const isDarkMode = ref(false);
+function refreshDarkMode(): void {
+    isDarkMode.value = (window as unknown as { fcomModernFeed?: { isDarkMode?: () => boolean } }).fcomModernFeed?.isDarkMode?.() ?? false;
+}
+function toggleDarkMode(): void {
+    const api = (window as unknown as { fcomModernFeed?: { setThemeOverride?: (v: 'dark' | 'light' | null) => void; isDarkMode?: () => boolean } }).fcomModernFeed;
+    if (!api?.setThemeOverride) return;
+    api.setThemeOverride(api.isDarkMode?.() ? 'light' : 'dark');
+    refreshDarkMode();
+}
+onMounted(() => {
+    refreshDarkMode();
+    window.addEventListener('fcom-mf-theme-changed', refreshDarkMode);
+});
+onUnmounted(() => {
+    window.removeEventListener('fcom-mf-theme-changed', refreshDarkMode);
+});
 
 // Keep search input in sync with route (e.g. when navigating to /?search=...)
 watch(
@@ -224,6 +243,19 @@ const defaultIcons: Record<string, string> = {
 
                     <Transition name="fade">
                         <div v-if="showUserMenu" class="header__menu">
+                            <div class="header__menu-theme">
+                                <span class="header__menu-theme-label">Dark mode</span>
+                                <button
+                                    type="button"
+                                    class="header__menu-theme-toggle"
+                                    :class="{ 'header__menu-theme-toggle--on': isDarkMode }"
+                                    :aria-pressed="isDarkMode"
+                                    @mousedown.prevent="toggleDarkMode"
+                                >
+                                    <span class="header__menu-theme-knob"></span>
+                                </button>
+                            </div>
+                            <div class="header__menu-divider"></div>
                             <template v-for="(item, idx) in profileDropdownItems" :key="item.slug + String(idx)">
                                 <div v-if="item.slug === 'logout'" class="header__menu-divider"></div>
                                 <button
@@ -284,11 +316,11 @@ const defaultIcons: Record<string, string> = {
         justify-content: center;
         width: 36px;
         height: 36px;
-        color: $primary-color;
+        color: var(--fcom-mf-primary, #1877f2);
         background: none;
         border: none;
         cursor: pointer;
-        border-radius: $border-radius-sm;
+        border-radius: var(--fcom-mf-radius-sm, 6px);
         transition: opacity $transition-fast;
         flex-shrink: 0;
 
@@ -302,7 +334,7 @@ const defaultIcons: Record<string, string> = {
         align-items: center;
         gap: 8px;
         background: $gray-50;
-        border-radius: 20px;
+        border-radius: var(--fcom-mf-radius-lg, 12px);
         padding: 6px 12px;
         flex: 1;
         max-width: 220px;
@@ -352,7 +384,7 @@ const defaultIcons: Record<string, string> = {
         justify-content: center;
         width: 40px;
         height: 40px;
-        border-radius: $border-radius-sm;
+        border-radius: var(--fcom-mf-radius-sm, 6px);
         color: $text-tertiary;
         background: none;
         border: none;
@@ -365,7 +397,7 @@ const defaultIcons: Record<string, string> = {
         }
 
         &--active {
-            color: $primary-color;
+            color: var(--fcom-mf-primary, #1877f2);
         }
     }
 
@@ -404,7 +436,7 @@ const defaultIcons: Record<string, string> = {
         right: 0;
         width: 180px;
         background: $white;
-        border-radius: $border-radius-md;
+        border-radius: var(--fcom-mf-radius-md, 8px);
         box-shadow: $shadow-lg;
         overflow: hidden;
         z-index: $z-dropdown;
@@ -454,20 +486,74 @@ const defaultIcons: Record<string, string> = {
         margin: 4px 0;
     }
 
+    &__menu-theme {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        gap: 10px;
+    }
+
+    &__menu-theme-label {
+        font-size: $font-size-sm;
+        color: $text-primary;
+    }
+
+    &__menu-theme-toggle {
+        position: relative;
+        width: 40px;
+        height: 22px;
+        flex-shrink: 0;
+        border-radius: 11px;
+        border: none;
+        cursor: pointer;
+        background: $gray-200;
+        transition: background $transition-fast;
+        padding: 0;
+
+        &:hover {
+            background: $gray-300;
+        }
+
+        &--on {
+            background: var(--fcom-mf-primary, #1877f2);
+
+            &:hover {
+                background: var(--fcom-mf-primary-hover, #166fe5);
+            }
+        }
+    }
+
+    &__menu-theme-knob {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: $white;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        transition: transform $transition-fast;
+    }
+
+    &__menu-theme-toggle--on .header__menu-theme-knob {
+        transform: translateX(18px);
+    }
+
     &__login-btn {
         display: inline-flex;
         align-items: center;
         padding: 6px 14px;
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
-        border-radius: $border-radius-sm;
+        border-radius: var(--fcom-mf-radius-sm, 6px);
         font-size: $font-size-sm;
         font-weight: $font-weight-semibold;
         text-decoration: none;
         transition: background $transition-fast;
 
         &:hover {
-            background: $primary-hover;
+            background: var(--fcom-mf-primary-hover, #166fe5);
         }
     }
 }

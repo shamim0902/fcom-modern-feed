@@ -295,7 +295,7 @@ onUnmounted(() => {
     height: 48px;
     border: none;
     border-radius: $border-radius-full;
-    background: $primary-color;
+    background: var(--fcom-mf-primary, #1877f2);
     color: $white;
     display: flex;
     align-items: center;
@@ -306,7 +306,7 @@ onUnmounted(() => {
     transition: all $transition-fast;
 
     &:hover {
-        background: $primary-hover;
+        background: var(--fcom-mf-primary-hover, #166fe5);
         transform: translateY(-2px);
     }
 

@@ -171,7 +171,7 @@ onMounted(() => {
             margin: 0 0 $spacing-xs;
 
             svg {
-                color: $primary-color;
+                color: var(--fcom-mf-primary, #1877f2);
             }
         }
 
@@ -290,11 +290,11 @@ onMounted(() => {
     transition: all $transition-fast;
 
     &--primary {
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
 
         &:hover {
-            background: $primary-hover;
+            background: var(--fcom-mf-primary-hover, #166fe5);
         }
     }
 

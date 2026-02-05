@@ -187,21 +187,21 @@ onMounted(() => {
         transition: all $transition-fast;
 
         &:hover:not(:disabled) {
-            border-color: $primary-color;
+            border-color: var(--fcom-mf-primary, #1877f2);
         }
 
         &--voted {
-            border-color: $primary-color;
-            background: rgba($primary-color, 0.05);
+            border-color: var(--fcom-mf-primary, #1877f2);
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.05);
 
             .fcom-mf-poll__checkbox {
-                background: $primary-color;
-                border-color: $primary-color;
+                background: var(--fcom-mf-primary, #1877f2);
+                border-color: var(--fcom-mf-primary, #1877f2);
                 color: $white;
             }
 
             .fcom-mf-poll__bar {
-                background: rgba($primary-color, 0.2);
+                background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.2);
             }
         }
 

@@ -299,7 +299,7 @@ function toggleReplies(): void {
         }
 
         &--active {
-            color: $primary-color;
+            color: var(--fcom-mf-primary, #1877f2);
         }
 
         &--delete {

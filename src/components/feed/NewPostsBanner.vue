@@ -35,7 +35,7 @@ function handleClick(): void {
     gap: $spacing-sm;
     width: 100%;
     padding: $spacing-md;
-    background: $primary-color;
+    background: var(--fcom-mf-primary, #1877f2);
     color: $white;
     font-size: $font-size-md;
     font-weight: $font-weight-semibold;
@@ -45,7 +45,7 @@ function handleClick(): void {
     cursor: pointer;
 
     &:hover {
-        background: $primary-hover;
+        background: var(--fcom-mf-primary-hover, #166fe5);
     }
 
     svg {

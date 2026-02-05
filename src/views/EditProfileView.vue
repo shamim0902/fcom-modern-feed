@@ -711,7 +711,7 @@ onMounted(() => {
 
 .fcom-mf-breadcrumb {
     &__link {
-        color: $primary-color;
+        color: var(--fcom-mf-primary, #1877f2);
         background: none;
         border: none;
         padding: 0;
@@ -847,8 +847,8 @@ onMounted(() => {
 
         &:focus {
             outline: none;
-            border-color: $primary-color;
-            box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
+            border-color: var(--fcom-mf-primary, #1877f2);
+            box-shadow: 0 0 0 3px rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1);
         }
     }
 
@@ -874,8 +874,8 @@ onMounted(() => {
     transition: border-color $transition-fast, box-shadow $transition-fast;
 
     &:focus-within {
-        border-color: $primary-color;
-        box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
+        border-color: var(--fcom-mf-primary, #1877f2);
+        box-shadow: 0 0 0 3px rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1);
     }
 
     span {
@@ -1098,11 +1098,11 @@ onMounted(() => {
     }
 
     &--primary {
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
 
         &:hover:not(:disabled) {
-            background: $primary-hover;
+            background: var(--fcom-mf-primary-hover, #166fe5);
         }
     }
 
@@ -1159,7 +1159,7 @@ onMounted(() => {
     width: 40px;
     height: 40px;
     border: 3px solid $gray-200;
-    border-top-color: $primary-color;
+    border-top-color: var(--fcom-mf-primary, #1877f2);
     border-radius: $border-radius-full;
     animation: spin 1s linear infinite;
     margin: 0 auto;

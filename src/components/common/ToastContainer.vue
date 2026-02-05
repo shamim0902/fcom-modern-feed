@@ -86,7 +86,7 @@ function getIcon(type: string): string {
     }
 
     &--info {
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
     }
 
     &__icon {

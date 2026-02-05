@@ -431,7 +431,7 @@ onMounted(() => {
 
 .fcom-mf-breadcrumb {
     &__link {
-        color: $primary-color;
+        color: var(--fcom-mf-primary, #1877f2);
         background: none;
         border: none;
         padding: 0;
@@ -473,9 +473,9 @@ onMounted(() => {
         justify-content: center;
         width: 48px;
         height: 48px;
-        background: rgba($primary-color, 0.1);
+        background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1);
         border-radius: $border-radius-md;
-        color: $primary-color;
+        color: var(--fcom-mf-primary, #1877f2);
         flex-shrink: 0;
     }
 
@@ -568,7 +568,7 @@ onMounted(() => {
     }
 
     input:checked + &__slider {
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
 
         &::before {
             transform: translateX(20px);
@@ -620,14 +620,14 @@ onMounted(() => {
             transform: translate(-50%, -50%) scale(0);
             width: 10px;
             height: 10px;
-            background: $primary-color;
+            background: var(--fcom-mf-primary, #1877f2);
             border-radius: 50%;
             transition: transform $transition-fast;
         }
     }
 
     input:checked + &__indicator {
-        border-color: $primary-color;
+        border-color: var(--fcom-mf-primary, #1877f2);
 
         &::before {
             transform: translate(-50%, -50%) scale(1);
@@ -713,8 +713,8 @@ onMounted(() => {
 
     &:focus {
         outline: none;
-        border-color: $primary-color;
-        box-shadow: 0 0 0 2px rgba($primary-color, 0.1);
+        border-color: var(--fcom-mf-primary, #1877f2);
+        box-shadow: 0 0 0 2px rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1);
     }
 }
 
@@ -758,11 +758,11 @@ onMounted(() => {
     }
 
     &--primary {
-        background: $primary-color;
+        background: var(--fcom-mf-primary, #1877f2);
         color: $white;
 
         &:hover:not(:disabled) {
-            background: $primary-hover;
+            background: var(--fcom-mf-primary-hover, #166fe5);
         }
     }
 
@@ -818,7 +818,7 @@ onMounted(() => {
     width: 40px;
     height: 40px;
     border: 3px solid $gray-200;
-    border-top-color: $primary-color;
+    border-top-color: var(--fcom-mf-primary, #1877f2);
     border-radius: $border-radius-full;
     animation: spin 1s linear infinite;
     margin: 0 auto;

@@ -271,7 +271,7 @@ watch([() => route.params.id, () => route.params.slug], () => {
         margin: 0 auto $spacing-xl;
         border-radius: $border-radius-full;
         background: linear-gradient(135deg, $gray-50 0%, $gray-100 100%);
-        color: $primary-color;
+        color: var(--fcom-mf-primary, #1877f2);
     }
 
     &__login-title {
@@ -310,11 +310,11 @@ watch([() => route.params.id, () => route.params.slug], () => {
         font-family: inherit;
 
         &--primary {
-            background: $primary-color;
+            background: var(--fcom-mf-primary, #1877f2);
             color: $white;
 
             &:hover {
-                background: $primary-hover;
+                background: var(--fcom-mf-primary-hover, #166fe5);
             }
         }
 
