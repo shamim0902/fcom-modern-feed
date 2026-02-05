@@ -408,16 +408,13 @@ onMounted(() => {
         padding: $spacing-sm;
         background: rgba($white, 0.1);
         border-radius: var(--fcom-mf-radius-md, 8px);
-
-        &--online .fcom-mf-stats-card__value {
-            color: $success-color;
-        }
     }
 
     &__value {
         display: block;
         font-size: $font-size-lg;
         font-weight: $font-weight-bold;
+        color: $white;
     }
 
     &__label {

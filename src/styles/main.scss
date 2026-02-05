@@ -1079,6 +1079,10 @@
         background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.2) !important;
         color: var(--fcom-mf-primary, #6b9ef7) !important;
     }
+    .fcom-mf-profile-tab--active:hover {
+        background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.35) !important;
+        color: var(--fcom-mf-primary, #6b9ef7) !important;
+    }
     .fcom-mf-profile-posts,
     .fcom-mf-profile-spaces {
         color: var(--fcom-dark-text);
@@ -1264,7 +1268,11 @@
     }
     .fcom-mf-space-card {
         background: var(--fcom-dark-bg-elevated) !important;
-        border-color: var(--fcom-dark-border);
+        border: 1px solid var(--fcom-dark-border);
+    }
+    .fcom-mf-space-card__logo {
+        border-color: var(--fcom-dark-bg-elevated) !important;
+        background: var(--fcom-dark-bg-elevated) !important;
     }
     .fcom-mf-space-card__title,
     .fcom-mf-space-card__meta {
@@ -1427,7 +1435,6 @@
         background: $shimmer-dark;
         background-size: 200% 100% !important;
     }
-    .space-card--skeleton .space-card__cover,
     .fcom-mf-space-card--skeleton .fcom-mf-space-card__cover {
         background: $shimmer-dark;
         background-size: 200% 100% !important;

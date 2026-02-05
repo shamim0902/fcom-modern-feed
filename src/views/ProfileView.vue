@@ -706,15 +706,26 @@ function formatNumber(num: number | undefined | null): string {
     font-size: $font-size-md;
     font-weight: $font-weight-medium;
     cursor: pointer;
-    transition: all $transition-fast;
+    transition: background $transition-fast, color $transition-fast;
 
     &:hover {
-        background: $gray-50;
+        background: $gray-100;
+        color: $text-primary;
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--fcom-mf-primary, #1877f2);
+        outline-offset: 2px;
     }
 
     &--active {
         background: var(--fcom-mf-primary, #1877f2);
         color: $white;
+
+        &:hover {
+            background: var(--fcom-mf-primary-hover, #166fe5);
+            color: $white;
+        }
     }
 }
 

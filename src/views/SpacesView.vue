@@ -417,89 +417,6 @@ function formatNumber(num: number | undefined | null): string {
     gap: $spacing-md;
 }
 
-.fcom-mf-space-card {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: $spacing-md;
-    padding: $spacing-md $spacing-lg;
-    background: $white;
-    border-radius: $border-radius-md;
-    box-shadow: $shadow-card;
-    margin-bottom: $spacing-sm;
-
-    &__left {
-        display: flex;
-        align-items: center;
-        gap: $spacing-md;
-    }
-
-    &__icon {
-        width: 40px;
-        height: 40px;
-        background: linear-gradient(135deg, var(--fcom-mf-primary, #1877f2), var(--fcom-mf-primary-hover, #0d65d9));
-        border-radius: $border-radius-md;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: $white;
-    }
-
-    &__text {
-        h1 {
-            font-size: $font-size-xl;
-            font-weight: $font-weight-bold;
-            color: $text-primary;
-            margin: 0;
-            letter-spacing: $letter-spacing-tight;
-            line-height: 1.2;
-        }
-
-        span {
-            font-size: $font-size-sm;
-            color: $text-tertiary;
-        }
-    }
-
-    &__search {
-        display: flex;
-        align-items: center;
-        gap: $spacing-sm;
-        background: $gray-50;
-        border-radius: 20px;
-        padding: 8px 14px;
-        min-width: 200px;
-        transition: all $transition-fast;
-
-        &:focus-within {
-            background: $white;
-            box-shadow: 0 0 0 2px rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.2);
-        }
-
-        svg {
-            color: $text-tertiary;
-            flex-shrink: 0;
-        }
-
-        input {
-            flex: 1;
-            border: none;
-            background: transparent;
-            font-size: $font-size-md;
-            color: $text-primary;
-            font-family: inherit;
-
-            &::placeholder {
-                color: $text-tertiary;
-            }
-
-            &:focus {
-                outline: none;
-            }
-        }
-    }
-}
-
 .spaces-tabs {
     display: flex;
     gap: 4px;
@@ -555,7 +472,7 @@ function formatNumber(num: number | undefined | null): string {
     gap: $spacing-md;
 }
 
-.space-card {
+.fcom-mf-space-card {
     background: $white;
     border-radius: $border-radius-md;
     overflow: hidden;

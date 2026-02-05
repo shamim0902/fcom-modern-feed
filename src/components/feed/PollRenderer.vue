@@ -85,17 +85,20 @@ async function syncVotes(): Promise<void> {
             .filter(opt => opt.voted)
             .map(opt => opt.slug);
 
-        const response = await api.post<{ survey_config: SurveyConfig } | SurveyConfig>(
+        const response = await api.post<{ data?: { survey_config?: SurveyConfig }; survey_config?: SurveyConfig } | SurveyConfig>(
             `feeds/${props.feedId}/apps/survey-vote`,
             { vote_indexes: voteIndexes }
         );
 
-        console.log('[PollRenderer] Vote response:', response);
+        // Normalize: API may return { data: { survey_config } }, { survey_config }, or SurveyConfig
+        const payload = response && typeof response === 'object' && 'data' in response && response.data != null
+            ? response.data
+            : response;
+        const surveyConfig: SurveyConfig | undefined = payload && typeof payload === 'object' && 'survey_config' in payload
+            ? (payload as { survey_config?: SurveyConfig }).survey_config
+            : (payload as SurveyConfig);
 
-        // Handle both response formats: { survey_config: ... } or direct SurveyConfig
-        const surveyConfig = 'survey_config' in response ? response.survey_config : response;
-
-        if (surveyConfig && surveyConfig.options) {
+        if (surveyConfig?.options?.length) {
             setupOptions(surveyConfig);
         }
     } catch (error) {
