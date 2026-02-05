@@ -4,7 +4,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore, useUiStore } from '@/stores';
 import { api } from '@/api/client';
 import type { SpaceFull } from '@/api/types';
-import type { PrimaryMenuItem, SidebarBottomLinkGroup } from '@/api/client';
+import type { PrimaryMenuItem, SidebarBottomLinkGroup, MobileAppModalData } from '@/api/client';
+import MobileAppModal from '@/components/layout/MobileAppModal.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -95,7 +96,26 @@ const icons: Record<string, string> = {
     bookmark: `<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>`,
     grid: `<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>`,
     award: `<circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>`,
+    smartphone: `<rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>`,
 };
+
+/** Mobile App sidebar item from fcom-mobile plugin setting "Display Mobile App Button on Community main menu" (opens modal) */
+const mobileAppInSidebar = computed<{ label: string; modal: MobileAppModalData } | null>(() => {
+    const raw = window.fcomModernFeed?.mobileAppInSidebar;
+    if (!raw || !raw.show || !raw.modal) return null;
+    return {
+        label: raw.label || 'Mobile App',
+        modal: raw.modal as MobileAppModalData,
+    };
+});
+
+const mobileAppModalOpen = ref(false);
+function openMobileAppModal(): void {
+    mobileAppModalOpen.value = true;
+}
+function closeMobileAppModal(): void {
+    mobileAppModalOpen.value = false;
+}
 
 /** Sidebar bottom link groups from settings (footer links) */
 const sidebarBottomLinks = computed<{ title: string; permalink: string }[]>(() => {
@@ -248,6 +268,28 @@ onMounted(() => {
                     <span v-if="item.badge" class="fcom-mf-sidebar-nav__badge">{{ item.badge }}</span>
                 </button>
             </template>
+            <!-- Mobile App (from fcom-mobile plugin setting when "Display Mobile App Button" is on; opens modal) -->
+            <button
+                v-if="mobileAppInSidebar"
+                type="button"
+                class="fcom-mf-sidebar-nav__item fcom-mf-sidebar-nav__item--mobile-app"
+                @click="openMobileAppModal"
+            >
+                <div class="fcom-mf-sidebar-nav__icon">
+                    <svg
+                        width="22"
+                        height="22"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        v-html="icons.smartphone"
+                    ></svg>
+                </div>
+                <span class="fcom-mf-sidebar-nav__label">{{ mobileAppInSidebar.label }}</span>
+            </button>
         </nav>
 
         <!-- Break then Primary Menu Items from settings -->
@@ -322,6 +364,12 @@ onMounted(() => {
                 © {{ new Date().getFullYear() }}
             </div>
         </div>
+
+        <MobileAppModal
+            :show="mobileAppModalOpen"
+            :modal="mobileAppInSidebar?.modal ?? null"
+            @close="closeMobileAppModal"
+        />
     </div>
 </template>
 

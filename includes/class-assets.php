@@ -132,6 +132,7 @@ class Assets
             'profileDropdownItems' => self::getProfileDropdownItems(),
             'sidebarBottomLinkGroups' => self::getSidebarBottomLinkGroups(),
             'privacy' => self::getPrivacyFlags(),
+            'mobileAppInSidebar' => self::getMobileAppSidebarConfig(),
             'settings' => array_merge(
                 [
                     'tickerInterval' => 45000, // 45 seconds
@@ -452,6 +453,85 @@ class Assets
         }
 
         return home_url('/portal');
+    }
+
+    /**
+     * If fcom-mobile plugin "Display Mobile App Button on Community main menu" is on,
+     * return config to show a Mobile App item in the left sidebar and modal data (same as fcom-mobile modal).
+     *
+     * @return array{show: bool, label: string, modal: array}
+     */
+    private static function getMobileAppSidebarConfig()
+    {
+        $default = ['show' => false, 'label' => 'Mobile App', 'modal' => null];
+
+        if (!defined('FCOM_MOBILE_VERSION')) {
+            return $default;
+        }
+
+        $display = get_option('fcom_mobile_app_display', 'everyone');
+        if ($display === 'none') {
+            return $default;
+        }
+        if ($display === 'logged_in' && !is_user_logged_in()) {
+            return $default;
+        }
+
+        $label = __('Mobile App', 'fcom-modern-feed');
+        if (function_exists('is_text_domain_loaded') && is_text_domain_loaded('fcom-mobile')) {
+            $label = __('Connect Mobile App', 'fcom-mobile');
+        }
+
+        $modal = self::getMobileAppModalData();
+        return [
+            'show'  => true,
+            'label' => $label,
+            'modal' => $modal,
+        ];
+    }
+
+    /**
+     * Modal content data matching fcom-mobile public/views/fcom-mobile-qr-code.php (for in-app modal).
+     *
+     * @return array<string, string>|null
+     */
+    private static function getMobileAppModalData()
+    {
+        if (!defined('FCOM_MOBILE_VERSION')) {
+            return null;
+        }
+        $base = plugins_url('', 'fcom-mobile/fcom-mobile.php');
+        if (!$base) {
+            return null;
+        }
+        $base = rtrim($base, '/') . '/public/images/';
+        $qrCodeUrl = get_option('fcom_mobile_qr_code_image_path', '');
+        $t = function ($en, $key) {
+            if (function_exists('is_text_domain_loaded') && is_text_domain_loaded('fcom-mobile')) {
+                return (string) __($en, 'fcom-mobile');
+            }
+            return $en;
+        };
+        return [
+            'title'           => $t('How to connect "Fluent Community Mobile App" mobile app with installed plugin', 'title'),
+            'step1Label'      => $t('Step-1:', 'step1') . ' ' . $t('Download Fluent Community Mobile App', 'step1b'),
+            'step2Label'      => $t('Step-2:', 'step2') . ' ' . $t('Connect Your Fluent Community Mobile App', 'step2b'),
+            'step1Desc'       => $t('Download & Install Mobile App by scanning QR code below', 'step1d'),
+            'step2Desc'       => $t('From The Mobile App Scan Connection QR Code', 'step2d'),
+            'doneLabel'       => $t('You Are All Set', 'done'),
+            'step1Badge'      => $t('Step 1', 's1'),
+            'step2Badge'      => $t('Step 2', 's2'),
+            'doneBadge'       => $t('Done', 'doneb'),
+            'threeStepImage'  => $base . '3-step.png',
+            'playStoreImage'  => $base . 'play-store.png',
+            'appleImage'      => $base . 'apple.png',
+            'googlePlayIcon'  => $base . 'google-play-icon.png',
+            'appStoreIcon'    => $base . 'app-store-icon.png',
+            'playStoreUrl'    => 'https://play.google.com/store/apps/details?id=com.lazycoders.fluentcommunity',
+            'appStoreUrl'     => 'https://apps.apple.com/ca/app/fluent-community-mobile/id6747695570',
+            'qrCodeUrl'       => $qrCodeUrl ? esc_url($qrCodeUrl) : '',
+            'noLicenseMessage' => '', // optional: message when no QR / license
+        ];
     }
 
     /**

@@ -25,6 +25,28 @@ export interface SidebarBottomLinkGroup {
     items: SidebarBottomLinkItem[];
 }
 
+/** Modal data for Mobile App modal (from fcom-mobile), passed via mobileAppInSidebar.modal */
+export interface MobileAppModalData {
+    title: string;
+    step1Label: string;
+    step2Label: string;
+    step1Desc: string;
+    step2Desc: string;
+    doneLabel: string;
+    step1Badge: string;
+    step2Badge: string;
+    doneBadge: string;
+    threeStepImage: string;
+    playStoreImage: string;
+    appleImage: string;
+    googlePlayIcon: string;
+    appStoreIcon: string;
+    playStoreUrl: string;
+    appStoreUrl: string;
+    qrCodeUrl: string;
+    noLicenseMessage?: string;
+}
+
 declare global {
     interface Window {
         fcomModernFeed: {
@@ -72,6 +94,12 @@ declare global {
                 canViewMembersPage: boolean;
                 canViewLeaderboardMembers: boolean;
                 canDeactivateAccount: boolean;
+            };
+            /** When fcom-mobile "Display Mobile App Button" is on: show Mobile App in left sidebar (opens modal, no link) */
+            mobileAppInSidebar?: {
+                show: boolean;
+                label: string;
+                modal: MobileAppModalData | null;
             };
             settings: {
                 tickerInterval: number;
