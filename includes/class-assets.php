@@ -124,6 +124,7 @@ class Assets
                 'mediaUpload' => is_user_logged_in(),
                 'adminSettings' => self::canAccessAdminSettings(),
                 'followersModule' => self::isFollowersModuleEnabled(),
+                'hasPostTitle' => self::getPostTitlePref(),
             ],
             'adminSettingsUrl' => self::getAdminSettingsUrl(),
             'portalBaseUrl' => self::getPortalBaseUrl(),
@@ -435,6 +436,20 @@ class Assets
         }
 
         return false;
+    }
+
+    /**
+     * Get post title preference from FluentCommunity settings.
+     *
+     * @return string 'optional'|'required'|'' (empty = disabled)
+     */
+    private static function getPostTitlePref()
+    {
+        if (class_exists('\FluentCommunity\App\Functions\Utility')) {
+            return \FluentCommunity\App\Functions\Utility::postTitlePref();
+        }
+
+        return '';
     }
 
     private static function getAdminSettingsUrl()

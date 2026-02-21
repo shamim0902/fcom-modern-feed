@@ -17,6 +17,7 @@ const emit = defineEmits<{
 const feedStore = useFeedStore();
 const uiStore = useUiStore();
 
+const title = ref('');
 const message = ref('');
 const mediaItems = ref<MediaItem[]>([]);
 const isSubmitting = ref(false);
@@ -24,7 +25,10 @@ const isUploading = ref(false);
 const uploadProgress = ref(0);
 
 const fileInputRef = ref<HTMLInputElement | null>(null);
-const textareaRef = ref<HTMLTextAreaElement | null>(null);
+const editorRef = ref<HTMLDivElement | null>(null);
+
+// Post title feature flag from backend
+const hasPostTitle = computed(() => window.fcomModernFeed?.features?.hasPostTitle || '');
 
 // Video embed state
 const showVideoEmbed = ref(false);
@@ -57,10 +61,16 @@ const canSubmit = computed(() => {
     const hasText = message.value.trim().length > 0;
     const hasMedia = mediaItems.value.length > 0;
     const hasVideo = !!videoEmbed.value;
+    if (hasPostTitle.value === 'required' && !title.value.trim()) return false;
     return hasText || hasMedia || hasVideo;
 });
 
-const charCount = computed(() => message.value.length);
+const editorTextLength = computed(() => {
+    if (!message.value) return 0;
+    const doc = new DOMParser().parseFromString(message.value, 'text/html');
+    return doc.body.textContent?.length ?? 0;
+});
+const charCount = computed(() => editorTextLength.value);
 const charWarning = computed(() => charCount.value > MAX_CHARS * 0.9);
 const charExceeded = computed(() => charCount.value > MAX_CHARS);
 
@@ -71,14 +81,6 @@ watch(() => props.show, (show, oldShow) => {
         initializeForm();
     }
 }, { immediate: true });
-
-// Helper to strip HTML tags and decode entities
-function stripHtml(html: string): string {
-    if (!html) return '';
-    // Create a temporary element to decode HTML entities
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    return doc.body.textContent || '';
-}
 
 function initializeForm(): void {
     if (!props.feed) {
@@ -91,11 +93,14 @@ function initializeForm(): void {
     console.log('[EditPostModal] Feed message:', props.feed.message);
     console.log('[EditPostModal] Feed message_rendered:', props.feed.message_rendered);
 
-    // Set message content - use raw message if available, otherwise strip HTML from rendered
+    // Set title
+    title.value = props.feed.title || '';
+
+    // Set message content - use raw message if available, otherwise use rendered HTML
     if (props.feed.message) {
         message.value = props.feed.message;
     } else if (props.feed.message_rendered) {
-        message.value = stripHtml(props.feed.message_rendered);
+        message.value = props.feed.message_rendered;
     } else {
         message.value = '';
     }
@@ -155,11 +160,11 @@ function initializeForm(): void {
 
     console.log('[EditPostModal] Initialized message.value:', message.value);
 
-    // Focus textarea after DOM update
+    // Populate editor and focus after DOM update
     nextTick(() => {
-        if (textareaRef.value) {
-            textareaRef.value.focus();
-            autoResize();
+        if (editorRef.value) {
+            editorRef.value.innerHTML = message.value;
+            editorRef.value.focus();
         }
     });
 }
@@ -185,6 +190,7 @@ async function handleSubmit(): Promise<void> {
     try {
         const feedData: Partial<CreateFeedData> = {
             message: message.value,
+            title: title.value.trim() || undefined,
         };
 
         // Add media images
@@ -264,10 +270,102 @@ function removeMedia(index: number): void {
     mediaItems.value.splice(index, 1);
 }
 
-function autoResize(): void {
-    if (textareaRef.value) {
-        textareaRef.value.style.height = 'auto';
-        textareaRef.value.style.height = textareaRef.value.scrollHeight + 'px';
+function onEditorInput(): void {
+    if (editorRef.value) {
+        message.value = editorRef.value.innerHTML;
+        if (editorRef.value.textContent?.trim() === '' && !editorRef.value.querySelector('img')) {
+            message.value = '';
+        }
+    }
+}
+
+function onEditorPaste(e: ClipboardEvent): void {
+    const clipboardData = e.clipboardData;
+    if (!clipboardData) return;
+
+    // Check for pasted images
+    for (let i = 0; i < clipboardData.items.length; i++) {
+        const item = clipboardData.items[i];
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            if (file) handlePastedImage(file);
+            return;
+        }
+    }
+
+    // Handle HTML paste
+    const html = clipboardData.getData('text/html');
+    if (html) {
+        e.preventDefault();
+        const sanitized = sanitizePastedHtml(html);
+        document.execCommand('insertHTML', false, sanitized);
+        onEditorInput();
+        return;
+    }
+
+    setTimeout(() => onEditorInput(), 0);
+}
+
+function sanitizePastedHtml(html: string): string {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const body = doc.body;
+    body.querySelectorAll('script, style, meta, link, head, title').forEach(el => el.remove());
+    const allowedTags = new Set([
+        'P', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DEL',
+        'A', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'PRE', 'CODE',
+        'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'DIV', 'SPAN',
+        'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD', 'HR', 'IMG',
+    ]);
+    function cleanNode(node: Node): void {
+        const children = Array.from(node.childNodes);
+        for (const child of children) {
+            if (child.nodeType === Node.ELEMENT_NODE) {
+                const el = child as Element;
+                if (!allowedTags.has(el.tagName)) {
+                    while (el.firstChild) node.insertBefore(el.firstChild, el);
+                    node.removeChild(el);
+                } else {
+                    const attrs = Array.from(el.attributes);
+                    for (const attr of attrs) {
+                        if (attr.name === 'href' || attr.name === 'src' || attr.name === 'alt') continue;
+                        el.removeAttribute(attr.name);
+                    }
+                    if (el.tagName === 'A') {
+                        el.setAttribute('target', '_blank');
+                        el.setAttribute('rel', 'noopener noreferrer');
+                    }
+                    cleanNode(el);
+                }
+            }
+        }
+    }
+    cleanNode(body);
+    return body.innerHTML;
+}
+
+async function handlePastedImage(file: File): Promise<void> {
+    isUploading.value = true;
+    uploadProgress.value = 0;
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.uploadFile('feeds/media-upload', formData);
+        if (response.media) {
+            mediaItems.value.push({
+                url: response.media.url,
+                type: 'image',
+                width: response.media.width || 0,
+                height: response.media.height || 0,
+                provider: 'uploader',
+            });
+        }
+        uploadProgress.value = 100;
+    } catch {
+        uiStore.showError('Failed to upload pasted image');
+    } finally {
+        isUploading.value = false;
+        uploadProgress.value = 0;
     }
 }
 
@@ -325,17 +423,10 @@ function toggleEmojiPicker(): void {
 }
 
 function insertEmoji(emoji: string): void {
-    if (textareaRef.value) {
-        const start = textareaRef.value.selectionStart;
-        const end = textareaRef.value.selectionEnd;
-        const text = message.value;
-        message.value = text.substring(0, start) + emoji + text.substring(end);
-        setTimeout(() => {
-            if (textareaRef.value) {
-                textareaRef.value.selectionStart = textareaRef.value.selectionEnd = start + emoji.length;
-                textareaRef.value.focus();
-            }
-        }, 0);
+    if (editorRef.value) {
+        editorRef.value.focus();
+        document.execCommand('insertText', false, emoji);
+        onEditorInput();
     } else {
         message.value += emoji;
     }
@@ -361,18 +452,29 @@ function closeModal(): void {
                 </div>
 
                 <div class="fcom-mf-edit-modal__body">
-                    <textarea
-                        ref="textareaRef"
-                        v-model="message"
-                        placeholder="What's on your mind?"
-                        class="fcom-mf-edit-modal__textarea"
-                        rows="4"
-                        @input="autoResize"
-                    ></textarea>
+                    <!-- Title Field -->
+                    <input
+                        v-if="hasPostTitle"
+                        v-model="title"
+                        type="text"
+                        maxlength="120"
+                        class="fcom-mf-edit-modal__title-input"
+                        :placeholder="hasPostTitle === 'required' ? 'Short title of this post' : 'Title (optional)'"
+                    />
+
+                    <!-- Rich Text Editor -->
+                    <div
+                        ref="editorRef"
+                        contenteditable="true"
+                        class="fcom-mf-edit-modal__editor"
+                        data-placeholder="What's on your mind?"
+                        @input="onEditorInput"
+                        @paste="onEditorPaste"
+                    ></div>
 
                     <!-- Character Counter -->
                     <div
-                        v-if="message.length > 0"
+                        v-if="charCount > 0"
                         class="fcom-mf-edit-modal__char-count"
                         :class="{
                             'fcom-mf-edit-modal__char-count--warning': charWarning,
@@ -597,21 +699,87 @@ function closeModal(): void {
         padding: $spacing-lg;
     }
 
-    &__textarea {
+    &__title-input {
+        width: 100%;
+        border: none;
+        border-bottom: 1px solid $border-color;
+        font-size: $font-size-md;
+        font-weight: $font-weight-semibold;
+        font-family: inherit;
+        line-height: $line-height-normal;
+        padding: $spacing-sm 0;
+        margin-bottom: $spacing-sm;
+        background: transparent;
+
+        &:focus {
+            outline: none;
+            border-bottom-color: var(--fcom-mf-primary, #1877f2);
+        }
+
+        &::placeholder {
+            color: $text-tertiary;
+            font-weight: $font-weight-normal;
+        }
+    }
+
+    &__editor {
         width: 100%;
         border: none;
         font-size: $font-size-md;
         font-family: inherit;
         line-height: $line-height-normal;
-        resize: none;
         min-height: 100px;
+        max-height: 300px;
+        overflow-y: auto;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
 
         &:focus {
             outline: none;
         }
 
-        &::placeholder {
+        &:empty::before {
+            content: attr(data-placeholder);
             color: $text-tertiary;
+            pointer-events: none;
+        }
+
+        a {
+            color: var(--fcom-mf-primary, #1877f2);
+            text-decoration: underline;
+        }
+
+        blockquote {
+            border-left: 3px solid $border-color;
+            margin: $spacing-sm 0;
+            padding-left: $spacing-md;
+            color: $text-secondary;
+        }
+
+        pre, code {
+            background: $gray-50;
+            border-radius: $border-radius-sm;
+            font-family: monospace;
+            font-size: $font-size-sm;
+        }
+
+        pre {
+            padding: $spacing-sm $spacing-md;
+            overflow-x: auto;
+        }
+
+        code {
+            padding: 2px 4px;
+        }
+
+        ul, ol {
+            padding-left: $spacing-xl;
+            margin: $spacing-sm 0;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
         }
     }
 

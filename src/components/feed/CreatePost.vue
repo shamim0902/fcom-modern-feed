@@ -15,6 +15,7 @@ const uiStore = useUiStore();
 const spaceStore = useSpaceStore();
 
 const isExpanded = ref(false);
+const title = ref('');
 const message = ref('');
 const isSubmitting = ref(false);
 const mediaItems = ref<MediaItem[]>([]);
@@ -70,11 +71,15 @@ const commonEmojis = [
 ];
 
 const fileInputRef = ref<HTMLInputElement | null>(null);
-const textareaRef = ref<HTMLTextAreaElement | null>(null);
+const editorRef = ref<HTMLDivElement | null>(null);
+const titleRef = ref<HTMLInputElement | null>(null);
 const spaceSelectorRef = ref<HTMLElement | null>(null);
 const createPostRef = ref<HTMLElement | null>(null);
 const justExpanded = ref(false);
 const emojiPickerRef = ref<HTMLElement | null>(null);
+
+// Post title feature flag from backend
+const hasPostTitle = computed(() => window.fcomModernFeed?.features?.hasPostTitle || '');
 
 // Guest draft: login-required modal (when logged-out user clicks Post)
 const showLoginModal = ref(false);
@@ -145,6 +150,13 @@ function restoreDraftIfPresent(): void {
             return;
         }
         message.value = draft.message;
+        if (draft.title) title.value = draft.title;
+        // Populate the contenteditable editor after mount
+        nextTick(() => {
+            if (editorRef.value && draft.message) {
+                editorRef.value.innerHTML = draft.message;
+            }
+        });
         if (draft.space) {
             const space = spaceStore.canPostSpaces.find((s) => s.slug === draft.space);
             if (space) selectedSpaceId.value = space.id;
@@ -209,6 +221,8 @@ const canSubmit = computed(() => {
     const hasVideo = !!videoEmbed.value;
     const hasPoll = showPollForm.value && pollData.value.options.filter(o => o.label.trim()).length >= 2;
     const hasContent = hasText || hasMedia || hasVideo || hasPoll;
+    // Title is required if has_post_title == 'required'
+    if (hasPostTitle.value === 'required' && !title.value.trim()) return false;
     // Space is required when logged in; guest can submit with content only (draft saved, then login)
     const hasSpace = !!props.spaceId || !!selectedSpaceId.value;
     if (!authStore.isLoggedIn) return hasContent;
@@ -218,6 +232,7 @@ const canSubmit = computed(() => {
 // Unsaved content: any text, media, video, poll, or schedule (used for beforeunload prompt)
 const hasUnsavedContent = computed(
     () =>
+        title.value.trim().length > 0 ||
         message.value.trim().length > 0 ||
         mediaItems.value.length > 0 ||
         !!videoEmbed.value ||
@@ -232,7 +247,13 @@ function beforeUnloadHandler(e: BeforeUnloadEvent): void {
     }
 }
 
-const charCount = computed(() => message.value.length);
+// Strip HTML tags to get plain text length for character counting
+const editorTextLength = computed(() => {
+    if (!message.value) return 0;
+    const doc = new DOMParser().parseFromString(message.value, 'text/html');
+    return doc.body.textContent?.length ?? 0;
+});
+const charCount = computed(() => editorTextLength.value);
 const charWarning = computed(() => charCount.value > MAX_CHARS * 0.9);
 const charExceeded = computed(() => charCount.value > MAX_CHARS);
 
@@ -280,7 +301,11 @@ function expand(): void {
     justExpanded.value = true;
     isExpanded.value = true;
     setTimeout(() => {
-        textareaRef.value?.focus();
+        if (hasPostTitle.value && titleRef.value) {
+            titleRef.value.focus();
+        } else {
+            editorRef.value?.focus();
+        }
     }, 50);
 }
 
@@ -290,7 +315,7 @@ function expandAnd(fn: () => void): void {
 }
 
 function collapse(): void {
-    if (!message.value.trim() && mediaItems.value.length === 0 && !videoEmbed.value && !showPollForm.value && !scheduledAt.value) {
+    if (!title.value.trim() && !message.value.trim() && mediaItems.value.length === 0 && !videoEmbed.value && !showPollForm.value && !scheduledAt.value) {
         isExpanded.value = false;
         showSpaceDropdown.value = false;
         resetAttachments();
@@ -328,6 +353,7 @@ async function handleSubmit(): Promise<void> {
         if (hasContent) {
             const draft: CreateFeedData = {
                 message: message.value,
+                title: title.value.trim() || undefined,
                 space: selectedSpace.value?.slug || undefined,
             };
             if (videoEmbed.value) draft.media = videoEmbed.value;
@@ -360,6 +386,7 @@ async function handleSubmit(): Promise<void> {
     try {
         const feedData: CreateFeedData = {
             message: message.value,
+            title: title.value.trim() || undefined,
             space: selectedSpace.value?.slug || undefined,
         };
 
@@ -401,7 +428,9 @@ async function handleSubmit(): Promise<void> {
         await feedStore.createFeed(feedData);
 
         // Reset form
+        title.value = '';
         message.value = '';
+        if (editorRef.value) editorRef.value.innerHTML = '';
         mediaItems.value = [];
         isExpanded.value = false;
         resetAttachments();
@@ -452,12 +481,13 @@ function showGuestLoginModal(): void {
         mediaItems.value.length > 0 ||
         !!videoEmbed.value ||
         (showPollForm.value && pollData.value.options.filter((o) => o.label.trim()).length >= 2);
-    
+
     console.log('[CreatePost] hasContent:', hasContent, 'message:', message.value);
-    
+
     if (hasContent) {
         const draft: CreateFeedData = {
             message: message.value,
+            title: title.value.trim() || undefined,
             space: selectedSpace.value?.slug || undefined,
         };
         if (videoEmbed.value) draft.media = videoEmbed.value;
@@ -551,10 +581,118 @@ function removeMedia(index: number): void {
     mediaItems.value.splice(index, 1);
 }
 
-function autoResize(): void {
-    if (textareaRef.value) {
-        textareaRef.value.style.height = 'auto';
-        textareaRef.value.style.height = textareaRef.value.scrollHeight + 'px';
+function onEditorInput(): void {
+    if (editorRef.value) {
+        message.value = editorRef.value.innerHTML;
+        // Clear if editor only has empty tags
+        if (editorRef.value.textContent?.trim() === '' && !editorRef.value.querySelector('img')) {
+            message.value = '';
+        }
+    }
+}
+
+function onEditorPaste(e: ClipboardEvent): void {
+    const clipboardData = e.clipboardData;
+    if (!clipboardData) return;
+
+    // Check for pasted images
+    for (let i = 0; i < clipboardData.items.length; i++) {
+        const item = clipboardData.items[i];
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            if (file) {
+                handlePastedImage(file);
+            }
+            return;
+        }
+    }
+
+    // Handle HTML paste
+    const html = clipboardData.getData('text/html');
+    if (html) {
+        e.preventDefault();
+        // Sanitize the HTML - keep only safe tags
+        const sanitized = sanitizePastedHtml(html);
+        document.execCommand('insertHTML', false, sanitized);
+        onEditorInput();
+        return;
+    }
+
+    // Plain text paste - let the browser handle it, then sync
+    setTimeout(() => onEditorInput(), 0);
+}
+
+function sanitizePastedHtml(html: string): string {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const body = doc.body;
+
+    // Remove script, style, meta, link tags
+    body.querySelectorAll('script, style, meta, link, head, title').forEach(el => el.remove());
+
+    // Allow only safe tags
+    const allowedTags = new Set([
+        'P', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DEL',
+        'A', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'PRE', 'CODE',
+        'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'DIV', 'SPAN',
+        'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD', 'HR', 'IMG',
+    ]);
+
+    function cleanNode(node: Node): void {
+        const children = Array.from(node.childNodes);
+        for (const child of children) {
+            if (child.nodeType === Node.ELEMENT_NODE) {
+                const el = child as Element;
+                if (!allowedTags.has(el.tagName)) {
+                    // Replace disallowed element with its children
+                    while (el.firstChild) {
+                        node.insertBefore(el.firstChild, el);
+                    }
+                    node.removeChild(el);
+                } else {
+                    // Remove all style attributes except on links (keep href)
+                    const attrs = Array.from(el.attributes);
+                    for (const attr of attrs) {
+                        if (attr.name === 'href' || attr.name === 'src' || attr.name === 'alt') continue;
+                        el.removeAttribute(attr.name);
+                    }
+                    // Ensure links open in new tab
+                    if (el.tagName === 'A') {
+                        el.setAttribute('target', '_blank');
+                        el.setAttribute('rel', 'noopener noreferrer');
+                    }
+                    cleanNode(el);
+                }
+            }
+        }
+    }
+
+    cleanNode(body);
+    return body.innerHTML;
+}
+
+async function handlePastedImage(file: File): Promise<void> {
+    isUploading.value = true;
+    uploadProgress.value = 0;
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.uploadFile('feeds/media-upload', formData);
+        if (response.media) {
+            mediaItems.value.push({
+                url: response.media.url,
+                type: 'image',
+                width: response.media.width || 0,
+                height: response.media.height || 0,
+                provider: 'uploader',
+            });
+        }
+        uploadProgress.value = 100;
+    } catch {
+        uiStore.showError('Failed to upload pasted image');
+    } finally {
+        isUploading.value = false;
+        uploadProgress.value = 0;
     }
 }
 
@@ -690,18 +828,10 @@ function toggleEmojiPicker(): void {
 }
 
 function insertEmoji(emoji: string): void {
-    if (textareaRef.value) {
-        const start = textareaRef.value.selectionStart;
-        const end = textareaRef.value.selectionEnd;
-        const text = message.value;
-        message.value = text.substring(0, start) + emoji + text.substring(end);
-        // Set cursor position after emoji
-        setTimeout(() => {
-            if (textareaRef.value) {
-                textareaRef.value.selectionStart = textareaRef.value.selectionEnd = start + emoji.length;
-                textareaRef.value.focus();
-            }
-        }, 0);
+    if (editorRef.value) {
+        editorRef.value.focus();
+        document.execCommand('insertText', false, emoji);
+        onEditorInput();
     } else {
         message.value += emoji;
     }
@@ -851,18 +981,31 @@ function insertEmoji(emoji: string): void {
                 </div>
             </div>
 
-            <textarea
-                ref="textareaRef"
-                v-model="message"
-                :placeholder="uiStore.t('createPost')"
-                class="fcom-mf-create-post__textarea"
-                rows="3"
-                @input="autoResize"
-            ></textarea>
+            <!-- Title Field (when enabled via FluentCommunity settings) -->
+            <input
+                v-if="hasPostTitle"
+                ref="titleRef"
+                v-model="title"
+                type="text"
+                maxlength="120"
+                class="fcom-mf-create-post__title-input"
+                :placeholder="hasPostTitle === 'required' ? 'Short title of this post' : 'Title (optional)'"
+                @keydown.enter.prevent="editorRef?.focus()"
+            />
+
+            <!-- Rich Text Editor (contenteditable for HTML paste support) -->
+            <div
+                ref="editorRef"
+                contenteditable="true"
+                class="fcom-mf-create-post__editor"
+                :data-placeholder="uiStore.t('createPost')"
+                @input="onEditorInput"
+                @paste="onEditorPaste"
+            ></div>
 
             <!-- Character Counter - Show immediately when typing -->
             <div
-                v-if="message.length > 0"
+                v-if="charCount > 0"
                 class="fcom-mf-create-post__char-count"
                 :class="{
                     'fcom-mf-create-post__char-count--warning': charWarning,
@@ -1339,23 +1482,96 @@ function insertEmoji(emoji: string): void {
         }
     }
 
-    &__textarea {
+    &__title-input {
+        width: 100%;
+        border: none;
+        border-bottom: 1px solid $border-color;
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        font-family: inherit;
+        line-height: $line-height-normal;
+        padding: $spacing-sm 0;
+        margin-bottom: $spacing-sm;
+        background: transparent;
+
+        &:focus {
+            outline: none;
+            border-bottom-color: var(--fcom-mf-primary, #1877f2);
+        }
+
+        &::placeholder {
+            color: $text-tertiary;
+            font-weight: $font-weight-normal;
+        }
+    }
+
+    &__editor {
         width: 100%;
         border: none;
         font-size: $font-size-lg;
         font-family: inherit;
         line-height: $line-height-normal;
-        resize: none;
         min-height: 80px;
         background: transparent;
+        overflow-y: auto;
+        max-height: 400px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
 
         &:focus {
             outline: none;
-            box-shadow: none;
         }
 
-        &::placeholder {
+        // Placeholder via :empty pseudo-element
+        &:empty::before {
+            content: attr(data-placeholder);
             color: $text-tertiary;
+            pointer-events: none;
+        }
+
+        // Style pasted content
+        a {
+            color: var(--fcom-mf-primary, #1877f2);
+            text-decoration: underline;
+        }
+
+        blockquote {
+            border-left: 3px solid $border-color;
+            margin: $spacing-sm 0;
+            padding-left: $spacing-md;
+            color: $text-secondary;
+        }
+
+        pre, code {
+            background: $gray-50;
+            border-radius: $border-radius-sm;
+            font-family: monospace;
+            font-size: $font-size-sm;
+        }
+
+        pre {
+            padding: $spacing-sm $spacing-md;
+            overflow-x: auto;
+        }
+
+        code {
+            padding: 2px 4px;
+        }
+
+        ul, ol {
+            padding-left: $spacing-xl;
+            margin: $spacing-sm 0;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: $border-radius-sm;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            margin: $spacing-sm 0;
+            line-height: $line-height-tight;
         }
     }
 

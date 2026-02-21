@@ -78,6 +78,7 @@ declare global {
                 mediaUpload: boolean;
                 adminSettings: boolean;
                 followersModule: boolean;
+                hasPostTitle: string; // 'optional' | 'required' | '' (disabled)
             };
             adminSettingsUrl: string;
             portalBaseUrl: string;
