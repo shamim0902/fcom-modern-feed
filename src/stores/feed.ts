@@ -282,10 +282,25 @@ export const useFeedStore = defineStore('feed', () => {
         return source.includes(normalizedUrl) || source.includes(normalizedNoScheme);
     }
 
+    function escapeHtml(value: string): string {
+        return value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function buildUrlAnchor(url: string): string {
+        const escaped = escapeHtml(url.trim());
+        return `<a href="${escaped}" target="_blank" rel="noopener noreferrer nofollow">${escaped}</a>`;
+    }
+
     function appendUrlToMessage(message: string | undefined, url: string): string {
         const current = (message || '').trim();
-        if (!current) return url;
-        return `${current}\n${url}`;
+        const anchor = buildUrlAnchor(url);
+        if (!current) return anchor;
+        return `${current}\n${anchor}`;
     }
 
     // Actions
