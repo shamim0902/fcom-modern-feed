@@ -90,6 +90,181 @@ export const useFeedStore = defineStore('feed', () => {
         }
     }
 
+    function toBoolean(value: unknown): boolean {
+        if (typeof value === 'boolean') return value;
+        if (typeof value === 'number') return value === 1;
+        if (typeof value === 'string') {
+            const normalized = value.toLowerCase();
+            return normalized === '1' || normalized === 'true' || normalized === 'yes';
+        }
+        return false;
+    }
+
+    function normalizeComment(comment: Comment): Comment {
+        const input = comment as Comment & {
+            liked?: number | boolean;
+            comments?: Comment[];
+        };
+
+        const normalized: Comment = {
+            ...input,
+            is_sticky: Number(input.is_sticky || 0),
+            reactions_count: Number(input.reactions_count || 0),
+            has_user_react:
+                typeof input.has_user_react === 'boolean'
+                    ? input.has_user_react
+                    : toBoolean(input.liked),
+            liked: toBoolean(input.has_user_react ?? input.liked) ? 1 : 0,
+        };
+
+        const rawReplies = (input.replies || input.comments || []) as Comment[];
+        normalized.replies = rawReplies.map((reply) => normalizeComment(reply));
+        normalized.replies_count = normalized.replies.length || Number(input.replies_count || 0);
+
+        return normalized;
+    }
+
+    function formatFeedComments(
+        rawComments: Comment[] = [],
+        rawStickyComment: Comment | null = null
+    ): { comments: Comment[]; stickyComment: Comment | null } {
+        const stickyComment = rawStickyComment ? normalizeComment(rawStickyComment) : null;
+        const normalizedComments = rawComments.map((comment) => normalizeComment(comment));
+
+        // API may return a flat list (parent_id based) or nested list; normalize both to comment.replies.
+        const hasFlatReplies = normalizedComments.some((comment) => !!comment.parent_id);
+        if (!hasFlatReplies) {
+            return {
+                comments: normalizedComments,
+                stickyComment,
+            };
+        }
+
+        normalizedComments.forEach((comment) => {
+            comment.replies = [];
+            comment.replies_count = 0;
+        });
+
+        const commentMap = new Map<number, Comment>();
+        normalizedComments.forEach((comment) => {
+            commentMap.set(comment.id, comment);
+        });
+
+        const topLevel: Comment[] = [];
+        const stickyReplies: Comment[] = [];
+
+        normalizedComments.forEach((comment) => {
+            const parentId = Number(comment.parent_id || 0);
+            if (!parentId) {
+                topLevel.push(comment);
+                return;
+            }
+
+            const parent = commentMap.get(parentId);
+            if (parent) {
+                parent.replies = parent.replies || [];
+                parent.replies.push(comment);
+                parent.replies_count = parent.replies.length;
+                return;
+            }
+
+            if (stickyComment && stickyComment.id === parentId) {
+                stickyReplies.push(comment);
+                return;
+            }
+
+            // Fallback: orphaned reply shows as top-level instead of disappearing.
+            topLevel.push(comment);
+        });
+
+        if (stickyComment && stickyReplies.length) {
+            stickyComment.replies = [...(stickyComment.replies || []), ...stickyReplies];
+            stickyComment.replies_count = stickyComment.replies.length;
+        }
+
+        return {
+            comments: topLevel,
+            stickyComment,
+        };
+    }
+
+    function normalizeFeed(feed: Feed): Feed {
+        const normalized = {
+            ...feed,
+            comments_count: Number(feed.comments_count || 0),
+            reactions_count: Number(feed.reactions_count || 0),
+            is_sticky: Number(feed.is_sticky || 0),
+            priority: Number(feed.priority || 0),
+        } as Feed & { is_bookmarked?: number | boolean };
+
+        if (typeof normalized.bookmarked !== 'boolean') {
+            normalized.bookmarked = toBoolean(normalized.is_bookmarked);
+        }
+
+        const formattedComments = formatFeedComments(
+            normalized.comments || [],
+            normalized.sticky_comment || null
+        );
+        normalized.comments = formattedComments.comments;
+        normalized.sticky_comment = formattedComments.stickyComment || undefined;
+
+        populateUserReactionType(normalized);
+
+        return normalized;
+    }
+
+    function findCommentById(comments: Comment[] = [], commentId: number): Comment | undefined {
+        for (const comment of comments) {
+            if (comment.id === commentId) {
+                return comment;
+            }
+            if (comment.replies?.length) {
+                const found = findCommentById(comment.replies, commentId);
+                if (found) {
+                    return found;
+                }
+            }
+        }
+        return undefined;
+    }
+
+    function findCommentInFeed(feed: Feed, commentId: number): Comment | undefined {
+        if (feed.sticky_comment) {
+            if (feed.sticky_comment.id === commentId) {
+                return feed.sticky_comment;
+            }
+            const stickyReply = findCommentById(feed.sticky_comment.replies || [], commentId);
+            if (stickyReply) {
+                return stickyReply;
+            }
+        }
+        return findCommentById(feed.comments || [], commentId);
+    }
+
+    function findCommentLocation(
+        comments: Comment[] = [],
+        commentId: number,
+        parent?: Comment
+    ): { list: Comment[]; index: number; parent?: Comment } | null {
+        for (let index = 0; index < comments.length; index++) {
+            const comment = comments[index];
+            if (comment.id === commentId) {
+                return { list: comments, index, parent };
+            }
+            if (comment.replies?.length) {
+                const location = findCommentLocation(comment.replies, commentId, comment);
+                if (location) {
+                    return location;
+                }
+            }
+        }
+        return null;
+    }
+
+    function getCommentThreadSize(comment: Comment): number {
+        return 1 + (comment.replies || []).reduce((sum, reply) => sum + getCommentThreadSize(reply), 0);
+    }
+
     // Actions
     async function fetchFeeds(
         params: {
@@ -120,24 +295,19 @@ export const useFeedStore = defineStore('feed', () => {
                 topic_slug: params.topicSlug,
             });
 
-            const feeds = response.feeds.data;
+            const feeds = response.feeds.data.map((feed) => normalizeFeed(feed));
+            const stickyFeed = response.sticky ? normalizeFeed(response.sticky) : null;
 
             // Update feedsById cache and populate user reaction types
             feeds.forEach((feed) => {
-                populateUserReactionType(feed);
                 feedsById.value[feed.id] = feed;
             });
-
-            // Also populate for sticky feed
-            if (response.sticky) {
-                populateUserReactionType(response.sticky);
-            }
 
             if (loadMore) {
                 context.feeds = [...context.feeds, ...feeds];
             } else {
                 context.feeds = feeds;
-                context.stickyFeed = response.sticky || null;
+                context.stickyFeed = stickyFeed;
             }
 
             context.hasMore = response.feeds.has_more;
@@ -161,7 +331,7 @@ export const useFeedStore = defineStore('feed', () => {
         // Debug: Log API response
         console.log('[FeedStore] createFeed response:', JSON.stringify(response, null, 2));
 
-        const feed = response.feed;
+        const feed = normalizeFeed(response.feed);
 
         // Add to cache
         feedsById.value[feed.id] = feed;
@@ -177,7 +347,7 @@ export const useFeedStore = defineStore('feed', () => {
 
     async function updateFeed(feedId: number, data: Partial<CreateFeedData>): Promise<Feed> {
         const response = await api.post<{ feed: Feed }>(`feeds/${feedId}`, data);
-        const feed = response.feed;
+        const feed = normalizeFeed(response.feed);
 
         // Update cache
         feedsById.value[feed.id] = feed;
@@ -187,6 +357,9 @@ export const useFeedStore = defineStore('feed', () => {
             const index = context.feeds.findIndex((f) => f.id === feedId);
             if (index !== -1) {
                 context.feeds[index] = feed;
+            }
+            if (context.stickyFeed?.id === feedId) {
+                context.stickyFeed = feed;
             }
         });
 
@@ -462,33 +635,36 @@ export const useFeedStore = defineStore('feed', () => {
 
     async function fetchComments(feedId: number): Promise<Comment[]> {
         const response = await api.get<CommentsResponse>(`feeds/${feedId}/comments`);
+        const formatted = formatFeedComments(response.comments || [], response.sticky_comment || null);
 
         // Update feed with comments
         const feed = feedsById.value[feedId];
         if (feed) {
-            feed.comments = response.comments;
-            feed.sticky_comment = response.sticky_comment;
+            feed.comments = formatted.comments;
+            feed.sticky_comment = formatted.stickyComment || undefined;
         }
 
-        return response.comments;
+        return formatted.comments;
     }
 
     async function createComment(feedId: number, data: CreateCommentData): Promise<Comment> {
         const response = await api.post<{ comment: Comment }>(`feeds/${feedId}/comments`, data);
-        const comment = response.comment;
+        const comment = normalizeComment(response.comment);
 
         // Update feed comments count
         const feed = feedsById.value[feedId];
         if (feed) {
-            feed.comments_count += 1;
+            feed.comments_count = Number(feed.comments_count || 0) + 1;
             if (feed.comments) {
                 if (data.parent_id) {
-                    // Find parent and add reply
-                    const parent = feed.comments.find((c) => c.id === data.parent_id);
+                    // Find parent in top-level, nested replies, or sticky comment.
+                    const parent = findCommentInFeed(feed, data.parent_id);
                     if (parent) {
                         parent.replies = parent.replies || [];
                         parent.replies.push(comment);
-                        parent.replies_count = (parent.replies_count || 0) + 1;
+                        parent.replies_count = parent.replies.length;
+                    } else {
+                        feed.comments.push(comment);
                     }
                 } else {
                     feed.comments.push(comment);
@@ -504,51 +680,76 @@ export const useFeedStore = defineStore('feed', () => {
 
         const feed = feedsById.value[feedId];
         if (feed) {
-            feed.comments_count -= 1;
-            if (feed.comments) {
-                // Remove from top-level comments
-                feed.comments = feed.comments.filter((c) => c.id !== commentId);
-                // Remove from replies
-                feed.comments.forEach((c) => {
-                    if (c.replies) {
-                        c.replies = c.replies.filter((r) => r.id !== commentId);
+            let removedCount = 1;
+            let removed = false;
+
+            if (feed.sticky_comment?.id === commentId) {
+                removedCount = getCommentThreadSize(feed.sticky_comment);
+                feed.sticky_comment = undefined;
+                removed = true;
+            } else if (feed.sticky_comment?.replies?.length) {
+                const stickyLocation = findCommentLocation(feed.sticky_comment.replies, commentId, feed.sticky_comment);
+                if (stickyLocation) {
+                    const [removedComment] = stickyLocation.list.splice(stickyLocation.index, 1);
+                    removedCount = removedComment ? getCommentThreadSize(removedComment) : 1;
+                    if (stickyLocation.parent) {
+                        stickyLocation.parent.replies_count = stickyLocation.parent.replies?.length || 0;
                     }
-                });
+                    removed = true;
+                }
             }
+
+            if (!removed) {
+                const location = findCommentLocation(feed.comments || [], commentId);
+                if (location) {
+                    const [removedComment] = location.list.splice(location.index, 1);
+                    removedCount = removedComment ? getCommentThreadSize(removedComment) : 1;
+                    if (location.parent) {
+                        location.parent.replies_count = location.parent.replies?.length || 0;
+                    }
+                }
+            }
+
+            feed.comments_count = Math.max(0, Number(feed.comments_count || 0) - removedCount);
         }
     }
 
     async function toggleCommentReaction(feedId: number, commentId: number): Promise<void> {
         const feed = feedsById.value[feedId];
-        if (!feed?.comments) return;
+        if (!feed) return;
 
-        const findComment = (comments: Comment[]): Comment | undefined => {
-            for (const comment of comments) {
-                if (comment.id === commentId) return comment;
-                if (comment.replies) {
-                    const found = findComment(comment.replies);
-                    if (found) return found;
-                }
-            }
-            return undefined;
-        };
-
-        const comment = findComment(feed.comments);
+        const comment = findCommentInFeed(feed, commentId);
         if (!comment) return;
 
-        const wasReacted = comment.has_user_react;
+        const wasReacted = toBoolean(comment.has_user_react ?? comment.liked);
+        const nextState = !wasReacted;
+        const previousCount = Number(comment.reactions_count || 0);
 
         // Optimistic update
-        comment.has_user_react = !wasReacted;
-        comment.reactions_count += wasReacted ? -1 : 1;
+        comment.has_user_react = nextState;
+        comment.liked = nextState ? 1 : 0;
+        comment.reactions_count = Math.max(0, previousCount + (nextState ? 1 : -1));
 
         try {
-            // POST toggles reaction (add if not present, remove if present)
-            await api.post(`feeds/${feedId}/comments/${commentId}/reactions`);
+            // Backend expects explicit state (1 = like, 0 = unlike).
+            const response = await api.post<{ liked?: number | boolean; reactions_count?: number }>(
+                `feeds/${feedId}/comments/${commentId}/reactions`,
+                { state: nextState ? 1 : 0 }
+            );
+
+            if (response && typeof response.reactions_count !== 'undefined') {
+                comment.reactions_count = Number(response.reactions_count);
+            }
+            if (response && typeof response.liked !== 'undefined') {
+                const liked = toBoolean(response.liked);
+                comment.has_user_react = liked;
+                comment.liked = liked ? 1 : 0;
+            }
         } catch (error) {
             // Rollback
             comment.has_user_react = wasReacted;
-            comment.reactions_count += wasReacted ? 1 : -1;
+            comment.liked = wasReacted ? 1 : 0;
+            comment.reactions_count = previousCount;
             throw error;
         }
     }
@@ -588,10 +789,7 @@ export const useFeedStore = defineStore('feed', () => {
 
         try {
             const response = await api.get<{ feed: Feed }>(`feeds/${feedId}/by-id`);
-            const feed = response.feed;
-
-            // Populate user reaction type and cache it
-            populateUserReactionType(feed);
+            const feed = normalizeFeed(response.feed);
             feedsById.value[feed.id] = feed;
 
             return feed;
@@ -604,10 +802,7 @@ export const useFeedStore = defineStore('feed', () => {
     async function fetchSinglePostBySlug(slug: string): Promise<Feed | null> {
         try {
             const response = await api.get<{ feed: Feed }>(`feeds/${slug}/by-slug`);
-            const feed = response.feed;
-
-            // Populate user reaction type and cache it
-            populateUserReactionType(feed);
+            const feed = normalizeFeed(response.feed);
             feedsById.value[feed.id] = feed;
 
             return feed;

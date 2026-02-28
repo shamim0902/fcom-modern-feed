@@ -122,8 +122,10 @@ export interface Comment {
     is_sticky: number;
     reactions_count: number;
     has_user_react?: boolean;
+    liked?: number | boolean;
     xprofile: XProfile;
     meta?: Record<string, unknown>;
+    comments?: Comment[];
     replies?: Comment[];
     replies_count?: number;
 }
