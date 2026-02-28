@@ -45,10 +45,19 @@ const profileDropdownItems = computed(() => {
     const fromSettings = (window.fcomModernFeed?.profileDropdownItems ?? []) as ProfileDropdownItem[];
     const hasPortalSettings = fromSettings.some((i) => i.slug === 'portal_settings');
     const needsPortalSettings = authStore.canAccessAdminSettings && !hasPortalSettings;
+    const profileNameLabel = authStore.userName || authStore.userUsername || 'My Profile';
+    const profileNameItem: ProfileDropdownItem = {
+        slug: 'my_profile_name',
+        title: profileNameLabel,
+        permalink: '',
+        shape_svg: '',
+        enabled: 'yes',
+    };
 
     if (fromSettings.length === 0) {
         // Default order: Profile, Saved, Portal Settings (if admin), divider, Logout
         const defaultItems: ProfileDropdownItem[] = [
+            profileNameItem,
             { slug: 'profile', title: 'Profile', permalink: '', shape_svg: '', enabled: 'yes' },
             { slug: 'bookmarks', title: 'Saved', permalink: '', shape_svg: '', enabled: 'yes' },
         ];
@@ -65,7 +74,7 @@ const profileDropdownItems = computed(() => {
         return defaultItems;
     }
 
-    const merged: ProfileDropdownItem[] = [];
+    const merged: ProfileDropdownItem[] = [profileNameItem];
     for (const item of fromSettings) {
         if (item.slug === 'logout' && needsPortalSettings) {
             merged.push({
@@ -129,7 +138,7 @@ function doLogout(): void {
 
 function handleDropdownAction(item: ProfileDropdownItem): void {
     showUserMenu.value = false;
-    if (item.slug === 'profile') {
+    if (item.slug === 'profile' || item.slug === 'my_profile_name') {
         goToProfile();
         return;
     }
@@ -164,6 +173,7 @@ function isInternalRoute(item: ProfileDropdownItem): boolean {
 }
 
 const defaultIcons: Record<string, string> = {
+    my_profile_name: '<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>',
     profile: '<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>',
     bookmarks: '<path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>',
     logout: '<path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>',
@@ -259,7 +269,7 @@ const defaultIcons: Record<string, string> = {
                             <template v-for="(item, idx) in profileDropdownItems" :key="item.slug + String(idx)">
                                 <div v-if="item.slug === 'logout'" class="header__menu-divider"></div>
                                 <button
-                                    v-if="item.slug === 'logout' || item.slug === 'profile' || item.slug === 'bookmarks' || (item.permalink && isInternalRoute(item))"
+                                    v-if="item.slug === 'logout' || item.slug === 'profile' || item.slug === 'my_profile_name' || item.slug === 'bookmarks' || (item.permalink && isInternalRoute(item))"
                                     type="button"
                                     class="header__menu-item"
                                     @mousedown="handleDropdownAction(item)"
