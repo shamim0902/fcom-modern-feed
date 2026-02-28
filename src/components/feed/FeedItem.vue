@@ -852,6 +852,38 @@ function handlePostUpdated(): void {
             }
         }
 
+        :deep(ul),
+        :deep(ol) {
+            margin: 0 0 $spacing-md;
+            padding-left: $spacing-xl;
+        }
+
+        :deep(li) {
+            margin-bottom: $spacing-xs;
+
+            &:last-child {
+                margin-bottom: 0;
+            }
+        }
+
+        // Defend against aggressive theme CSS forcing SVG/icon markers to full width.
+        :deep(li > svg:first-child),
+        :deep(li > img:first-child),
+        :deep(li > span:first-child > svg:only-child),
+        :deep(li > span:first-child > img:only-child) {
+            display: inline-block;
+            vertical-align: text-bottom;
+            width: 1em !important;
+            min-width: 1em;
+            max-width: 1em;
+            height: 1em !important;
+            min-height: 1em;
+            max-height: 1em;
+            margin-right: $spacing-xs;
+            border-radius: 0;
+            object-fit: contain;
+        }
+
         :deep(img) {
             max-width: 100%;
             border-radius: $border-radius-sm;
