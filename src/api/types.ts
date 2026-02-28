@@ -277,6 +277,7 @@ export interface SpaceFull {
     id: number;
     title: string;
     slug: string;
+    permalink?: string;
     description?: string;
     type: string;
     privacy: string;

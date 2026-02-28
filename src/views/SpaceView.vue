@@ -62,14 +62,40 @@ const portalBaseUrl = computed(() => {
     return raw.endsWith('/') ? raw.slice(0, -1) : raw;
 });
 
+const spaceHomeUrl = computed(() => {
+    if (!space.value) return '#';
+
+    const rawPermalink = space.value.permalink;
+    if (typeof rawPermalink === 'string' && rawPermalink.trim()) {
+        return rawPermalink.trim();
+    }
+
+    return `${portalBaseUrl.value}/space/${encodeURIComponent(space.value.slug)}/home`;
+});
+
 const fullMembersPageUrl = computed(() => {
     if (!space.value) return '#';
-    return `${portalBaseUrl.value}/space/${encodeURIComponent(space.value.slug)}/members`;
+
+    const homeUrl = spaceHomeUrl.value;
+    if (homeUrl === '#') return '#';
+
+    if (homeUrl.includes('/home')) {
+        return homeUrl.replace('/home', '/members');
+    }
+
+    const sep = homeUrl.endsWith('/') ? '' : '/';
+    return `${homeUrl}${sep}members`;
 });
 
 const fullSettingsPageUrl = computed(() => {
     if (!space.value) return '#';
-    return `${portalBaseUrl.value}/space/${encodeURIComponent(space.value.slug)}/settings`;
+
+    const homeUrl = spaceHomeUrl.value;
+    if (homeUrl === '#') return '#';
+
+    const sep = homeUrl.includes('?') ? '&' : '?';
+    // Fluent Community opens the space customizer from this query flag.
+    return `${homeUrl}${sep}customize_space=yes`;
 });
 
 /** True when the current user is already a member (so we show Leave Space, not Join Space). */
