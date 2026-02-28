@@ -830,6 +830,23 @@ export const useFeedStore = defineStore('feed', () => {
         }
     }
 
+    async function fetchFeedForEdit(feedId: number): Promise<Feed | null> {
+        try {
+            const response = await api.get<{ feed: Feed }>(`feeds/${feedId}/by-id`, { context: 'edit' });
+            const feed = normalizeFeed(response.feed);
+
+            // Merge with cached feed so edit-only fields are available without dropping existing UI state.
+            feedsById.value[feed.id] = feedsById.value[feed.id]
+                ? { ...feedsById.value[feed.id], ...feed }
+                : feed;
+
+            return feedsById.value[feed.id];
+        } catch (error) {
+            console.error('Failed to fetch feed for edit:', error);
+            return null;
+        }
+    }
+
     async function fetchSinglePostBySlug(slug: string): Promise<Feed | null> {
         try {
             const response = await api.get<{ feed: Feed }>(`feeds/${slug}/by-slug`);
@@ -877,6 +894,7 @@ export const useFeedStore = defineStore('feed', () => {
         resetContext,
         getFeedById,
         fetchSinglePost,
+        fetchFeedForEdit,
         fetchSinglePostBySlug,
         getContextKey,
     };

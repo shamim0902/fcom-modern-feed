@@ -27,6 +27,7 @@ export interface Term {
 export interface MediaItem {
     url: string;
     type: string;
+    media_id?: number;
     width?: number;
     height?: number;
     thumbnail?: string;
@@ -106,6 +107,12 @@ export interface Feed {
     reactions?: Reaction[];
     terms?: Term[];
     meta?: FeedMeta;
+    media_images?: MediaItem[];
+    media?: VideoEmbed | MediaPreview;
+    survey?: SurveyData;
+    topic_ids?: number[] | number | string;
+    send_announcement_email?: 'yes' | 'no';
+    document_ids?: Array<Record<string, unknown>>;
     default_comment_sort_by?: string;
     permalink: string;
 }

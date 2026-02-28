@@ -23,6 +23,8 @@ const mediaItems = ref<MediaItem[]>([]);
 const isSubmitting = ref(false);
 const isUploading = ref(false);
 const uploadProgress = ref(0);
+const isInitializing = ref(false);
+const editFeed = ref<Feed | null>(null);
 
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const editorRef = ref<HTMLDivElement | null>(null);
@@ -58,6 +60,7 @@ const commonEmojis = [
 const MAX_CHARS = 63206;
 
 const canSubmit = computed(() => {
+    if (isInitializing.value) return false;
     const hasText = message.value.trim().length > 0;
     const hasMedia = mediaItems.value.length > 0;
     const hasVideo = !!videoEmbed.value;
@@ -77,90 +80,87 @@ const charExceeded = computed(() => charCount.value > MAX_CHARS);
 // Initialize form with feed data when modal opens
 watch(() => props.show, (show, oldShow) => {
     if (show && !oldShow) {
-        // Modal just opened, initialize form
-        initializeForm();
+        void loadFeedForEdit();
     }
 }, { immediate: true });
 
-function initializeForm(): void {
-    if (!props.feed) {
-        console.warn('[EditPostModal] No feed prop available');
+type EmbedLike = {
+    type?: string;
+    url?: string;
+    html?: string;
+    provider?: string;
+    title?: string;
+    image?: string;
+    is_uploaded?: boolean;
+};
+
+async function loadFeedForEdit(): Promise<void> {
+    if (!props.feed?.id) {
         return;
     }
 
-    // Debug log
-    console.log('[EditPostModal] Initializing with feed:', props.feed);
-    console.log('[EditPostModal] Feed message:', props.feed.message);
-    console.log('[EditPostModal] Feed message_rendered:', props.feed.message_rendered);
-
-    // Set title
-    title.value = props.feed.title || '';
-
-    // Set message content - use raw message if available, otherwise use rendered HTML
-    if (props.feed.message) {
-        message.value = props.feed.message;
-    } else if (props.feed.message_rendered) {
-        message.value = props.feed.message_rendered;
-    } else {
-        message.value = '';
+    isInitializing.value = true;
+    try {
+        const fetched = await feedStore.fetchFeedForEdit(props.feed.id);
+        editFeed.value = fetched || props.feed;
+    } catch {
+        editFeed.value = props.feed;
+    } finally {
+        initializeForm(editFeed.value || props.feed);
+        isInitializing.value = false;
     }
+}
 
-    console.log('[EditPostModal] Final message.value:', message.value);
+function initializeForm(sourceFeed: Feed): void {
+    title.value = sourceFeed.title || '';
+    message.value = sourceFeed.message || sourceFeed.message_rendered || '';
 
-    // Reset other state
+    // Reset transient UI state
     showVideoEmbed.value = false;
     videoUrl.value = '';
     showEmojiPicker.value = false;
 
-    // Debug: Log meta object to find where images are stored
-    console.log('[EditPostModal] Feed meta:', props.feed.meta);
-    console.log('[EditPostModal] Feed meta.media_items:', props.feed.meta?.media_items);
-    console.log('[EditPostModal] Feed meta.media_preview:', props.feed.meta?.media_preview);
-
-    // Initialize media items - check both media_items array and media_preview (single image)
-    if (props.feed.meta?.media_items && props.feed.meta.media_items.length > 0) {
-        // Multiple images in media_items array
-        mediaItems.value = [...props.feed.meta.media_items];
-        console.log('[EditPostModal] Loaded media items from media_items:', mediaItems.value);
+    // Prefer edit-context media_images (includes media_id), then fallback to regular feed payload.
+    if (sourceFeed.media_images && sourceFeed.media_images.length > 0) {
+        mediaItems.value = [...sourceFeed.media_images];
+    } else if (sourceFeed.meta?.media_items && sourceFeed.meta.media_items.length > 0) {
+        mediaItems.value = [...sourceFeed.meta.media_items];
     } else {
-        // Check for single uploaded image in media_preview
-        const preview = props.feed.meta?.media_preview;
+        const preview = sourceFeed.meta?.media_preview;
         if (preview && (preview.is_uploaded || preview.type === 'meta_data') && preview.image) {
-            // Single image stored in media_preview
             mediaItems.value = [{
                 url: preview.image,
                 type: 'image',
                 width: preview.width || 0,
                 height: preview.height || 0,
+                media_id: preview.media_id,
                 provider: preview.provider || 'uploader'
             }];
-            console.log('[EditPostModal] Loaded single image from media_preview:', mediaItems.value);
         } else {
             mediaItems.value = [];
-            console.log('[EditPostModal] No media items found');
         }
     }
 
-    // Initialize video embed from media_preview if it has HTML (oembed video)
-    const preview = props.feed.meta?.media_preview;
-    if (preview && preview.html && !preview.is_uploaded && preview.type !== 'meta_data') {
+    const directEmbed = sourceFeed.media as EmbedLike | undefined;
+    const previewEmbed = sourceFeed.meta?.media_preview as EmbedLike | undefined;
+    const embedSource =
+        (directEmbed?.html ? directEmbed : undefined) ||
+        (previewEmbed?.html && !previewEmbed.is_uploaded && previewEmbed.type !== 'meta_data' ? previewEmbed : undefined);
+
+    if (embedSource?.html) {
         videoEmbed.value = {
-            type: preview.type || 'oembed',
-            url: preview.url || '',
-            html: preview.html || '',
+            type: embedSource.type || 'oembed',
+            url: embedSource.url || '',
+            html: embedSource.html || '',
             content_type: 'video',
-            provider: preview.provider || '',
-            title: preview.title || '',
-            image: preview.image || ''
+            provider: embedSource.provider || '',
+            title: embedSource.title || '',
+            image: embedSource.image || ''
         };
-        console.log('[EditPostModal] Loaded video embed:', videoEmbed.value);
     } else {
         videoEmbed.value = null;
     }
 
-    console.log('[EditPostModal] Initialized message.value:', message.value);
-
-    // Populate editor and focus after DOM update
     nextTick(() => {
         if (editorRef.value) {
             editorRef.value.innerHTML = message.value;
@@ -184,10 +184,11 @@ onUnmounted(() => {
 });
 
 async function handleSubmit(): Promise<void> {
-    if (!canSubmit.value || isSubmitting.value) return;
+    if (!canSubmit.value || isSubmitting.value || isInitializing.value) return;
 
     isSubmitting.value = true;
     try {
+        const targetFeedId = editFeed.value?.id || props.feed.id;
         const feedData: Partial<CreateFeedData> = {
             message: message.value,
             title: title.value.trim() || undefined,
@@ -203,7 +204,7 @@ async function handleSubmit(): Promise<void> {
             feedData.media = videoEmbed.value;
         }
 
-        const updatedFeed = await feedStore.updateFeed(props.feed.id, feedData);
+        const updatedFeed = await feedStore.updateFeed(targetFeedId, feedData);
 
         uiStore.showSuccess('Post updated successfully!');
         emit('updated', updatedFeed);
@@ -627,10 +628,10 @@ function closeModal(): void {
                     </button>
                     <button
                         @click="handleSubmit"
-                        :disabled="!canSubmit || isSubmitting || charExceeded"
+                        :disabled="!canSubmit || isSubmitting || isInitializing || charExceeded"
                         class="fcom-mf-btn fcom-mf-btn--primary"
                     >
-                        <span v-if="isSubmitting" class="fcom-mf-spinner fcom-mf-spinner--sm"></span>
+                        <span v-if="isSubmitting || isInitializing" class="fcom-mf-spinner fcom-mf-spinner--sm"></span>
                         <span v-else>Save Changes</span>
                     </button>
                 </div>
