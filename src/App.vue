@@ -295,11 +295,11 @@ onUnmounted(() => {
 }
 
 .fcom-mf-main--single-post {
-    max-width: 1280px;
-    padding: $spacing-md $spacing-lg $spacing-xl;
+    max-width: 1160px;
+    padding: $spacing-sm $spacing-md $spacing-lg;
 
     @media (max-width: $breakpoint-md) {
-        padding: $spacing-sm;
+        padding: $spacing-xs;
     }
 }
 

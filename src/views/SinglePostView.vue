@@ -196,6 +196,8 @@ watch([() => route.params.id, () => route.params.slug], () => {
 <style lang="scss" scoped>
 .fcom-mf-single-post {
     width: 100%;
+    max-width: 1120px;
+    margin: 0 auto;
 
     // Hide dividers in single post view
     :deep(.fcom-mf-divider) {
@@ -203,23 +205,23 @@ watch([() => route.params.id, () => route.params.slug], () => {
     }
 
     &__header {
-        margin-bottom: $spacing-md;
+        margin-bottom: $spacing-sm;
     }
 
     &__back {
         display: inline-flex;
         align-items: center;
         gap: $spacing-sm;
-        padding: $spacing-sm $spacing-md;
+        padding: 6px $spacing-sm;
         border: none;
         background: $white;
-        border-radius: $border-radius-md;
+        border-radius: $border-radius-sm;
         color: $text-primary;
-        font-size: $font-size-md;
+        font-size: $font-size-sm;
         font-weight: $font-weight-medium;
         cursor: pointer;
         transition: background-color $transition-fast;
-        box-shadow: $shadow-sm;
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
 
         &:hover {
             background: $gray-50;
@@ -279,10 +281,10 @@ watch([() => route.params.id, () => route.params.slug], () => {
     &__login-card {
         background: $white;
         border-radius: $border-radius-lg;
-        padding: $spacing-xxxl;
+        padding: $spacing-xl;
         text-align: center;
-        box-shadow: $shadow-md;
-        max-width: 420px;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+        max-width: 400px;
         margin: 0 auto;
     }
 
@@ -292,7 +294,7 @@ watch([() => route.params.id, () => route.params.slug], () => {
         justify-content: center;
         width: 96px;
         height: 96px;
-        margin: 0 auto $spacing-xl;
+        margin: 0 auto $spacing-md;
         border-radius: $border-radius-full;
         background: linear-gradient(135deg, $gray-50 0%, $gray-100 100%);
         color: var(--fcom-mf-primary, #1877f2);
@@ -355,9 +357,9 @@ watch([() => route.params.id, () => route.params.slug], () => {
     &__error {
         background: $white;
         border-radius: $border-radius-md;
-        padding: $spacing-xl * 2;
+        padding: $spacing-xl;
         text-align: center;
-        box-shadow: $shadow-sm;
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
 
         svg {
             color: $text-tertiary;
@@ -381,26 +383,24 @@ watch([() => route.params.id, () => route.params.slug], () => {
 .fcom-mf-single-post--media-layout {
     :deep(.fcom-mf-feed-item) {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
         align-items: start;
         overflow: hidden;
-        border-radius: $border-radius-lg;
-        box-shadow: $shadow-md;
-        min-height: calc(100vh - 120px);
-
-        &:hover {
-            box-shadow: $shadow-md;
-        }
+        border-radius: $border-radius-md;
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
+        min-height: 0;
     }
 
     :deep(.fcom-mf-feed-item > .fcom-mf-media),
     :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed) {
         grid-column: 1;
-        grid-row: 1 / span 20;
+        grid-row: 1 / span 12;
         margin: 0;
         border-radius: 0;
         background: $black;
-        min-height: calc(100vh - 120px);
+        min-height: 0;
+        max-height: min(74vh, 620px);
+        align-self: start;
     }
 
     :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__sticky-badge),
@@ -418,15 +418,46 @@ watch([() => route.params.id, () => route.params.slug], () => {
     }
 
     :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__header) {
-        padding-top: $spacing-lg;
+        padding: $spacing-md $spacing-md $spacing-xs;
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__title) {
+        padding: $spacing-xs $spacing-md 0;
+        font-size: $font-size-lg;
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__content) {
+        padding: $spacing-xs $spacing-md $spacing-sm;
+        font-size: $font-size-sm;
+        line-height: 1.42;
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__toggle) {
+        padding: 0 $spacing-md $spacing-xs;
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__topics) {
+        padding: $spacing-xs $spacing-md;
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__stats) {
+        padding: $spacing-xs $spacing-md;
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-actions) {
+        padding: 2px $spacing-sm $spacing-xs;
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-comments) {
+        padding: 0 $spacing-md $spacing-sm;
     }
 
     :deep(.fcom-mf-feed-item > .fcom-mf-media) {
-        max-height: none;
+        max-height: min(74vh, 620px);
     }
 
     :deep(.fcom-mf-feed-item > .fcom-mf-media .fcom-mf-media__item) {
-        min-height: calc(100vh - 120px);
+        min-height: 0;
     }
 
     :deep(.fcom-mf-feed-item > .fcom-mf-media .fcom-mf-media__image),
@@ -441,25 +472,25 @@ watch([() => route.params.id, () => route.params.slug], () => {
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: $spacing-lg;
+        padding: $spacing-md;
     }
 
     :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed iframe),
     :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed video) {
         width: 100%;
-        max-height: calc(100vh - 152px);
+        max-height: min(70vh, 560px);
         border: 0;
     }
 
     :deep(.fcom-mf-feed-item > .fcom-mf-comments) {
-        max-height: calc(100vh - 340px);
-        overflow-y: auto;
-        padding-bottom: $spacing-lg;
+        max-height: none;
+        overflow: visible;
+        padding-bottom: $spacing-sm;
     }
 
     @media (max-width: $breakpoint-xl) {
         :deep(.fcom-mf-feed-item) {
-            grid-template-columns: minmax(0, 1fr) 400px;
+            grid-template-columns: minmax(0, 1fr) 360px;
         }
     }
 
@@ -472,17 +503,18 @@ watch([() => route.params.id, () => route.params.slug], () => {
         :deep(.fcom-mf-feed-item > .fcom-mf-media),
         :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed) {
             min-height: auto;
-            margin: 0 $spacing-md $spacing-md;
+            margin: 0 $spacing-sm $spacing-sm;
             border-radius: $border-radius-md;
+            max-height: none;
         }
 
         :deep(.fcom-mf-feed-item > .fcom-mf-media .fcom-mf-media__item) {
-            min-height: 240px;
+            min-height: 0;
         }
 
         :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed iframe),
         :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed video) {
-            max-height: 420px;
+            max-height: 480px;
         }
 
         :deep(.fcom-mf-feed-item > .fcom-mf-comments) {
