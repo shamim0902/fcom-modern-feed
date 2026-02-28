@@ -5,7 +5,7 @@ Tags: community, feed, fluent community, social, forum, facebook-style
 Requires at least: 6.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -101,6 +101,13 @@ Override CSS variables in your theme. The plugin uses variables such as `--fcom-
 
 == Changelog ==
 
+= 1.0.1 =
+* Fixed reaction stats population for all reaction types in feed items.
+* Fixed multiple feed interaction issues around post actions and rendering.
+* Improved single-post experience with better back navigation and layout behavior.
+* Refined responsive UI and menu behavior, including dark mode polish.
+* Improved compatibility handling for profiles, avatars, notifications, and spaces.
+
 = 1.0.0 =
 * Initial release.
 * Facebook-style feed with reactions, comments, and media.
@@ -110,6 +117,9 @@ Override CSS variables in your theme. The plugin uses variables such as `--fcom-
 * Cache-busting and defensive config handling for reliable updates.
 
 == Upgrade Notice ==
+
+= 1.0.1 =
+Recommended update with key feed interaction fixes, reaction accuracy improvements, and single-post UI/layout refinements.
 
 = 1.0.0 =
 Initial release. Requires FluentCommunity. Run `npm run build` after installation and upload the full `assets` folder when deploying.

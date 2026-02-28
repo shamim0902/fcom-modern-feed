@@ -12,7 +12,7 @@
 
 defined('ABSPATH') || exit;
 
-define('FCOM_MF_VERSION', '1.0.0');
+define('FCOM_MF_VERSION', '1.0.1');
 define('FCOM_MF_PLUGIN_FILE', __FILE__);
 define('FCOM_MF_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('FCOM_MF_PLUGIN_URL', plugin_dir_url(__FILE__));
