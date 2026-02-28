@@ -675,6 +675,37 @@ export const useFeedStore = defineStore('feed', () => {
         return comment;
     }
 
+    async function updateComment(
+        feedId: number,
+        commentId: number,
+        data: { comment: string; media_images?: unknown[]; meta?: Record<string, unknown> }
+    ): Promise<Comment> {
+        const response = await api.post<{ comment: Comment }>(
+            `feeds/${feedId}/comments/${commentId}`,
+            data
+        );
+        const updated = normalizeComment(response.comment);
+
+        const feed = feedsById.value[feedId];
+        if (feed) {
+            if (feed.sticky_comment?.id === commentId) {
+                Object.assign(feed.sticky_comment, updated);
+            } else {
+                const existing = findCommentInFeed(feed, commentId);
+                if (existing) {
+                    const existingReplies = existing.replies || [];
+                    Object.assign(existing, updated);
+                    if ((!updated.replies || !updated.replies.length) && existingReplies.length) {
+                        existing.replies = existingReplies;
+                        existing.replies_count = existingReplies.length;
+                    }
+                }
+            }
+        }
+
+        return updated;
+    }
+
     async function deleteComment(feedId: number, commentId: number): Promise<void> {
         await api.delete(`feeds/${feedId}/comments/${commentId}`);
 
@@ -838,6 +869,7 @@ export const useFeedStore = defineStore('feed', () => {
         toggleReaction,
         fetchComments,
         createComment,
+        updateComment,
         deleteComment,
         toggleCommentReaction,
         incrementNewPostsCount,

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore, useUiStore } from '@/stores';
 import type { Comment } from '@/api/types';
 import TimeAgo from '../common/TimeAgo.vue';
@@ -14,16 +15,20 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     reply: [parentId: number, message: string];
+    edit: [commentId: number, message: string];
     delete: [commentId: number];
     react: [commentId: number];
 }>();
 
+const router = useRouter();
 const authStore = useAuthStore();
 const uiStore = useUiStore();
 
 const showReplyForm = ref(false);
+const showEditForm = ref(false);
 const showReplies = ref(false);
 const isSubmittingReply = ref(false);
+const isSubmittingEdit = ref(false);
 
 const isOwnComment = computed(() => {
     return authStore.userId === props.comment.user_id;
@@ -35,6 +40,38 @@ const hasReplies = computed(() => {
 
 const repliesCount = computed(() => {
     return props.comment.replies?.length ?? props.comment.replies_count ?? 0;
+});
+
+const profilePath = computed(() => {
+    return `/u/${props.comment.xprofile.username}`;
+});
+
+const renderedMessage = computed(() => {
+    const rawHtml = props.comment.message_rendered || '';
+    if (!rawHtml) {
+        return '';
+    }
+
+    const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
+    doc.querySelectorAll('a[href]').forEach((anchor) => {
+        const href = anchor.getAttribute('href');
+        if (!href) {
+            return;
+        }
+
+        try {
+            const resolved = new URL(href, window.location.origin);
+            const isExternal = resolved.origin !== window.location.origin;
+            if (isExternal) {
+                anchor.setAttribute('target', '_blank');
+                anchor.setAttribute('rel', 'noopener noreferrer nofollow');
+            }
+        } catch {
+            // Keep original href if parsing fails.
+        }
+    });
+
+    return doc.body.innerHTML;
 });
 
 async function handleReply(message: string): Promise<void> {
@@ -49,6 +86,23 @@ async function handleReply(message: string): Promise<void> {
     }
 }
 
+async function handleEdit(message: string): Promise<void> {
+    if (!message.trim() || isSubmittingEdit.value) return;
+
+    isSubmittingEdit.value = true;
+    try {
+        emit('edit', props.comment.id, message);
+        showEditForm.value = false;
+    } finally {
+        isSubmittingEdit.value = false;
+    }
+}
+
+function startEdit(): void {
+    showEditForm.value = true;
+    showReplyForm.value = false;
+}
+
 function handleDelete(): void {
     if (confirm('Are you sure you want to delete this comment?')) {
         emit('delete', props.comment.id);
@@ -58,6 +112,10 @@ function handleDelete(): void {
 function toggleReplies(): void {
     showReplies.value = !showReplies.value;
 }
+
+function goToProfile(): void {
+    router.push(profilePath.value);
+}
 </script>
 
 <template>
@@ -65,21 +123,33 @@ function toggleReplies(): void {
         <!-- Sticky Badge -->
         <div v-if="isSticky" class="fcom-mf-comment__sticky-badge">📌</div>
 
-        <a :href="`/portal/profile/${comment.xprofile.username}`" class="fcom-mf-comment__avatar-link">
+        <button class="fcom-mf-comment__avatar-link" @click="goToProfile">
             <img
                 :src="comment.xprofile.avatar"
                 :alt="comment.xprofile.display_name"
                 class="fcom-mf-avatar fcom-mf-avatar--sm"
             />
-        </a>
+        </button>
 
         <div class="fcom-mf-comment__body">
             <div class="fcom-mf-comment__bubble-wrapper">
                 <div class="fcom-mf-comment__bubble">
-                    <a :href="`/portal/profile/${comment.xprofile.username}`" class="fcom-mf-comment__author">
+                    <button class="fcom-mf-comment__author" @click="goToProfile">
                         {{ comment.xprofile.display_name }}
-                    </a>
-                    <div class="fcom-mf-comment__text" v-html="comment.message_rendered"></div>
+                    </button>
+                    <template v-if="!showEditForm">
+                        <div class="fcom-mf-comment__text" v-html="renderedMessage"></div>
+                    </template>
+                    <CommentForm
+                        v-else
+                        :is-submitting="isSubmittingEdit"
+                        :initial-value="comment.message"
+                        :placeholder="uiStore.t('writeComment')"
+                        size="sm"
+                        class="fcom-mf-comment__edit-form"
+                        @submit="handleEdit"
+                        @cancel="showEditForm = false"
+                    />
                 </div>
                 <!-- Reaction Badge (Facebook style - on right of bubble) -->
                 <span v-if="comment.reactions_count > 0" class="fcom-mf-comment__reaction-badge">
@@ -113,6 +183,14 @@ function toggleReplies(): void {
                 </template>
 
                 <template v-if="isOwnComment">
+                    <span class="fcom-mf-comment__action-sep">·</span>
+                    <button
+                        class="fcom-mf-comment__action"
+                        @click="startEdit"
+                    >
+                        {{ uiStore.t('edit') }}
+                    </button>
+
                     <span class="fcom-mf-comment__action-sep">·</span>
                     <button
                         class="fcom-mf-comment__action fcom-mf-comment__action--delete"
@@ -155,6 +233,7 @@ function toggleReplies(): void {
                     :feed-id="feedId"
                     :is-reply="true"
                     @reply="(parentId, message) => emit('reply', parentId, message)"
+                    @edit="(id, message) => emit('edit', id, message)"
                     @delete="(id) => emit('delete', id)"
                     @react="(id) => emit('react', id)"
                 />
@@ -199,6 +278,10 @@ function toggleReplies(): void {
 
     &__avatar-link {
         flex-shrink: 0;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
     }
 
     &__body {
@@ -228,6 +311,11 @@ function toggleReplies(): void {
         color: $text-primary;
         line-height: 1.2;
         margin-bottom: 2px;
+        background: none;
+        border: none;
+        padding: 0;
+        text-align: left;
+        cursor: pointer;
 
         &:hover {
             text-decoration: underline;
@@ -275,6 +363,10 @@ function toggleReplies(): void {
         padding-left: $spacing-md;
         font-size: $font-size-xs;
         color: $text-secondary;
+    }
+
+    &__edit-form {
+        margin-top: $spacing-xs;
     }
 
     &__time {

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useAuthStore } from '@/stores';
 
 const props = defineProps<{
     placeholder?: string;
     isSubmitting?: boolean;
     size?: 'sm' | 'md';
+    initialValue?: string;
 }>();
 
 const emit = defineEmits<{
@@ -17,6 +18,15 @@ const authStore = useAuthStore();
 
 const message = ref('');
 const inputRef = ref<HTMLTextAreaElement | null>(null);
+
+watch(
+    () => props.initialValue,
+    (value) => {
+        message.value = value || '';
+        requestAnimationFrame(() => autoResize());
+    },
+    { immediate: true }
+);
 
 function handleSubmit(): void {
     if (!message.value.trim() || props.isSubmitting) return;

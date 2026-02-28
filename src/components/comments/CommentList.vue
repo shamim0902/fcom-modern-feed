@@ -115,6 +115,18 @@ async function handleDelete(commentId: number): Promise<void> {
     }
 }
 
+async function handleEdit(commentId: number, message: string): Promise<void> {
+    if (!authStore.requireAuth()) return;
+    if (!message.trim()) return;
+
+    try {
+        await feedStore.updateComment(props.feedId, commentId, { comment: message });
+        uiStore.showSuccess('Comment updated');
+    } catch (error) {
+        uiStore.showError(uiStore.t('errorOccurred'));
+    }
+}
+
 async function handleReaction(commentId: number): Promise<void> {
     if (!authStore.requireAuth()) return;
 
@@ -151,6 +163,7 @@ async function handleReaction(commentId: number): Promise<void> {
                 :feed-id="feedId"
                 :is-sticky="stickyComment?.id === comment.id"
                 @reply="handleReply"
+                @edit="handleEdit"
                 @delete="handleDelete"
                 @react="handleReaction"
             />
