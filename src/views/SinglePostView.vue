@@ -199,7 +199,7 @@ watch([() => route.params.id, () => route.params.slug], () => {
             background: $white;
             border-radius: $border-radius-md;
             padding: $spacing-lg;
-            box-shadow: $shadow-sm;
+            box-shadow: none;
         }
 
         .fcom-mf-skeleton-header {
