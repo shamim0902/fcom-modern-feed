@@ -2,14 +2,23 @@
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '@/api/client';
-import type { SpaceFull, Feed, FeedsResponse } from '@/api/types';
-import { useAuthStore } from '@/stores';
+import type {
+    SpaceFull,
+    Feed,
+    FeedsResponse,
+    SpaceMember,
+    SpaceMembersResponse,
+    SpaceSearchUser,
+    SpaceUserSearchResponse,
+} from '@/api/types';
+import { useAuthStore, useUiStore } from '@/stores';
 import FeedItem from '@/components/feed/FeedItem.vue';
 import CreatePost from '@/components/feed/CreatePost.vue';
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const uiStore = useUiStore();
 
 const space = ref<SpaceFull | null>(null);
 const feeds = ref<Feed[]>([]);
@@ -22,8 +31,46 @@ const activeTab = ref<'posts' | 'about' | 'members'>('posts');
 const error = ref<string | null>(null);
 const loadMoreRef = ref<HTMLElement | null>(null);
 const scrollObserver = ref<IntersectionObserver | null>(null);
+const members = ref<SpaceMember[]>([]);
+const loadingMembers = ref(false);
+const membersError = ref<string | null>(null);
+const membersHasMore = ref(false);
+const membersPage = ref(1);
+const membersSearch = ref('');
+const pendingCount = ref(0);
+const membersMode = ref<'active' | 'pending'>('active');
+const membersLoadedOnce = ref(false);
+const removingMemberIds = ref<Record<number, boolean>>({});
+const approvingMemberIds = ref<Record<number, boolean>>({});
+const userLookup = ref('');
+const userLookupResults = ref<SpaceSearchUser[]>([]);
+const userLookupLoading = ref(false);
+const addingMemberIds = ref<Record<number, boolean>>({});
+let membersSearchDebounce: ReturnType<typeof setTimeout> | null = null;
+let userLookupDebounce: ReturnType<typeof setTimeout> | null = null;
 
 const spaceSlug = computed(() => route.params.slug as string);
+const spacePermissions = computed(() => space.value?.permissions || {});
+const canViewMembers = computed(() => !!spacePermissions.value.can_view_members);
+const canAddMembers = computed(() => !!spacePermissions.value.can_add_member);
+const canRemoveMembers = computed(() => !!spacePermissions.value.can_remove_member);
+const showMembersTab = computed(() => canViewMembers.value);
+const isViewingPending = computed(() => membersMode.value === 'pending');
+
+const portalBaseUrl = computed(() => {
+    const raw = window.fcomModernFeed?.portalBaseUrl || '/portal';
+    return raw.endsWith('/') ? raw.slice(0, -1) : raw;
+});
+
+const fullMembersPageUrl = computed(() => {
+    if (!space.value) return '#';
+    return `${portalBaseUrl.value}/space/${encodeURIComponent(space.value.slug)}/members`;
+});
+
+const fullSettingsPageUrl = computed(() => {
+    if (!space.value) return '#';
+    return `${portalBaseUrl.value}/space/${encodeURIComponent(space.value.slug)}/settings`;
+});
 
 /** True when the current user is already a member (so we show Leave Space, not Join Space). */
 const isSpaceMember = computed(() => {
@@ -45,7 +92,14 @@ async function fetchSpace(): Promise<void> {
             members_count: Number(raw.members_count ?? raw.membersCount ?? 0) || 0,
             posts_count: Number(raw.posts_count ?? raw.postsCount ?? 0) || 0,
         } as SpaceFull;
+        if (activeTab.value === 'members' && !canViewMembers.value) {
+            activeTab.value = 'posts';
+        }
         await fetchFeeds();
+        if (activeTab.value === 'members' && canViewMembers.value) {
+            membersLoadedOnce.value = true;
+            await fetchMembers();
+        }
     } catch (e) {
         error.value = e instanceof Error ? e.message : 'Failed to load space';
     } finally {
@@ -83,6 +137,193 @@ async function fetchFeeds(page = 1, append = false): Promise<void> {
 function loadMoreFeeds(): void {
     if (!loadingFeeds.value && hasMore.value) {
         fetchFeeds(currentPage.value + 1, true);
+    }
+}
+
+function getPaginatedData<T>(payload: unknown): T[] {
+    if (Array.isArray(payload)) {
+        return payload as T[];
+    }
+    const paginated = payload as { data?: T[] } | undefined;
+    return Array.isArray(paginated?.data) ? paginated.data : [];
+}
+
+function getCurrentPage(payload: unknown, fallback: number): number {
+    const paginated = payload as { current_page?: number } | undefined;
+    return Number(paginated?.current_page || fallback);
+}
+
+function getHasMore(payload: unknown): boolean {
+    const paginated = payload as { has_more?: boolean; current_page?: number; last_page?: number } | undefined;
+    if (typeof paginated?.has_more === 'boolean') {
+        return paginated.has_more;
+    }
+    const currentPage = Number(paginated?.current_page || 1);
+    const lastPage = Number(paginated?.last_page || 1);
+    return currentPage < lastPage;
+}
+
+async function fetchMembers(page = 1, append = false): Promise<void> {
+    if (!space.value || !canViewMembers.value) return;
+
+    loadingMembers.value = true;
+    if (!append) {
+        membersError.value = null;
+    }
+
+    try {
+        const params: Record<string, unknown> = {
+            page,
+            per_page: 20,
+        };
+
+        const search = membersSearch.value.trim();
+        if (search) {
+            params.search = search;
+        }
+
+        if (membersMode.value === 'pending') {
+            params.status = 'pending';
+        }
+
+        const response = await api.get<SpaceMembersResponse>(`spaces/${space.value.slug}/members`, params);
+        const nextMembers = getPaginatedData<SpaceMember>(response.members);
+
+        if (append) {
+            members.value = [...members.value, ...nextMembers];
+        } else {
+            members.value = nextMembers;
+        }
+
+        membersPage.value = getCurrentPage(response.members, page);
+        membersHasMore.value = getHasMore(response.members);
+        pendingCount.value = Number(response.pending_count || 0);
+    } catch (e) {
+        membersError.value = e instanceof Error ? e.message : 'Failed to load space members';
+    } finally {
+        loadingMembers.value = false;
+    }
+}
+
+function loadMoreMembers(): void {
+    if (!loadingMembers.value && membersHasMore.value) {
+        fetchMembers(membersPage.value + 1, true);
+    }
+}
+
+async function removeMember(member: SpaceMember): Promise<void> {
+    if (!space.value || !canRemoveMembers.value) return;
+    if (removingMemberIds.value[member.user_id]) return;
+
+    if (authStore.userId && Number(authStore.userId) === Number(member.user_id)) {
+        uiStore.showError('Remove yourself by using Leave Space.');
+        return;
+    }
+
+    const memberName = member.xprofile?.display_name || 'this member';
+    if (!window.confirm(`Remove ${memberName} from this space?`)) return;
+
+    removingMemberIds.value = { ...removingMemberIds.value, [member.user_id]: true };
+    try {
+        await api.post(`spaces/${space.value.slug}/members/remove`, { user_id: member.user_id });
+        members.value = members.value.filter((item) => Number(item.user_id) !== Number(member.user_id));
+
+        if (membersMode.value === 'pending') {
+            pendingCount.value = Math.max(0, pendingCount.value - 1);
+        } else if (space.value) {
+            space.value.members_count = Math.max(0, Number(space.value.members_count || 0) - 1);
+        }
+
+        uiStore.showSuccess('Member removed');
+    } catch (e) {
+        const message = e instanceof Error ? e.message : 'Failed to remove member';
+        uiStore.showError(message);
+    } finally {
+        const next = { ...removingMemberIds.value };
+        delete next[member.user_id];
+        removingMemberIds.value = next;
+    }
+}
+
+async function approvePending(member: SpaceMember): Promise<void> {
+    if (!space.value || !canAddMembers.value) return;
+    if (approvingMemberIds.value[member.user_id]) return;
+
+    approvingMemberIds.value = { ...approvingMemberIds.value, [member.user_id]: true };
+    try {
+        await api.post(`spaces/${space.value.slug}/members`, {
+            user_id: member.user_id,
+            role: member.role || 'member',
+        });
+
+        pendingCount.value = Math.max(0, pendingCount.value - 1);
+        if (space.value) {
+            space.value.members_count = Number(space.value.members_count || 0) + 1;
+        }
+
+        if (membersMode.value === 'pending') {
+            members.value = members.value.filter((item) => Number(item.user_id) !== Number(member.user_id));
+        } else {
+            await fetchMembers(1, false);
+        }
+
+        uiStore.showSuccess('Member approved');
+    } catch (e) {
+        const message = e instanceof Error ? e.message : 'Failed to approve member';
+        uiStore.showError(message);
+    } finally {
+        const next = { ...approvingMemberIds.value };
+        delete next[member.user_id];
+        approvingMemberIds.value = next;
+    }
+}
+
+async function searchUsersToAdd(): Promise<void> {
+    const query = userLookup.value.trim();
+    if (!space.value || !canAddMembers.value || query.length < 2) {
+        userLookupResults.value = [];
+        return;
+    }
+
+    userLookupLoading.value = true;
+    try {
+        const response = await api.get<SpaceUserSearchResponse>('spaces/users/search', {
+            space_id: space.value.id,
+            search: query,
+        });
+        userLookupResults.value = getPaginatedData<SpaceSearchUser>(response.users);
+    } catch (e) {
+        userLookupResults.value = [];
+    } finally {
+        userLookupLoading.value = false;
+    }
+}
+
+async function addMember(user: SpaceSearchUser): Promise<void> {
+    if (!space.value || !canAddMembers.value) return;
+    if (addingMemberIds.value[user.ID]) return;
+
+    addingMemberIds.value = { ...addingMemberIds.value, [user.ID]: true };
+    try {
+        await api.post(`spaces/${space.value.slug}/members`, {
+            user_id: user.ID,
+            role: 'member',
+        });
+        uiStore.showSuccess('Member added');
+        userLookupResults.value = userLookupResults.value.filter((item) => Number(item.ID) !== Number(user.ID));
+        if (space.value) {
+            space.value.members_count = Number(space.value.members_count || 0) + 1;
+        }
+        if (activeTab.value === 'members' && membersMode.value === 'active') {
+            fetchMembers(1, false);
+        }
+    } catch (e) {
+        const message = e instanceof Error ? e.message : 'Failed to add member';
+        uiStore.showError(message);
+    } finally {
+        const next = { ...addingMemberIds.value };
+        delete next[user.ID];
+        addingMemberIds.value = next;
     }
 }
 
@@ -152,10 +393,65 @@ onUnmounted(() => {
         scrollObserver.value.disconnect();
         scrollObserver.value = null;
     }
+    if (membersSearchDebounce) {
+        clearTimeout(membersSearchDebounce);
+        membersSearchDebounce = null;
+    }
+    if (userLookupDebounce) {
+        clearTimeout(userLookupDebounce);
+        userLookupDebounce = null;
+    }
 });
 
 watch(() => route.params.slug, () => {
+    membersLoadedOnce.value = false;
+    members.value = [];
+    membersSearch.value = '';
+    membersMode.value = 'active';
+    pendingCount.value = 0;
+    userLookup.value = '';
+    userLookupResults.value = [];
     fetchSpace();
+});
+
+watch(activeTab, (tab) => {
+    if (tab !== 'members') {
+        return;
+    }
+    if (!canViewMembers.value) {
+        return;
+    }
+    if (!membersLoadedOnce.value) {
+        membersLoadedOnce.value = true;
+        fetchMembers();
+    }
+});
+
+watch(membersMode, () => {
+    if (activeTab.value !== 'members' || !canViewMembers.value) {
+        return;
+    }
+    fetchMembers(1, false);
+});
+
+watch(membersSearch, () => {
+    if (membersSearchDebounce) {
+        clearTimeout(membersSearchDebounce);
+    }
+    membersSearchDebounce = setTimeout(() => {
+        if (activeTab.value === 'members' && canViewMembers.value) {
+            fetchMembers(1, false);
+        }
+    }, 250);
+});
+
+watch(userLookup, () => {
+    if (userLookupDebounce) {
+        clearTimeout(userLookupDebounce);
+    }
+    userLookupDebounce = setTimeout(() => {
+        searchUsersToAdd();
+    }, 250);
 });
 
 function formatNumber(num: number | undefined | null): string {
@@ -163,6 +459,14 @@ function formatNumber(num: number | undefined | null): string {
     if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
     if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
     return String(n);
+}
+
+function formatMemberRole(role: string | undefined): string {
+    if (!role) return 'Member';
+    if (role === 'admin') return 'Admin';
+    if (role === 'moderator') return 'Moderator';
+    if (role === 'student') return 'Student';
+    return 'Member';
 }
 </script>
 
@@ -249,6 +553,15 @@ function formatNumber(num: number | undefined | null): string {
                     </div>
 
                     <div v-if="authStore.isLoggedIn" class="fcom-mf-space-header__actions">
+                        <a
+                            v-if="canAddMembers"
+                            :href="fullSettingsPageUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="fcom-mf-btn fcom-mf-btn--outline"
+                        >
+                            Space Settings
+                        </a>
                         <button
                             v-if="isSpaceMember"
                             class="fcom-mf-btn fcom-mf-btn--secondary"
@@ -282,6 +595,15 @@ function formatNumber(num: number | undefined | null): string {
                     @click="activeTab = 'about'"
                 >
                     About
+                </button>
+                <button
+                    v-if="showMembersTab"
+                    class="fcom-mf-space-tab"
+                    :class="{ 'fcom-mf-space-tab--active': activeTab === 'members' }"
+                    @click="activeTab = 'members'"
+                >
+                    Members
+                    <span v-if="pendingCount > 0" class="fcom-mf-space-tab__badge">{{ pendingCount }}</span>
                 </button>
             </div>
 
@@ -369,6 +691,157 @@ function formatNumber(num: number | undefined | null): string {
                             <span>{{ space.privacy === 'private' ? 'Private space' : 'Public space' }}</span>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Members Tab -->
+            <div v-if="activeTab === 'members' && showMembersTab" class="fcom-mf-space-members">
+                <div class="fcom-mf-space-members__toolbar fcom-mf-card">
+                    <div class="fcom-mf-space-members__search-wrap">
+                        <input
+                            v-model="membersSearch"
+                            type="text"
+                            class="fcom-mf-input fcom-mf-space-members__search"
+                            placeholder="Search members"
+                        />
+                    </div>
+
+                    <div class="fcom-mf-space-members__filters">
+                        <button
+                            class="fcom-mf-space-members__filter-btn"
+                            :class="{ 'fcom-mf-space-members__filter-btn--active': membersMode === 'active' }"
+                            @click="membersMode = 'active'"
+                        >
+                            Active
+                        </button>
+                        <button
+                            v-if="canAddMembers && pendingCount > 0"
+                            class="fcom-mf-space-members__filter-btn"
+                            :class="{ 'fcom-mf-space-members__filter-btn--active': membersMode === 'pending' }"
+                            @click="membersMode = 'pending'"
+                        >
+                            Pending ({{ pendingCount }})
+                        </button>
+                    </div>
+
+                    <a
+                        :href="fullMembersPageUrl"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="fcom-mf-btn fcom-mf-btn--outline"
+                    >
+                        Open Full Members Page
+                    </a>
+                </div>
+
+                <div v-if="canAddMembers" class="fcom-mf-space-members__add-panel fcom-mf-card">
+                    <h3 class="fcom-mf-space-members__section-title">Add Members</h3>
+                    <input
+                        v-model="userLookup"
+                        type="text"
+                        class="fcom-mf-input"
+                        placeholder="Search users to add (min 2 characters)"
+                    />
+                    <div v-if="userLookupLoading" class="fcom-mf-space-members__loading-inline">Searching users...</div>
+                    <div
+                        v-else-if="userLookup.trim().length >= 2 && userLookupResults.length === 0"
+                        class="fcom-mf-space-members__empty-inline"
+                    >
+                        No users found.
+                    </div>
+                    <div v-else-if="userLookupResults.length > 0" class="fcom-mf-space-members__lookup-list">
+                        <div
+                            v-for="user in userLookupResults"
+                            :key="user.ID"
+                            class="fcom-mf-space-members__lookup-item"
+                        >
+                            <span class="fcom-mf-space-members__lookup-name">{{ user.display_name }}</span>
+                            <button
+                                class="fcom-mf-btn fcom-mf-btn--primary"
+                                :disabled="!!addingMemberIds[user.ID]"
+                                @click="addMember(user)"
+                            >
+                                {{ addingMemberIds[user.ID] ? 'Adding...' : 'Add' }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="loadingMembers" class="fcom-mf-space-members__loading">
+                    <div class="fcom-mf-spinner"></div>
+                </div>
+
+                <div v-else-if="membersError" class="fcom-mf-space-members__error fcom-mf-card">
+                    <h3>Could not load members</h3>
+                    <p>{{ membersError }}</p>
+                    <button class="fcom-mf-btn fcom-mf-btn--outline" @click="fetchMembers(1, false)">
+                        Try Again
+                    </button>
+                </div>
+
+                <div v-else-if="members.length === 0" class="fcom-mf-space-members__empty fcom-mf-card">
+                    <h3>{{ isViewingPending ? 'No pending requests' : 'No members found' }}</h3>
+                    <p>
+                        {{
+                            isViewingPending
+                                ? 'There are no pending join requests right now.'
+                                : 'Try a different search term.'
+                        }}
+                    </p>
+                </div>
+
+                <div v-else class="fcom-mf-space-members__list fcom-mf-card">
+                    <div
+                        v-for="member in members"
+                        :key="member.id"
+                        class="fcom-mf-space-members__item"
+                    >
+                        <div class="fcom-mf-space-members__member-main">
+                            <img
+                                :src="member.xprofile.avatar"
+                                :alt="member.xprofile.display_name"
+                                class="fcom-mf-avatar fcom-mf-avatar--sm"
+                            />
+                            <div class="fcom-mf-space-members__member-meta">
+                                <router-link
+                                    :to="{ name: 'profile', params: { username: member.xprofile.username } }"
+                                    class="fcom-mf-space-members__member-name"
+                                >
+                                    {{ member.xprofile.display_name }}
+                                </router-link>
+                                <div class="fcom-mf-space-members__member-sub">
+                                    <span class="fcom-mf-space-members__role">{{ formatMemberRole(member.role) }}</span>
+                                    <span v-if="member.created_at">Joined {{ member.created_at }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="canAddMembers || canRemoveMembers" class="fcom-mf-space-members__member-actions">
+                            <button
+                                v-if="isViewingPending && canAddMembers"
+                                class="fcom-mf-btn fcom-mf-btn--primary"
+                                :disabled="!!approvingMemberIds[member.user_id]"
+                                @click="approvePending(member)"
+                            >
+                                {{ approvingMemberIds[member.user_id] ? 'Approving...' : 'Approve' }}
+                            </button>
+
+                            <button
+                                v-if="canRemoveMembers"
+                                class="fcom-mf-btn fcom-mf-btn--outline"
+                                :disabled="!!removingMemberIds[member.user_id]"
+                                @click="removeMember(member)"
+                            >
+                                {{ removingMemberIds[member.user_id] ? 'Removing...' : (isViewingPending ? 'Reject' : 'Remove') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="!loadingMembers && membersHasMore" class="fcom-mf-load-more">
+                    <button class="fcom-mf-btn fcom-mf-btn--outline" @click="loadMoreMembers">
+                        Load More Members
+                    </button>
                 </div>
             </div>
         </template>
@@ -578,6 +1051,10 @@ function formatNumber(num: number | undefined | null): string {
     }
 
     &__actions {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        flex-wrap: wrap;
         flex-shrink: 0;
     }
 }
@@ -593,6 +1070,10 @@ function formatNumber(num: number | undefined | null): string {
 }
 
 .fcom-mf-space-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-xs;
     flex: 1;
     padding: $spacing-sm $spacing-lg;
     border: none;
@@ -611,6 +1092,20 @@ function formatNumber(num: number | undefined | null): string {
     &--active {
         background: var(--fcom-mf-primary, #1877f2);
         color: $white;
+    }
+
+    &__badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 6px;
+        font-size: 11px;
+        border-radius: 999px;
+        background: $badge-bg;
+        color: $white;
+        line-height: 1;
     }
 }
 
@@ -681,6 +1176,191 @@ function formatNumber(num: number | undefined | null): string {
 
 .fcom-mf-space-about {
     // About tab content
+}
+
+.fcom-mf-space-members {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-md;
+
+    &__toolbar {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        padding: $spacing-md;
+        flex-wrap: wrap;
+    }
+
+    &__search-wrap {
+        flex: 1;
+        min-width: 220px;
+    }
+
+    &__search {
+        width: 100%;
+    }
+
+    &__filters {
+        display: flex;
+        align-items: center;
+        gap: $spacing-xs;
+    }
+
+    &__filter-btn {
+        @include button-reset;
+        padding: $spacing-xs $spacing-md;
+        border-radius: $border-radius-md;
+        background: $gray-100;
+        color: $text-secondary;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-semibold;
+        transition: background-color $transition-fast, color $transition-fast;
+
+        &:hover {
+            background: $gray-200;
+        }
+
+        &--active {
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.12);
+            color: var(--fcom-mf-primary, #1877f2);
+        }
+    }
+
+    &__add-panel,
+    &__list,
+    &__error,
+    &__empty {
+        padding: $spacing-md;
+    }
+
+    &__section-title {
+        margin: 0 0 $spacing-sm;
+        color: $text-primary;
+        font-size: $font-size-md;
+        font-weight: $font-weight-semibold;
+    }
+
+    &__loading-inline,
+    &__empty-inline {
+        margin-top: $spacing-sm;
+        color: $text-secondary;
+        font-size: $font-size-sm;
+    }
+
+    &__lookup-list {
+        margin-top: $spacing-sm;
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-xs;
+    }
+
+    &__lookup-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $spacing-sm;
+        padding: $spacing-sm;
+        border: 1px solid $border-color;
+        border-radius: $border-radius-md;
+    }
+
+    &__lookup-name {
+        color: $text-primary;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-medium;
+    }
+
+    &__loading {
+        text-align: center;
+        padding: $spacing-lg;
+    }
+
+    &__error,
+    &__empty {
+        text-align: center;
+
+        h3 {
+            margin: 0 0 $spacing-xs;
+            font-size: $font-size-lg;
+            color: $text-primary;
+        }
+
+        p {
+            margin: 0 0 $spacing-md;
+            color: $text-secondary;
+        }
+    }
+
+    &__item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $spacing-md;
+        padding: $spacing-md 0;
+        border-bottom: 1px solid $border-color;
+
+        &:first-child {
+            padding-top: 0;
+        }
+
+        &:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+    }
+
+    &__member-main {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        min-width: 0;
+        flex: 1;
+    }
+
+    &__member-meta {
+        min-width: 0;
+    }
+
+    &__member-name {
+        display: inline-block;
+        color: $text-primary;
+        font-size: $font-size-md;
+        font-weight: $font-weight-semibold;
+        line-height: 1.3;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+
+    &__member-sub {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: $spacing-xs $spacing-sm;
+        margin-top: 2px;
+        color: $text-secondary;
+        font-size: $font-size-xs;
+    }
+
+    &__role {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: $font-weight-semibold;
+        background: $gray-100;
+        color: $text-secondary;
+    }
+
+    &__member-actions {
+        display: flex;
+        align-items: center;
+        gap: $spacing-xs;
+        flex-shrink: 0;
+    }
 }
 
 .fcom-mf-about-card {
@@ -763,6 +1443,40 @@ function formatNumber(num: number | undefined | null): string {
         &:hover {
             background: $gray-50;
         }
+    }
+}
+
+@media (max-width: $breakpoint-md) {
+    .fcom-mf-space-header__content {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: $spacing-md;
+    }
+
+    .fcom-mf-space-header__actions {
+        width: 100%;
+    }
+
+    .fcom-mf-space-members__toolbar {
+        align-items: stretch;
+    }
+
+    .fcom-mf-space-members__filters {
+        width: 100%;
+    }
+
+    .fcom-mf-space-members__filter-btn {
+        flex: 1;
+        text-align: center;
+    }
+
+    .fcom-mf-space-members__item {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .fcom-mf-space-members__member-actions {
+        width: 100%;
     }
 }
 

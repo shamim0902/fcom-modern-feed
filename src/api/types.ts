@@ -287,11 +287,57 @@ export interface SpaceFull {
     created_at?: string;
     is_member?: boolean;
     is_admin?: boolean;
+    membership?: {
+        user_id?: number;
+        role?: string;
+        status?: string;
+    };
+    permissions?: Record<string, boolean>;
     settings?: Record<string, unknown>;
     space_group?: {
         id: number;
         title: string;
         slug: string;
+    };
+}
+
+export interface SpaceMember {
+    id: number;
+    user_id: number;
+    space_id?: number;
+    role?: string;
+    status?: string;
+    created_at?: string;
+    updated_at?: string;
+    xprofile: XProfile;
+}
+
+export interface SpaceMembersResponse {
+    members: {
+        data: SpaceMember[];
+        current_page: number;
+        per_page: number;
+        has_more?: boolean;
+        total?: number;
+        last_page?: number;
+    };
+    pending_count?: number;
+}
+
+export interface SpaceSearchUser {
+    ID: number;
+    display_name: string;
+    user_email?: string;
+}
+
+export interface SpaceUserSearchResponse {
+    users: {
+        data: SpaceSearchUser[];
+        current_page: number;
+        per_page: number;
+        has_more?: boolean;
+        total?: number;
+        last_page?: number;
     };
 }
 
