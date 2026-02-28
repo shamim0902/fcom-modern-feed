@@ -205,44 +205,51 @@ onUnmounted(() => {
 <style lang="scss" scoped>
 .fcom-mf-feed-actions {
     display: flex;
-    padding: $spacing-xs $spacing-lg $spacing-md;
-    border-top: 1px solid $border-color;
-    margin-top: $spacing-xs;
+    gap: $spacing-xs;
+    padding: $spacing-xs $spacing-md $spacing-sm;
+    border-top: none;
+    margin-top: 0;
+    background: transparent;
 
     &__like-wrapper {
         position: relative;
         flex: 1;
         display: flex;
+        min-width: 0;
     }
 
     &__btn {
         @include button-reset;
-        @include hover-bg;
         @include focus-ring;
         flex: 1;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: $spacing-sm;
-        padding: $spacing-sm;
-        border-radius: $border-radius-xs;
+        min-height: 34px;
+        padding: 6px $spacing-sm;
+        border-radius: $border-radius-sm;
         color: $text-secondary;
-        font-size: $font-size-md;
+        font-size: $font-size-sm;
         font-weight: $font-weight-semibold;
-        transition: background-color $transition-fast, color $transition-fast, opacity $transition-fast;
+        transition: background-color $transition-fast, color $transition-fast, box-shadow $transition-fast, transform $transition-fast;
 
         &:hover {
+            background: rgba(0, 0, 0, 0.04);
             color: $text-primary;
         }
 
         &:active {
-            opacity: 0.9;
+            transform: translateY(1px);
         }
 
         &--active {
-            // Color applied via inline style for dynamic reaction colors
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.11);
+            font-weight: $font-weight-bold;
+
             &:hover {
-                filter: brightness(0.9);
+                background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.16);
+                filter: none;
             }
         }
 
@@ -253,17 +260,31 @@ onUnmounted(() => {
 
         svg {
             flex-shrink: 0;
+            width: 17px;
+            height: 17px;
         }
     }
 
     &__emoji {
-        font-size: 18px;
+        font-size: 19px;
         line-height: 1;
     }
 
     &__label {
+        white-space: nowrap;
+
         @media (max-width: $breakpoint-sm) {
             display: none;
+        }
+    }
+
+    @media (max-width: $breakpoint-sm) {
+        padding: 2px $spacing-sm $spacing-xs;
+
+        &__btn {
+            min-height: 32px;
+            padding: 5px $spacing-xs;
+            border-radius: $border-radius-xs;
         }
     }
 }

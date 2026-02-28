@@ -652,10 +652,37 @@ function handlePostUpdated(): void {
 <style lang="scss" scoped>
 .fcom-mf-feed-item {
     padding: 0;
-    transition: box-shadow $transition-normal;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.07);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+    transition: box-shadow $transition-normal, transform $transition-normal, border-color $transition-fast;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(
+            90deg,
+            rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0) 0%,
+            rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.34) 50%,
+            rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0) 100%
+        );
+        opacity: 0;
+        transition: opacity $transition-fast;
+    }
 
     &:hover {
-        box-shadow: $shadow-card-hover;
+        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.1);
+        border-color: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.18);
+        transform: translateY(-1px);
+
+        &::before {
+            opacity: 1;
+        }
 
         .fcom-mf-feed-item__menu-btn {
             opacity: 1;
@@ -663,7 +690,8 @@ function handlePostUpdated(): void {
     }
 
     &--sticky {
-        border: 2px solid var(--fcom-mf-primary, #1877f2);
+        border-color: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.38);
+        box-shadow: 0 2px 10px rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.15);
     }
 
     &__sticky-badge {
@@ -679,7 +707,7 @@ function handlePostUpdated(): void {
         display: flex;
         align-items: flex-start;
         gap: $spacing-sm;
-        padding: $spacing-md;
+        padding: $spacing-lg $spacing-lg $spacing-sm;
         padding-bottom: 0;
     }
 
@@ -712,16 +740,22 @@ function handlePostUpdated(): void {
 
     &__menu-btn {
         @include button-reset;
-        @include hover-bg;
+        @include focus-ring;
         width: 32px;
         height: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
         border-radius: $border-radius-full;
-        color: $text-tertiary;
-        opacity: 0;
-        transition: opacity $transition-fast;
+        color: $text-secondary;
+        background: rgba(15, 23, 42, 0.04);
+        opacity: 0.65;
+        transition: opacity $transition-fast, background-color $transition-fast, color $transition-fast;
+
+        &:hover {
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.12);
+            color: var(--fcom-mf-primary, #1877f2);
+        }
 
         @media (max-width: $breakpoint-md) {
             opacity: 1; // Always show on mobile
@@ -757,7 +791,7 @@ function handlePostUpdated(): void {
         min-width: 200px;
         background: $white;
         border-radius: $border-radius-md;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05);
         padding: $spacing-xs 0;
         overflow: hidden;
     }
@@ -809,10 +843,11 @@ function handlePostUpdated(): void {
 
     &__title {
         margin: 0;
-        padding: $spacing-sm $spacing-md 0;
-        font-size: $font-size-lg;
+        padding: $spacing-sm $spacing-lg 0;
+        font-size: $font-size-xl;
         font-weight: $font-weight-semibold;
         line-height: $line-height-tight;
+        letter-spacing: $letter-spacing-tight;
 
         a {
             color: inherit;
@@ -828,6 +863,7 @@ function handlePostUpdated(): void {
         font-size: $font-size-md;
         line-height: $line-height-relaxed;
         word-wrap: break-word;
+        color: $text-primary;
 
         &--clickable {
             cursor: pointer;
@@ -918,10 +954,13 @@ function handlePostUpdated(): void {
 
     &__toggle {
         @include button-reset;
-        padding: 0 $spacing-md;
-        color: $text-secondary;
+        padding: 0 $spacing-lg $spacing-sm;
+        color: var(--fcom-mf-primary, #1877f2);
         font-size: $font-size-sm;
         font-weight: $font-weight-semibold;
+        display: inline-flex;
+        align-items: center;
+        gap: $spacing-xs;
 
         &:hover {
             text-decoration: underline;
@@ -929,11 +968,14 @@ function handlePostUpdated(): void {
     }
 
     &__embed {
-        margin: $spacing-sm $spacing-md;
+        margin: $spacing-sm $spacing-lg $spacing-md;
+        border-radius: $border-radius-md;
+        overflow: hidden;
+        border: 1px solid rgba(0, 0, 0, 0.08);
 
         :deep(iframe) {
             max-width: 100%;
-            border-radius: $border-radius-sm;
+            display: block;
         }
     }
 
@@ -941,24 +983,35 @@ function handlePostUpdated(): void {
         display: flex;
         flex-wrap: wrap;
         gap: $spacing-xs;
-        padding: $spacing-xs $spacing-md;
+        padding: $spacing-xs $spacing-lg $spacing-sm;
     }
 
     &__topic {
-        color: $text-link;
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.08);
+        color: var(--fcom-mf-primary, #1877f2);
         font-size: $font-size-xs;
+        font-weight: $font-weight-medium;
+        transition: background-color $transition-fast;
 
         &:hover {
-            text-decoration: underline;
+            text-decoration: none;
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.14);
         }
     }
 
     &__stats {
         display: flex;
         justify-content: space-between;
-        padding: $spacing-xs $spacing-md;
+        padding: $spacing-sm $spacing-lg;
         font-size: $font-size-xs;
         color: $text-secondary;
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.02) 0%, rgba(15, 23, 42, 0) 100%);
     }
 
     &__stat {
@@ -968,10 +1021,15 @@ function handlePostUpdated(): void {
 
         &--clickable {
             @include button-reset;
+            @include focus-ring;
             cursor: pointer;
+            border-radius: 999px;
+            padding: 2px 8px;
+            transition: background-color $transition-fast;
 
             &:hover {
-                text-decoration: underline;
+                text-decoration: none;
+                background: rgba(0, 0, 0, 0.05);
             }
         }
     }
@@ -985,13 +1043,13 @@ function handlePostUpdated(): void {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 16px;
-        height: 16px;
+        width: 18px;
+        height: 18px;
         font-size: 11px;
-        background: $white;
+        background: rgba(255, 255, 255, 0.95);
         border: 2px solid $white;
         border-radius: $border-radius-full;
-        margin-right: -4px;
+        margin-right: -5px;
         box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
 
         &:last-child {
@@ -1005,6 +1063,30 @@ function handlePostUpdated(): void {
 
     .fcom-mf-divider {
         margin: 0 $spacing-md;
+    }
+
+    @media (max-width: $breakpoint-sm) {
+        &__header {
+            padding: $spacing-md $spacing-md $spacing-xs;
+        }
+
+        &__title,
+        &__content,
+        &__toggle,
+        &__topics,
+        &__stats {
+            padding-left: $spacing-md;
+            padding-right: $spacing-md;
+        }
+
+        &__embed {
+            margin-left: $spacing-md;
+            margin-right: $spacing-md;
+        }
+
+        &__title {
+            font-size: $font-size-lg;
+        }
     }
 }
 

@@ -145,17 +145,21 @@ onUnmounted(() => {
 .fcom-mf-feed-list {
     display: flex;
     flex-direction: column;
-    gap: $spacing-sm; // Facebook uses tighter gaps (~8px)
+    gap: $spacing-md;
+
+    > * {
+        animation: fcom-mf-feed-enter 0.24s ease both;
+    }
 
     @media (max-width: $breakpoint-sm) {
-        gap: $spacing-xs; // Even tighter on mobile
+        gap: $spacing-sm;
     }
 
     &__sticky-wrap {
-        margin: $spacing-sm 0;
+        margin: 2px 0;
 
         @media (max-width: $breakpoint-sm) {
-            margin: $spacing-xs 0;
+            margin: 0;
         }
     }
 
@@ -171,6 +175,8 @@ onUnmounted(() => {
         padding: $spacing-lg;
         color: $text-secondary;
         font-size: $font-size-sm;
+        border-radius: $border-radius-md;
+        background: rgba(255, 255, 255, 0.72);
     }
 
     &__end {
@@ -178,6 +184,18 @@ onUnmounted(() => {
         padding: $spacing-lg;
         color: $text-tertiary;
         font-size: $font-size-sm;
+        letter-spacing: $letter-spacing-normal;
+    }
+}
+
+@keyframes fcom-mf-feed-enter {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 </style>

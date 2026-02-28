@@ -27,6 +27,8 @@
 <style lang="scss" scoped>
 .fcom-mf-feed-skeleton {
     padding: $spacing-lg;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
 
     &__header {
         display: flex;
@@ -58,7 +60,7 @@
         display: flex;
         gap: $spacing-md;
         padding-top: $spacing-md;
-        border-top: 1px solid $border-color;
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
     }
 }
 </style>

@@ -1383,13 +1383,40 @@ function insertEmoji(emoji: string): void {
 
 .fcom-mf-create-post {
     // Note: margin-bottom removed - gaps handled by parent flex container
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.07);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+    transition: box-shadow $transition-normal, border-color $transition-fast;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(
+            90deg,
+            rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0) 0%,
+            rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.42) 50%,
+            rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0) 100%
+        );
+        opacity: 0.84;
+    }
+
+    &:hover {
+        border-color: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.2);
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+    }
 
     &__collapsed {
         display: flex;
         align-items: center;
         gap: $spacing-md;
-        padding: $spacing-lg;
+        padding: $spacing-md $spacing-lg;
         cursor: pointer;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.02) 0%, rgba(15, 23, 42, 0) 100%);
     }
 
     &__collapsed-inner {
@@ -1403,14 +1430,18 @@ function insertEmoji(emoji: string): void {
     &__placeholder {
         flex: 1;
         min-width: 0;
-        padding: $spacing-sm $spacing-lg;
-        background: $gray-50;
-        border-radius: $border-radius-lg;
-        color: $text-tertiary;
+        padding: 10px $spacing-lg;
+        background: $white;
+        border: 1px solid rgba(0, 0, 0, 0.07);
+        border-radius: 999px;
+        color: $text-secondary;
         font-size: $font-size-md;
+        box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.04);
+        transition: background-color $transition-fast, border-color $transition-fast;
 
         &:hover {
-            background: $gray-100;
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.04);
+            border-color: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.28);
         }
     }
 
@@ -1423,6 +1454,8 @@ function insertEmoji(emoji: string): void {
         align-items: center;
         gap: $spacing-md;
         margin-bottom: $spacing-md;
+        padding-bottom: $spacing-sm;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
     }
 
     &__author {
@@ -1473,12 +1506,13 @@ function insertEmoji(emoji: string): void {
         font-size: $font-size-lg;
         font-family: inherit;
         line-height: $line-height-normal;
-        min-height: 80px;
+        min-height: 92px;
         background: transparent;
         overflow-y: auto;
         max-height: 400px;
         word-wrap: break-word;
         overflow-wrap: break-word;
+        caret-color: var(--fcom-mf-primary, #1877f2);
 
         &:focus {
             outline: none;
@@ -1615,8 +1649,9 @@ function insertEmoji(emoji: string): void {
         align-items: center;
         justify-content: space-between;
         padding: $spacing-sm $spacing-md;
-        border: 1px solid $border-color;
-        border-radius: $border-radius-sm;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: $border-radius-md;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.02) 0%, rgba(15, 23, 42, 0) 100%);
         margin-top: $spacing-sm;
     }
 
@@ -1644,10 +1679,12 @@ function insertEmoji(emoji: string): void {
         align-items: center;
         justify-content: center;
         border-radius: $border-radius-full;
-        transition: background $transition-fast, opacity $transition-fast;
+        background: rgba(15, 23, 42, 0.04);
+        transition: background $transition-fast, opacity $transition-fast, transform $transition-fast;
 
         &:hover {
-            background: $bg-hover;
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.14);
+            transform: translateY(-1px);
         }
 
         &:active {
@@ -1697,17 +1734,22 @@ function insertEmoji(emoji: string): void {
         cursor: not-allowed;
 
         &--ready {
-            background-color: var(--fcom-mf-primary, #1877f2);
+            background: linear-gradient(
+                135deg,
+                var(--fcom-mf-primary, #1877f2) 0%,
+                var(--fcom-mf-primary-hover, #166fe5) 100%
+            );
             color: $white;
             cursor: pointer;
+            box-shadow: 0 2px 6px rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.2);
 
             &:hover {
-                background-color: var(--fcom-mf-primary-hover, #166fe5);
+                filter: brightness(1.03);
             }
 
             &:active {
                 opacity: 0.9;
-                background-color: var(--fcom-mf-primary-hover, #166fe5);
+                transform: translateY(1px);
             }
         }
 
@@ -1727,14 +1769,16 @@ function insertEmoji(emoji: string): void {
         align-items: center;
         gap: $spacing-xs;
         padding: $spacing-xs $spacing-sm;
-        border-radius: $border-radius-sm;
+        border-radius: 999px;
         font-size: $font-size-sm;
         color: $text-secondary;
-        background: $gray-50;
+        background: rgba(15, 23, 42, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.07);
         transition: all $transition-fast;
 
         &:hover {
-            background: $gray-100;
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.08);
+            border-color: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.22);
         }
 
         svg:first-child {
@@ -1764,7 +1808,8 @@ function insertEmoji(emoji: string): void {
         max-width: 280px;
         background: $white;
         border-radius: $border-radius-md;
-        box-shadow: $shadow-lg;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        box-shadow: 0 3px 10px rgba(15, 23, 42, 0.1);
         z-index: $z-dropdown;
         padding: $spacing-xs 0;
         max-height: 300px;
@@ -2150,7 +2195,7 @@ function insertEmoji(emoji: string): void {
         width: 320px;
         background: $white;
         border-radius: $border-radius-md;
-        box-shadow: $shadow-lg;
+        box-shadow: 0 3px 10px rgba(15, 23, 42, 0.1);
         z-index: $z-dropdown;
         padding: $spacing-md;
     }
@@ -2220,7 +2265,7 @@ function insertEmoji(emoji: string): void {
 .fcom-mf-modal {
     background: $white;
     border-radius: $border-radius-lg;
-    box-shadow: $shadow-lg;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
     max-width: 400px;
     width: 90%;
     max-height: 90vh;
@@ -2322,7 +2367,7 @@ function insertEmoji(emoji: string): void {
     &__login-modal {
         background: $white;
         border-radius: $border-radius-lg;
-        box-shadow: $shadow-lg;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
         padding: $spacing-xl;
         max-width: 400px;
         width: 100%;
@@ -2422,6 +2467,31 @@ function insertEmoji(emoji: string): void {
 
         &:hover {
             background: rgba($danger-color, 0.1);
+        }
+    }
+}
+
+@media (max-width: $breakpoint-sm) {
+    .fcom-mf-create-post {
+        &__collapsed {
+            padding: $spacing-sm $spacing-md;
+            gap: $spacing-sm;
+        }
+
+        &__expanded {
+            padding: $spacing-md;
+        }
+
+        &__header {
+            gap: $spacing-sm;
+        }
+
+        &__placeholder {
+            padding: 9px $spacing-md;
+        }
+
+        &__attach-row {
+            padding: $spacing-sm;
         }
     }
 }
