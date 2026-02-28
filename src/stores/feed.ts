@@ -539,57 +539,91 @@ export const useFeedStore = defineStore('feed', () => {
         const feed = feedsById.value[feedId];
         if (!feed) return;
 
-        const wasReacted = feed.has_user_react;
-        const previousReactionType = feed.user_reaction_type;
+        const wasReacted = !!feed.has_user_react;
+        const previousReactionType = feed.user_reaction_type || (wasReacted ? 'like' : undefined);
+        const previousCount = Number(feed.reactions_count || 0);
+        const previousReactions = feed.reactions ? [...feed.reactions] : undefined;
+        const authStore = useAuthStore();
+        const uid = Number(authStore.userId || 0);
 
-        // If already reacted with same type, toggle off (DELETE)
-        // If already reacted with different type, just change the type (POST, no count change)
-        // If not reacted, add reaction (POST)
+        // If already reacted with same type, remove specific type.
+        // If already reacted with different type, remove old type then add new type.
+        // If not reacted, add new type.
         const isSameReaction = wasReacted && previousReactionType === reactionType;
+
+        function removeCurrentUserReactionFromList(): void {
+            if (!feed.reactions?.length || !uid) return;
+            feed.reactions = feed.reactions.filter((r) => Number(r.user_id) !== uid);
+        }
+
+        function replaceCurrentUserReactionTypeInList(nextType: string): void {
+            if (!feed.reactions?.length || !uid) return;
+            const userReaction = feed.reactions.find((r) => Number(r.user_id) === uid);
+            if (userReaction) {
+                userReaction.type = nextType;
+            }
+        }
 
         // Optimistic update
         if (isSameReaction) {
-            // Toggle off – clear user reaction so button shows inactive
             feed.has_user_react = false;
             feed.user_reaction_type = undefined;
-            feed.reactions_count = Math.max(0, feed.reactions_count - 1);
-            // Remove current user from reactions array so UI stays in sync
-            const authStore = useAuthStore();
-            const uid = Number(authStore.userId);
-            if (feed.reactions?.length && uid) {
-                feed.reactions = feed.reactions.filter((r) => Number(r.user_id) !== uid);
-            }
-            syncFeedReactionState(feedId, {
-                has_user_react: false,
-                user_reaction_type: undefined,
-                reactions_count: feed.reactions_count,
-                reactions: feed.reactions,
-            });
+            // Keep non-like reactions visible even when backend returns zero like count.
+            feed.reactions_count = Math.max(0, previousCount - 1);
+            removeCurrentUserReactionFromList();
         } else if (wasReacted) {
-            // Replace with new reaction type (no count change)
+            // Replace with new reaction type.
+            feed.has_user_react = true;
             feed.user_reaction_type = reactionType;
-            // Keep reactions array in sync so current user's reaction shows correct type
-            const authStore = useAuthStore();
-            const uid = Number(authStore.userId);
-            if (feed.reactions && uid) {
-                const userReaction = feed.reactions.find((r) => Number(r.user_id) === uid);
-                if (userReaction) userReaction.type = reactionType;
-            }
+            feed.reactions_count = Math.max(1, previousCount);
+            replaceCurrentUserReactionTypeInList(reactionType);
         } else {
             // Add new reaction
             feed.has_user_react = true;
             feed.user_reaction_type = reactionType;
-            feed.reactions_count += 1;
+            feed.reactions_count = previousCount + 1;
         }
 
         try {
-            if (isSameReaction) {
-                await api.delete(`feeds/${feedId}/react`);
-            } else {
-                await api.post(`feeds/${feedId}/react`, {
+            let serverCount: number | undefined;
+            const applyServerCount = (count: unknown): void => {
+                if (typeof count === 'number' && !Number.isNaN(count)) {
+                    serverCount = Math.max(0, Math.trunc(count));
+                }
+            };
+
+            if (isSameReaction && previousReactionType) {
+                const response = await api.post<{ new_count?: number }>(`feeds/${feedId}/react`, {
+                    react_type: previousReactionType,
+                    remove: 1,
+                });
+                applyServerCount(response?.new_count);
+            } else if (wasReacted && previousReactionType) {
+                const removeResponse = await api.post<{ new_count?: number }>(`feeds/${feedId}/react`, {
+                    react_type: previousReactionType,
+                    remove: 1,
+                });
+                applyServerCount(removeResponse?.new_count);
+
+                const addResponse = await api.post<{ new_count?: number }>(`feeds/${feedId}/react`, {
                     react_type: reactionType,
                 });
+                applyServerCount(addResponse?.new_count);
+            } else {
+                const response = await api.post<{ new_count?: number }>(`feeds/${feedId}/react`, {
+                    react_type: reactionType,
+                });
+                applyServerCount(response?.new_count);
             }
+
+            if (typeof serverCount !== 'undefined') {
+                if (feed.has_user_react && feed.user_reaction_type && feed.user_reaction_type !== 'like' && serverCount < 1) {
+                    feed.reactions_count = 1;
+                } else {
+                    feed.reactions_count = serverCount;
+                }
+            }
+
             // Sync reaction state to same feed in other contexts so UI updates everywhere
             syncFeedReactionState(feedId, {
                 has_user_react: !!feed.has_user_react,
@@ -601,7 +635,8 @@ export const useFeedStore = defineStore('feed', () => {
             // Rollback on error
             feed.has_user_react = wasReacted;
             feed.user_reaction_type = previousReactionType;
-            feed.reactions_count += isSameReaction ? 1 : (wasReacted ? 0 : -1);
+            feed.reactions_count = previousCount;
+            feed.reactions = previousReactions;
             throw error;
         }
     }
