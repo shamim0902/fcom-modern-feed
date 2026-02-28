@@ -265,6 +265,29 @@ export const useFeedStore = defineStore('feed', () => {
         return 1 + (comment.replies || []).reduce((sum, reply) => sum + getCommentThreadSize(reply), 0);
     }
 
+    function normalizeUrlForCompare(url: string): string {
+        const trimmed = url.trim().toLowerCase();
+        if (!trimmed) return '';
+        return trimmed.replace(/\/+$/, '');
+    }
+
+    function messageHasUrl(message: string | undefined, url: string): boolean {
+        const source = (message || '').toLowerCase();
+        if (!source || !url) return false;
+
+        const normalizedUrl = normalizeUrlForCompare(url);
+        if (!normalizedUrl) return false;
+
+        const normalizedNoScheme = normalizedUrl.replace(/^https?:\/\//, '');
+        return source.includes(normalizedUrl) || source.includes(normalizedNoScheme);
+    }
+
+    function appendUrlToMessage(message: string | undefined, url: string): string {
+        const current = (message || '').trim();
+        if (!current) return url;
+        return `${current}\n${url}`;
+    }
+
     // Actions
     async function fetchFeeds(
         params: {
@@ -488,6 +511,12 @@ export const useFeedStore = defineStore('feed', () => {
         if (!feed) return;
 
         const previousMeta = feed.meta;
+        const preview = feed.meta?.media_preview;
+        const previewUrl = (preview?.url || '').trim();
+        const shouldRestoreUrl =
+            !!previewUrl &&
+            !messageHasUrl(feed.message, previewUrl) &&
+            !messageHasUrl(feed.message_rendered, previewUrl);
 
         // Optimistic update
         if (feed.meta) {
@@ -497,6 +526,16 @@ export const useFeedStore = defineStore('feed', () => {
         try {
             // Use DELETE endpoint for media preview
             await api.delete(`feeds/${feedId}/media-preview`);
+
+            if (shouldRestoreUrl) {
+                const nextMessage = appendUrlToMessage(feed.message, previewUrl);
+                try {
+                    await updateFeed(feedId, { message: nextMessage });
+                } catch {
+                    // Preview removal succeeded already; keep local URL visible as a best-effort fallback.
+                    feed.message = nextMessage;
+                }
+            }
         } catch (error) {
             // Rollback on error
             feed.meta = previousMeta;
