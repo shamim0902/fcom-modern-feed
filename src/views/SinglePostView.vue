@@ -111,15 +111,6 @@ watch([() => route.params.id, () => route.params.slug], () => {
 
 <template>
     <div class="fcom-mf-single-post" :class="{ 'fcom-mf-single-post--media-layout': useMediaLayout }">
-        <div class="fcom-mf-single-post__header">
-            <button type="button" class="fcom-mf-single-post__back" @click="goBack" aria-label="Back to feed">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
-                <span>Back</span>
-            </button>
-        </div>
-
         <!-- Guest: login required modal -->
         <div v-if="!authStore.isLoggedIn" class="fcom-mf-single-post__login-card">
             <div class="fcom-mf-single-post__login-icon">
@@ -203,42 +194,6 @@ watch([() => route.params.id, () => route.params.slug], () => {
         display: none;
     }
 
-    &__header {
-        margin-bottom: $spacing-xs;
-        display: flex;
-        align-items: center;
-    }
-
-    &__back {
-        @include button-reset;
-        @include focus-ring;
-        min-width: 32px;
-        height: 32px;
-        padding: 0 $spacing-sm;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        justify-content: center;
-        border-radius: $border-radius-sm;
-        color: $text-secondary;
-        background: $white;
-        border: 1px solid rgba(0, 0, 0, 0.08);
-        box-shadow: none;
-        transition: background-color $transition-fast, color $transition-fast, border-color $transition-fast;
-
-        &:hover {
-            color: $text-primary;
-            background: $gray-50;
-            border-color: rgba(0, 0, 0, 0.14);
-        }
-
-        span {
-            font-size: $font-size-sm;
-            font-weight: $font-weight-medium;
-            line-height: 1;
-        }
-    }
-
     &__loading {
         .fcom-mf-skeleton-card {
             background: $white;
@@ -290,7 +245,7 @@ watch([() => route.params.id, () => route.params.slug], () => {
         border-radius: $border-radius-lg;
         padding: $spacing-xl;
         text-align: center;
-        box-shadow: none;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
         max-width: 400px;
         margin: 0 auto;
     }
@@ -366,7 +321,7 @@ watch([() => route.params.id, () => route.params.slug], () => {
         border-radius: $border-radius-md;
         padding: $spacing-xl;
         text-align: center;
-        box-shadow: none;
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
 
         svg {
             color: $text-tertiary;
@@ -392,26 +347,21 @@ watch([() => route.params.id, () => route.params.slug], () => {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
         align-items: start;
-        max-height: calc(100vh - 72px);
-        overflow-y: auto;
-        overflow-x: hidden;
+        overflow: hidden;
         border-radius: $border-radius-md;
-        box-shadow: none;
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
         min-height: 0;
     }
 
     :deep(.fcom-mf-feed-item > .fcom-mf-media),
     :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed) {
-        position: sticky;
-        top: 0;
         grid-column: 1;
         grid-row: 1 / span 12;
         margin: 0;
         border-radius: 0;
         background: $black;
         min-height: 0;
-        height: calc(100vh - 72px);
-        max-height: calc(100vh - 72px);
+        max-height: min(74vh, 620px);
         align-self: start;
     }
 
@@ -465,7 +415,7 @@ watch([() => route.params.id, () => route.params.slug], () => {
     }
 
     :deep(.fcom-mf-feed-item > .fcom-mf-media) {
-        max-height: calc(100vh - 72px);
+        max-height: min(74vh, 620px);
     }
 
     :deep(.fcom-mf-feed-item > .fcom-mf-media .fcom-mf-media__item) {
@@ -490,7 +440,7 @@ watch([() => route.params.id, () => route.params.slug], () => {
     :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed iframe),
     :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed video) {
         width: 100%;
-        max-height: calc(100vh - 96px);
+        max-height: min(70vh, 560px);
         border: 0;
     }
 
@@ -509,15 +459,11 @@ watch([() => route.params.id, () => route.params.slug], () => {
     @media (max-width: $breakpoint-lg) {
         :deep(.fcom-mf-feed-item) {
             display: block;
-            max-height: none;
-            overflow: visible;
             min-height: auto;
         }
 
         :deep(.fcom-mf-feed-item > .fcom-mf-media),
         :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed) {
-            position: static;
-            height: auto;
             min-height: auto;
             margin: 0 $spacing-sm $spacing-sm;
             border-radius: $border-radius-md;
