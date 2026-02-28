@@ -30,7 +30,10 @@ function isSupportedAppPath(pathname: string): boolean {
     if (pathname === '/leaderboard') return true;
     if (pathname.startsWith('/u/')) return true;
     if (pathname.startsWith('/space/')) return true;
-    if (pathname.startsWith('/post/')) return true;
+    // Keep post-route matching strict so normal same-site pages like /post/some-page
+    // are not hijacked by the SPA router.
+    if (/^\/post\/\d+$/.test(pathname)) return true;
+    if (/^\/post\/s\/[^/]+$/.test(pathname)) return true;
     return false;
 }
 
