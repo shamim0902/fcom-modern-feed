@@ -4,6 +4,9 @@ function normalizePath(pathname: string): string {
     return stripped || '/';
 }
 
+const URL_TEXT_PATTERN = /\b((?:https?:\/\/|www\.)[^\s<>"']+)/gi;
+const URL_TRAILING_PUNCTUATION = new Set(['.', ',', '!', '?', ';', ':']);
+
 function getPortalBasePath(): string | null {
     const baseUrl = window.fcomModernFeed?.portalBaseUrl;
     if (!baseUrl) {
@@ -96,6 +99,7 @@ export function normalizeRenderedHtmlLinks(html: string): string {
     }
 
     const doc = new DOMParser().parseFromString(html, 'text/html');
+    linkifyPlainTextUrls(doc);
 
     doc.querySelectorAll('a[href]').forEach((anchor) => {
         const href = anchor.getAttribute('href');
@@ -106,20 +110,140 @@ export function normalizeRenderedHtmlLinks(html: string): string {
         const internalPath = resolveInternalAppPath(href);
         if (internalPath) {
             anchor.setAttribute('data-mf-route', internalPath);
+            anchor.removeAttribute('target');
             return;
         }
 
         try {
             const resolved = new URL(href, window.location.origin);
-            const isExternal = resolved.origin !== window.location.origin;
-            if (isExternal) {
+            const isHttpLink = resolved.protocol === 'http:' || resolved.protocol === 'https:';
+            const isSameSiteDomain = resolved.hostname === window.location.hostname;
+            if (isHttpLink && !isSameSiteDomain) {
                 anchor.setAttribute('target', '_blank');
                 anchor.setAttribute('rel', 'noopener noreferrer nofollow');
+                return;
             }
+
+            // Keep same-site links in the same tab.
+            anchor.removeAttribute('target');
         } catch {
             // Keep original href when URL parsing fails.
         }
     });
 
     return doc.body.innerHTML;
+}
+
+function linkifyPlainTextUrls(doc: Document): void {
+    const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+    const textNodes: Text[] = [];
+
+    while (walker.nextNode()) {
+        const node = walker.currentNode as Text;
+        const text = node.nodeValue || '';
+        if (!text || !URL_TEXT_PATTERN.test(text)) {
+            URL_TEXT_PATTERN.lastIndex = 0;
+            continue;
+        }
+        URL_TEXT_PATTERN.lastIndex = 0;
+        if (isLinkifyExcludedNode(node)) {
+            continue;
+        }
+        textNodes.push(node);
+    }
+
+    textNodes.forEach((textNode) => {
+        const source = textNode.nodeValue || '';
+        const fragment = doc.createDocumentFragment();
+        let cursor = 0;
+        URL_TEXT_PATTERN.lastIndex = 0;
+        let match: RegExpExecArray | null;
+
+        while ((match = URL_TEXT_PATTERN.exec(source)) !== null) {
+            const fullMatch = match[0];
+            const matchIndex = match.index;
+            const [urlToken, trailingText] = stripTrailingPunctuation(fullMatch);
+
+            if (!urlToken) {
+                continue;
+            }
+
+            if (matchIndex > cursor) {
+                fragment.appendChild(doc.createTextNode(source.slice(cursor, matchIndex)));
+            }
+
+            const anchor = doc.createElement('a');
+            anchor.textContent = urlToken;
+            anchor.setAttribute('href', toAbsoluteHref(urlToken));
+            fragment.appendChild(anchor);
+
+            if (trailingText) {
+                fragment.appendChild(doc.createTextNode(trailingText));
+            }
+
+            cursor = matchIndex + fullMatch.length;
+        }
+
+        if (cursor < source.length) {
+            fragment.appendChild(doc.createTextNode(source.slice(cursor)));
+        }
+
+        if (fragment.childNodes.length > 0) {
+            textNode.parentNode?.replaceChild(fragment, textNode);
+        }
+    });
+}
+
+function isLinkifyExcludedNode(node: Node): boolean {
+    let element = node.parentElement;
+    while (element) {
+        const tag = element.tagName;
+        if (
+            tag === 'A' ||
+            tag === 'PRE' ||
+            tag === 'CODE' ||
+            tag === 'SCRIPT' ||
+            tag === 'STYLE' ||
+            tag === 'TEXTAREA' ||
+            tag === 'BUTTON'
+        ) {
+            return true;
+        }
+        element = element.parentElement;
+    }
+    return false;
+}
+
+function stripTrailingPunctuation(token: string): [string, string] {
+    let core = token;
+    let trailing = '';
+
+    while (core.length > 0 && URL_TRAILING_PUNCTUATION.has(core[core.length - 1])) {
+        trailing = core[core.length - 1] + trailing;
+        core = core.slice(0, -1);
+    }
+
+    while (core.endsWith(')') && hasUnmatchedClosingParenthesis(core)) {
+        trailing = ')' + trailing;
+        core = core.slice(0, -1);
+    }
+
+    return [core, trailing];
+}
+
+function hasUnmatchedClosingParenthesis(value: string): boolean {
+    let open = 0;
+    let close = 0;
+    for (const ch of value) {
+        if (ch === '(') open += 1;
+        if (ch === ')') close += 1;
+    }
+    return close > open;
+}
+
+function toAbsoluteHref(urlToken: string): string {
+    if (urlToken.startsWith('www.')) {
+        return `https://${urlToken}`;
+    }
+    return urlToken;
 }
