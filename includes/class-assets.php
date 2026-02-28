@@ -110,6 +110,7 @@ class Assets
             'ajaxNonce' => wp_create_nonce('fcom_mf_ajax'),
             'pluginUrl' => FCOM_MF_PLUGIN_URL,
             'user' => $user->ID ? self::getUserData($user) : null,
+            'permissions' => self::getUserPermissions(),
             'isLoggedIn' => is_user_logged_in(),
             'loginUrl' => wp_login_url(get_permalink()),
             'registerUrl' => wp_registration_url(),
@@ -412,6 +413,33 @@ class Assets
             'avatar'   => $avatar,
             'email'    => $user->user_email,
         ];
+    }
+
+    /**
+     * Get current user's Fluent Community permissions (global/community level).
+     *
+     * @return array<string, bool>
+     */
+    private static function getUserPermissions()
+    {
+        if (!is_user_logged_in() || !class_exists(\FluentCommunity\App\Models\User::class)) {
+            return [];
+        }
+
+        $permissions = [];
+        $user = \FluentCommunity\App\Models\User::find(get_current_user_id());
+
+        if (!$user || !method_exists($user, 'getPermissions')) {
+            return $permissions;
+        }
+
+        $rawPermissions = (array) $user->getPermissions();
+
+        foreach ($rawPermissions as $key => $value) {
+            $permissions[sanitize_key($key)] = (bool) $value;
+        }
+
+        return $permissions;
     }
 
     private static function canAccessAdminSettings()

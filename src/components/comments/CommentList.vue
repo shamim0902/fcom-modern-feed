@@ -11,6 +11,7 @@ const props = defineProps<{
     stickyComment?: Comment;
     showAll?: boolean;
     commentsCount?: number;
+    commentsDisabled?: boolean;
 }>();
 
 const feedStore = useFeedStore();
@@ -77,6 +78,13 @@ const hasMoreComments = computed(() => {
     return !props.showAll && !showAllComments.value && hiddenCommentsCount.value > 0;
 });
 
+const isCommentsDisabled = computed(() => {
+    if (typeof props.commentsDisabled === 'boolean') {
+        return props.commentsDisabled;
+    }
+    return feed.value?.meta?.comments_disabled === 'yes';
+});
+
 function showMore(): void {
     showAllComments.value = true;
 }
@@ -84,6 +92,10 @@ function showMore(): void {
 async function handleSubmit(message: string): Promise<void> {
     if (!authStore.requireAuth()) return;
     if (!message.trim() || isSubmitting.value) return;
+    if (isCommentsDisabled.value) {
+        uiStore.showError('Comments are disabled for this post.');
+        return;
+    }
 
     isSubmitting.value = true;
     try {
@@ -98,6 +110,10 @@ async function handleSubmit(message: string): Promise<void> {
 async function handleReply(parentId: number, message: string): Promise<void> {
     if (!authStore.requireAuth()) return;
     if (!message.trim()) return;
+    if (isCommentsDisabled.value) {
+        uiStore.showError('Comments are disabled for this post.');
+        return;
+    }
 
     try {
         await feedStore.createComment(props.feedId, { comment: message, parent_id: parentId });
@@ -171,11 +187,18 @@ async function handleReaction(commentId: number): Promise<void> {
 
         <!-- Comment Form (Facebook puts this after comments) -->
         <CommentForm
-            v-if="authStore.isLoggedIn"
+            v-if="authStore.isLoggedIn && !isCommentsDisabled"
             :is-submitting="isSubmitting"
             :placeholder="uiStore.t('writeComment')"
             @submit="handleSubmit"
         />
+
+        <div
+            v-else-if="isCommentsDisabled"
+            class="fcom-mf-comments__disabled"
+        >
+            Comments are disabled for this post.
+        </div>
 
         <!-- Empty State -->
         <div v-if="!isLoading && allComments.length === 0 && !authStore.isLoggedIn" class="fcom-mf-comments__empty">
@@ -220,6 +243,13 @@ async function handleReaction(commentId: number): Promise<void> {
         text-align: center;
         padding: $spacing-md;
         color: $text-tertiary;
+        font-size: $font-size-sm;
+    }
+
+    &__disabled {
+        text-align: center;
+        padding: $spacing-sm 0;
+        color: $text-secondary;
         font-size: $font-size-sm;
     }
 }

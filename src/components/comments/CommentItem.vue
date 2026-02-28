@@ -31,8 +31,12 @@ const showReplies = ref(false);
 const isSubmittingReply = ref(false);
 const isSubmittingEdit = ref(false);
 
-const isOwnComment = computed(() => {
-    return authStore.userId === props.comment.user_id;
+const canEditComment = computed(() => {
+    return authStore.canEditComment(props.comment);
+});
+
+const canDeleteComment = computed(() => {
+    return authStore.canDeleteComment(props.comment);
 });
 
 const hasReplies = computed(() => {
@@ -189,17 +193,19 @@ function handleTextClick(event: MouseEvent): void {
                     </button>
                 </template>
 
-                <template v-if="isOwnComment">
+                <template v-if="canEditComment || canDeleteComment">
                     <span class="fcom-mf-comment__action-sep">·</span>
                     <button
+                        v-if="canEditComment"
                         class="fcom-mf-comment__action"
                         @click="startEdit"
                     >
                         {{ uiStore.t('edit') }}
                     </button>
 
-                    <span class="fcom-mf-comment__action-sep">·</span>
+                    <span v-if="canDeleteComment && canEditComment" class="fcom-mf-comment__action-sep">·</span>
                     <button
+                        v-if="canDeleteComment"
                         class="fcom-mf-comment__action fcom-mf-comment__action--delete"
                         @click="handleDelete"
                     >

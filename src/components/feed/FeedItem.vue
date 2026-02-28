@@ -203,11 +203,12 @@ function handleShare(): void {
 }
 
 // Menu actions
-const isOwnPost = computed(() => {
-    // Convert both to numbers for comparison to avoid type mismatch
-    const currentUserId = Number(authStore.userId);
-    const postUserId = Number(props.feed.user_id);
-    return authStore.isLoggedIn && currentUserId > 0 && currentUserId === postUserId;
+const canEditPost = computed(() => {
+    return authStore.canEditFeed(props.feed);
+});
+
+const canDeletePost = computed(() => {
+    return authStore.canDeleteFeed(props.feed);
 });
 
 const isBookmarked = computed(() => {
@@ -232,6 +233,14 @@ const commentsDisabled = computed(() => {
 
 const hasSpaceContext = computed(() => {
     return !!props.feed.space_id;
+});
+
+const hasSpaceAdminAccess = computed(() => {
+    return authStore.hasPermissionOrInCurrentSpace('community_admin');
+});
+
+const canModerateSpacePost = computed(() => {
+    return canEditPost.value && hasSpaceContext.value && hasSpaceAdminAccess.value;
 });
 
 function toggleMenu(): void {
@@ -288,6 +297,11 @@ async function handlePinToTop(): Promise<void> {
         closeMenu();
         return;
     }
+    if (!canModerateSpacePost.value) {
+        uiStore.showError('You do not have permission to perform this action');
+        closeMenu();
+        return;
+    }
     closeMenu();
 
     const wasPinned = isPinned.value;
@@ -302,6 +316,11 @@ async function handlePinToTop(): Promise<void> {
 async function handlePinToSidebar(): Promise<void> {
     if (!hasSpaceContext.value) {
         uiStore.showError('Pin to sidebar is only available for space posts');
+        closeMenu();
+        return;
+    }
+    if (!canModerateSpacePost.value) {
+        uiStore.showError('You do not have permission to perform this action');
         closeMenu();
         return;
     }
@@ -332,6 +351,12 @@ async function handleRemovePreview(): Promise<void> {
 }
 
 async function handleToggleComments(): Promise<void> {
+    if (!canModerateSpacePost.value) {
+        uiStore.showError('You do not have permission to perform this action');
+        closeMenu();
+        return;
+    }
+
     closeMenu();
 
     const wasDisabled = commentsDisabled.value;
@@ -344,6 +369,12 @@ async function handleToggleComments(): Promise<void> {
 }
 
 async function handleDelete(): Promise<void> {
+    if (!canDeletePost.value) {
+        uiStore.showError('You do not have permission to perform this action');
+        closeMenu();
+        return;
+    }
+
     if (!confirm('Are you sure you want to delete this post?')) {
         closeMenu();
         return;
@@ -362,6 +393,12 @@ async function handleDelete(): Promise<void> {
 }
 
 function handleEdit(): void {
+    if (!canEditPost.value) {
+        uiStore.showError('You do not have permission to perform this action');
+        closeMenu();
+        return;
+    }
+
     showEditModal.value = true;
     closeMenu();
 }
@@ -430,8 +467,8 @@ function handlePostUpdated(): void {
                                 <span>Copy Link</span>
                             </button>
 
-                            <!-- Edit (own posts only) -->
-                            <button v-if="isOwnPost" class="fcom-mf-feed-item__menu-item" @click="handleEdit">
+                            <!-- Edit -->
+                            <button v-if="canEditPost" class="fcom-mf-feed-item__menu-item" @click="handleEdit">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -439,8 +476,8 @@ function handlePostUpdated(): void {
                                 <span>Edit</span>
                             </button>
 
-                            <!-- Pin to top (own posts in spaces only) -->
-                            <button v-if="isOwnPost && hasSpaceContext" class="fcom-mf-feed-item__menu-item" @click="handlePinToTop">
+                            <!-- Pin to top (space admins/moderators only) -->
+                            <button v-if="canModerateSpacePost" class="fcom-mf-feed-item__menu-item" @click="handlePinToTop">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M12 17V3"></path>
                                     <path d="m6 11 6 6 6-6"></path>
@@ -449,8 +486,8 @@ function handlePostUpdated(): void {
                                 <span>{{ isPinned ? 'Unpin from top' : 'Pin to top' }}</span>
                             </button>
 
-                            <!-- Pin to sidebar (own posts in spaces only) -->
-                            <button v-if="isOwnPost && hasSpaceContext" class="fcom-mf-feed-item__menu-item" @click="handlePinToSidebar">
+                            <!-- Pin to sidebar (space admins/moderators only) -->
+                            <button v-if="canModerateSpacePost" class="fcom-mf-feed-item__menu-item" @click="handlePinToSidebar">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                     <line x1="9" y1="3" x2="9" y2="21"></line>
@@ -459,7 +496,7 @@ function handlePostUpdated(): void {
                             </button>
 
                             <!-- Remove Preview (if has preview) -->
-                            <button v-if="isOwnPost && hasPreview" class="fcom-mf-feed-item__menu-item" @click="handleRemovePreview">
+                            <button v-if="canEditPost && hasPreview" class="fcom-mf-feed-item__menu-item" @click="handleRemovePreview">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                     <line x1="9" y1="9" x2="15" y2="15"></line>
@@ -468,8 +505,8 @@ function handlePostUpdated(): void {
                                 <span>Remove Preview</span>
                             </button>
 
-                            <!-- Disable/Enable comments (own posts only) -->
-                            <button v-if="isOwnPost" class="fcom-mf-feed-item__menu-item" @click="handleToggleComments">
+                            <!-- Disable/Enable comments (space admins only) -->
+                            <button v-if="canModerateSpacePost" class="fcom-mf-feed-item__menu-item" @click="handleToggleComments">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                                     <line v-if="!commentsDisabled" x1="9" y1="10" x2="15" y2="10"></line>
@@ -486,10 +523,10 @@ function handlePostUpdated(): void {
                             </button>
 
                             <!-- Divider before danger zone -->
-                            <div v-if="isOwnPost" class="fcom-mf-feed-item__menu-divider"></div>
+                            <div v-if="canDeletePost" class="fcom-mf-feed-item__menu-divider"></div>
 
-                            <!-- Delete (own posts only) -->
-                            <button v-if="isOwnPost" class="fcom-mf-feed-item__menu-item fcom-mf-feed-item__menu-item--danger" @click="handleDelete">
+                            <!-- Delete -->
+                            <button v-if="canDeletePost" class="fcom-mf-feed-item__menu-item fcom-mf-feed-item__menu-item--danger" @click="handleDelete">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="3 6 5 6 21 6"></polyline>
                                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -594,6 +631,7 @@ function handlePostUpdated(): void {
             :feed-id="feed.id"
             :comments="feed.comments || []"
             :sticky-comment="feed.sticky_comment"
+            :comments-disabled="commentsDisabled"
             :show-all="showCommentsInline"
         />
 

@@ -64,6 +64,8 @@ declare global {
                 avatar: string;
                 email: string;
             } | null;
+            /** Global/community permission flags from Fluent Community user model. */
+            permissions?: Record<string, boolean>;
             isLoggedIn: boolean;
             loginUrl: string;
             registerUrl: string;
@@ -109,6 +111,10 @@ declare global {
                 primary_color?: string;
                 border_radius?: string;
             };
+        };
+        /** Present on Fluent Community portal pages; contains current space-level permissions. */
+        fcom_current_community?: {
+            permissions?: Record<string, boolean>;
         };
     }
 }

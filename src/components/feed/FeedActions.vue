@@ -57,6 +57,10 @@ const reactionDisplay = computed(() => {
     return reactionMap[type] || reactionMap.like;
 });
 
+const commentsDisabled = computed(() => {
+    return props.feed.meta?.comments_disabled === 'yes';
+});
+
 // Desktop: Show picker on hover with delay
 function handleMouseEnter(): void {
     hoverTimer.value = setTimeout(() => {
@@ -171,6 +175,7 @@ onUnmounted(() => {
 
         <!-- Comment Button -->
         <button
+            v-if="!commentsDisabled"
             class="fcom-mf-feed-actions__btn"
             @click="emit('comment')"
         >
