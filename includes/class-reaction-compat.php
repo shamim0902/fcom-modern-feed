@@ -12,6 +12,12 @@ class ReactionCompat
      * @var array<int, string|null>
      */
     private static $reactionTypeCache = [];
+    /**
+     * Per-request cache of total non-bookmark reaction count by feed id.
+     *
+     * @var array<int, int>
+     */
+    private static $reactionCountCache = [];
 
     public static function init()
     {
@@ -30,7 +36,7 @@ class ReactionCompat
      */
     public static function injectUserReactionType($feed, $config = [])
     {
-        if (!is_user_logged_in() || !is_object($feed) || empty($feed->id)) {
+        if (!is_object($feed) || empty($feed->id)) {
             return $feed;
         }
 
@@ -39,6 +45,25 @@ class ReactionCompat
         }
 
         $feedId = (int) $feed->id;
+
+        // Ensure reactions_count reflects all reaction types (excluding bookmark), not only likes.
+        if (array_key_exists($feedId, self::$reactionCountCache)) {
+            $totalReactionCount = self::$reactionCountCache[$feedId];
+        } else {
+            $totalReactionCount = (int) \FluentCommunity\App\Models\Reaction::query()
+                ->where('object_type', 'feed')
+                ->where('object_id', $feedId)
+                ->where('type', '!=', 'bookmark')
+                ->count();
+            self::$reactionCountCache[$feedId] = $totalReactionCount;
+        }
+
+        $feed->reactions_count = $totalReactionCount;
+
+        if (!is_user_logged_in()) {
+            return $feed;
+        }
+
         $userId = get_current_user_id();
 
         if (array_key_exists($feedId, self::$reactionTypeCache)) {
@@ -63,9 +88,8 @@ class ReactionCompat
         $feed->has_user_react = true;
         $feed->user_reaction_type = $reactionType;
 
-        // Keep reacted state visible in UI even when core like-count remains 0 for custom types.
-        $existingCount = isset($feed->reactions_count) ? (int) $feed->reactions_count : 0;
-        if ($existingCount < 1) {
+        // Keep reacted state visible in UI even if reaction list/count was stale in the feed model.
+        if ((int) $feed->reactions_count < 1) {
             $feed->reactions_count = 1;
         }
 

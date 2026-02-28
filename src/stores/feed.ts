@@ -77,8 +77,6 @@ export const useFeedStore = defineStore('feed', () => {
 
     // Extract user's reaction type from the reactions array (so UI shows correct emoji/label)
     function populateUserReactionType(feed: Feed): void {
-        if (!feed.has_user_react || feed.user_reaction_type) return;
-
         const authStore = useAuthStore();
         const currentUserId = authStore.userId;
         if (currentUserId == null) return;
@@ -86,6 +84,7 @@ export const useFeedStore = defineStore('feed', () => {
         const uid = Number(currentUserId);
         const userReaction = feed.reactions?.find((r) => Number(r.user_id) === uid);
         if (userReaction?.type) {
+            feed.has_user_react = true;
             feed.user_reaction_type = userReaction.type;
         }
     }
@@ -189,10 +188,24 @@ export const useFeedStore = defineStore('feed', () => {
     }
 
     function normalizeFeed(feed: Feed): Feed {
+        const feedInput = feed as Feed & {
+            reaction_count?: number | string;
+            likes_count?: number | string;
+        };
+        const nonBookmarkReactionsCount = (feed.reactions || []).filter(
+            (reaction) => reaction && reaction.type !== 'bookmark'
+        ).length;
+        const baseReactionCount = Number(
+            feed.reactions_count ??
+            feedInput.reaction_count ??
+            feedInput.likes_count ??
+            0
+        ) || 0;
+
         const normalized = {
             ...feed,
             comments_count: Number(feed.comments_count || 0),
-            reactions_count: Number(feed.reactions_count || 0),
+            reactions_count: Math.max(baseReactionCount, nonBookmarkReactionsCount),
             is_sticky: Number(feed.is_sticky || 0),
             priority: Number(feed.priority || 0),
         } as Feed & { is_bookmarked?: number | boolean };
