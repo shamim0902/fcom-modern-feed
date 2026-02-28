@@ -2,7 +2,7 @@
 /**
  * Plugin Name: FluentCommunity Modern Feed
  * Description: Modern Facebook-style frontend for FluentCommunity
- * Version: 1.0.0
+ * Version: 1.0.1
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: FluentCommunity

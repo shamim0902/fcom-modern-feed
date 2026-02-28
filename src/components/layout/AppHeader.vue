@@ -39,7 +39,6 @@ watch(
 );
 
 const loginUrl = computed(() => window.fcomModernFeed?.loginUrl || '/wp-login.php');
-const isSinglePostRoute = computed(() => route.name === 'single-post' || route.name === 'single-post-slug');
 const siteLogoUrl = computed(() => window.fcomModernFeed?.site?.logo || '');
 const siteName = computed(() => window.fcomModernFeed?.site?.name || 'Site');
 
@@ -125,11 +124,6 @@ function navigateTo(path: string): void {
     router.push(path);
 }
 
-function goBackToFeed(): void {
-    showUserMenu.value = false;
-    router.push('/');
-}
-
 function goToProfile(): void {
     const username = authStore.userUsername || authStore.currentUser?.username;
     if (username) {
@@ -209,25 +203,6 @@ const defaultIcons: Record<string, string> = {
                     </svg>
                 </span>
             </router-link>
-
-            <button
-                v-if="isSinglePostRoute"
-                class="header__context-back"
-                type="button"
-                title="Back to Feed"
-                @click="goBackToFeed"
-            >
-                <img
-                    v-if="siteLogoUrl"
-                    :src="siteLogoUrl"
-                    :alt="siteName"
-                    class="header__context-logo"
-                />
-                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
-                <span>Feed</span>
-            </button>
 
             <!-- Search -->
             <div class="header__search">
@@ -435,47 +410,6 @@ const defaultIcons: Record<string, string> = {
                 outline: none;
             }
         }
-    }
-
-    &__context-back {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        height: 32px;
-        padding: 0 10px;
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        border-radius: 999px;
-        background: $white;
-        color: $text-secondary;
-        font-size: $font-size-sm;
-        font-weight: $font-weight-medium;
-        line-height: 1;
-        flex-shrink: 0;
-        transition: background-color $transition-fast, color $transition-fast, border-color $transition-fast;
-
-        &:hover {
-            background: $gray-50;
-            border-color: rgba(0, 0, 0, 0.16);
-            color: $text-primary;
-        }
-
-        @media (max-width: $breakpoint-md) {
-            width: 32px;
-            justify-content: center;
-            padding: 0;
-
-            span {
-                display: none;
-            }
-        }
-    }
-
-    &__context-logo {
-        width: 16px;
-        height: 16px;
-        border-radius: 4px;
-        object-fit: contain;
-        flex-shrink: 0;
     }
 
     &__nav {

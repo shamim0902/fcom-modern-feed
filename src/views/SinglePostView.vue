@@ -111,6 +111,19 @@ watch([() => route.params.id, () => route.params.slug], () => {
 
 <template>
     <div class="fcom-mf-single-post" :class="{ 'fcom-mf-single-post--media-layout': useMediaLayout }">
+        <div class="fcom-mf-single-post__header">
+            <button
+                type="button"
+                class="fcom-mf-single-post__back"
+                @click="goBack"
+            >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+                <span>Back</span>
+            </button>
+        </div>
+
         <!-- Guest: login required modal -->
         <div v-if="!authStore.isLoggedIn" class="fcom-mf-single-post__login-card">
             <div class="fcom-mf-single-post__login-icon">
@@ -186,12 +199,42 @@ watch([() => route.params.id, () => route.params.slug], () => {
 <style lang="scss" scoped>
 .fcom-mf-single-post {
     width: 100%;
-    max-width: 1120px;
+    max-width: 1240px;
     margin: 0 auto;
+    padding: 0 $spacing-sm $spacing-md;
 
     // Hide dividers in single post view
     :deep(.fcom-mf-divider) {
         display: none;
+    }
+
+    &__header {
+        display: flex;
+        align-items: center;
+        margin-bottom: $spacing-sm;
+    }
+
+    &__back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 34px;
+        padding: 0 $spacing-md;
+        border: 1px solid $border-color;
+        border-radius: $border-radius-sm;
+        background: $white;
+        color: $text-secondary;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-semibold;
+        line-height: 1;
+        cursor: pointer;
+        transition: background-color $transition-fast, color $transition-fast, border-color $transition-fast;
+
+        &:hover {
+            background: $gray-50;
+            color: $text-primary;
+            border-color: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.3);
+        }
     }
 
     &__loading {
@@ -245,7 +288,7 @@ watch([() => route.params.id, () => route.params.slug], () => {
         border-radius: $border-radius-lg;
         padding: $spacing-xl;
         text-align: center;
-        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+        box-shadow: none;
         max-width: 400px;
         margin: 0 auto;
     }
@@ -321,7 +364,7 @@ watch([() => route.params.id, () => route.params.slug], () => {
         border-radius: $border-radius-md;
         padding: $spacing-xl;
         text-align: center;
-        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+        box-shadow: none;
 
         svg {
             color: $text-tertiary;
@@ -345,23 +388,32 @@ watch([() => route.params.id, () => route.params.slug], () => {
 .fcom-mf-single-post--media-layout {
     :deep(.fcom-mf-feed-item) {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+        grid-template-columns: minmax(340px, 46%) minmax(460px, 54%);
         align-items: start;
-        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: auto;
         border-radius: $border-radius-md;
-        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
+        box-shadow: none;
         min-height: 0;
+        max-height: calc(100vh - 88px);
+    }
+
+    :deep(.fcom-mf-feed-item::before) {
+        display: none;
     }
 
     :deep(.fcom-mf-feed-item > .fcom-mf-media),
     :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed) {
         grid-column: 1;
         grid-row: 1 / span 12;
+        position: sticky;
+        top: 0;
         margin: 0;
         border-radius: 0;
         background: $black;
         min-height: 0;
-        max-height: min(74vh, 620px);
+        height: calc(100vh - 88px);
+        max-height: calc(100vh - 88px);
         align-self: start;
     }
 
@@ -415,7 +467,7 @@ watch([() => route.params.id, () => route.params.slug], () => {
     }
 
     :deep(.fcom-mf-feed-item > .fcom-mf-media) {
-        max-height: min(74vh, 620px);
+        max-height: calc(100vh - 88px);
     }
 
     :deep(.fcom-mf-feed-item > .fcom-mf-media .fcom-mf-media__item) {
@@ -440,7 +492,7 @@ watch([() => route.params.id, () => route.params.slug], () => {
     :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed iframe),
     :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed video) {
         width: 100%;
-        max-height: min(70vh, 560px);
+        max-height: calc(100vh - 120px);
         border: 0;
     }
 
@@ -452,7 +504,7 @@ watch([() => route.params.id, () => route.params.slug], () => {
 
     @media (max-width: $breakpoint-xl) {
         :deep(.fcom-mf-feed-item) {
-            grid-template-columns: minmax(0, 1fr) 360px;
+            grid-template-columns: minmax(320px, 44%) minmax(420px, 56%);
         }
     }
 
@@ -460,11 +512,16 @@ watch([() => route.params.id, () => route.params.slug], () => {
         :deep(.fcom-mf-feed-item) {
             display: block;
             min-height: auto;
+            max-height: none;
+            overflow: visible;
         }
 
         :deep(.fcom-mf-feed-item > .fcom-mf-media),
         :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed) {
+            position: static;
+            top: auto;
             min-height: auto;
+            height: auto;
             margin: 0 $spacing-sm $spacing-sm;
             border-radius: $border-radius-md;
             max-height: none;
