@@ -42,6 +42,7 @@ class Plugin
         RewriteHandler::init();
         FullpageTemplate::init();
         ReactionCompat::init();
+        FollowCompat::init();
 
         // Load text domain
         add_action('init', [$this, 'loadTextDomain']);

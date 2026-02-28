@@ -7,11 +7,18 @@
 #   .vscode, .idea, tests, phpunit.xml, builds
 
 # Source files (uncomment as needed)
-# src/**
-# *.map
+src/**
+*.map
 
 # Build tools
 package.json
 package-lock.json
 composer.lock
 webpack.config.js
+tsconfig.json
+tsconfig.node.json
+vite.config.js
+yarn.lock
+README.md
+blocks/
+
