@@ -53,6 +53,10 @@ const contextKey = computed(() => {
     return feedStore.getContextKey(props.config.space, props.config.userId);
 });
 
+const isSinglePostRoute = computed(() => {
+    return route.name === 'single-post' || route.name === 'single-post-slug';
+});
+
 function fetchFeedWithSearch(): void {
     const search = typeof route.query.search === 'string' ? route.query.search.trim() : undefined;
     feedStore.fetchFeeds({
@@ -166,14 +170,14 @@ onUnmounted(() => {
         <AppHeader />
 
         <!-- Main Layout -->
-        <div class="fcom-mf-layout">
+        <div class="fcom-mf-layout" :class="{ 'fcom-mf-layout--single-post': isSinglePostRoute }">
             <!-- Left Sidebar -->
-            <aside class="fcom-mf-sidebar fcom-mf-sidebar--left">
+            <aside v-if="!isSinglePostRoute" class="fcom-mf-sidebar fcom-mf-sidebar--left">
                 <LeftSidebar />
             </aside>
 
             <!-- Main Content -->
-            <main class="fcom-mf-main">
+            <main class="fcom-mf-main" :class="{ 'fcom-mf-main--single-post': isSinglePostRoute }">
                 <router-view v-slot="{ Component }">
                     <transition name="fade" mode="out-in">
                         <component :is="Component" />
@@ -182,7 +186,7 @@ onUnmounted(() => {
             </main>
 
             <!-- Right Sidebar -->
-            <aside class="fcom-mf-sidebar fcom-mf-sidebar--right">
+            <aside v-if="!isSinglePostRoute" class="fcom-mf-sidebar fcom-mf-sidebar--right">
                 <RightSidebar />
             </aside>
         </div>
@@ -240,6 +244,11 @@ onUnmounted(() => {
     }
 }
 
+.fcom-mf-layout--single-post {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+}
+
 .fcom-mf-sidebar {
     position: sticky;
     top: 60px; // Header height
@@ -281,6 +290,15 @@ onUnmounted(() => {
     width: 100%;
 
     @media (max-width: $breakpoint-sm) {
+        padding: $spacing-sm;
+    }
+}
+
+.fcom-mf-main--single-post {
+    max-width: 1280px;
+    padding: $spacing-md $spacing-lg $spacing-xl;
+
+    @media (max-width: $breakpoint-md) {
         padding: $spacing-sm;
     }
 }

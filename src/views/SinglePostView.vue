@@ -30,6 +30,32 @@ const loginUrlWithRedirect = computed(() => {
     return `${base}${sep}redirect_to=${encodeURIComponent(window.location.href)}`;
 });
 
+const useMediaLayout = computed(() => {
+    const currentPost = post.value;
+    if (!currentPost) {
+        return false;
+    }
+
+    if ((currentPost.meta?.media_items?.length ?? 0) > 0) {
+        return true;
+    }
+
+    const preview = currentPost.meta?.media_preview;
+    if (!preview) {
+        return false;
+    }
+
+    if (preview.image && (preview.is_uploaded || preview.type === 'meta_data')) {
+        return true;
+    }
+
+    if (preview.html) {
+        return true;
+    }
+
+    return preview.type === 'video' || preview.type?.startsWith('video/') || false;
+});
+
 async function fetchPost() {
     if (!authStore.isLoggedIn) {
         loading.value = false;
@@ -84,7 +110,7 @@ watch([() => route.params.id, () => route.params.slug], () => {
 </script>
 
 <template>
-    <div class="fcom-mf-single-post">
+    <div class="fcom-mf-single-post" :class="{ 'fcom-mf-single-post--media-layout': useMediaLayout }">
         <!-- Back button -->
         <div class="fcom-mf-single-post__header">
             <button class="fcom-mf-single-post__back" @click="goBack">
@@ -350,6 +376,120 @@ watch([() => route.params.id, () => route.params.slug], () => {
         }
     }
 
+}
+
+.fcom-mf-single-post--media-layout {
+    :deep(.fcom-mf-feed-item) {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
+        align-items: start;
+        overflow: hidden;
+        border-radius: $border-radius-lg;
+        box-shadow: $shadow-md;
+        min-height: calc(100vh - 120px);
+
+        &:hover {
+            box-shadow: $shadow-md;
+        }
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-media),
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed) {
+        grid-column: 1;
+        grid-row: 1 / span 20;
+        margin: 0;
+        border-radius: 0;
+        background: $black;
+        min-height: calc(100vh - 120px);
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__sticky-badge),
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__header),
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__title),
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__content),
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__toggle),
+    :deep(.fcom-mf-feed-item > .fcom-mf-poll),
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__topics),
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__stats),
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-actions),
+    :deep(.fcom-mf-feed-item > .fcom-mf-comments) {
+        grid-column: 2;
+        min-width: 0;
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__header) {
+        padding-top: $spacing-lg;
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-media) {
+        max-height: none;
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-media .fcom-mf-media__item) {
+        min-height: calc(100vh - 120px);
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-media .fcom-mf-media__image),
+    :deep(.fcom-mf-feed-item > .fcom-mf-media .fcom-mf-media__video) {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: $black;
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: $spacing-lg;
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed iframe),
+    :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed video) {
+        width: 100%;
+        max-height: calc(100vh - 152px);
+        border: 0;
+    }
+
+    :deep(.fcom-mf-feed-item > .fcom-mf-comments) {
+        max-height: calc(100vh - 340px);
+        overflow-y: auto;
+        padding-bottom: $spacing-lg;
+    }
+
+    @media (max-width: $breakpoint-xl) {
+        :deep(.fcom-mf-feed-item) {
+            grid-template-columns: minmax(0, 1fr) 400px;
+        }
+    }
+
+    @media (max-width: $breakpoint-lg) {
+        :deep(.fcom-mf-feed-item) {
+            display: block;
+            min-height: auto;
+        }
+
+        :deep(.fcom-mf-feed-item > .fcom-mf-media),
+        :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed) {
+            min-height: auto;
+            margin: 0 $spacing-md $spacing-md;
+            border-radius: $border-radius-md;
+        }
+
+        :deep(.fcom-mf-feed-item > .fcom-mf-media .fcom-mf-media__item) {
+            min-height: 240px;
+        }
+
+        :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed iframe),
+        :deep(.fcom-mf-feed-item > .fcom-mf-feed-item__embed video) {
+            max-height: 420px;
+        }
+
+        :deep(.fcom-mf-feed-item > .fcom-mf-comments) {
+            max-height: none;
+            overflow: visible;
+        }
+    }
 }
 
 @keyframes shimmer {
