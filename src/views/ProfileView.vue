@@ -126,12 +126,19 @@ async function toggleFollow(): Promise<void> {
 
     followLoading.value = true;
     try {
-        // FluentCommunity uses separate follow/unfollow endpoints with username
-        const endpoint = profile.value.is_following
-            ? `profile/${profile.value.username}/unfollow`
-            : `profile/${profile.value.username}/follow`;
-        const response = await api.post<{ message?: string; followers_count?: number }>(endpoint);
-        const isNowFollowing = !profile.value.is_following;
+        const response = await api.post<{
+            is_following?: boolean;
+            status?: string;
+            follow?: number | string;
+            followers_count?: number;
+        }>(`profile/${profile.value.user_id}/toggle-follow`);
+
+        const isNowFollowing = response.is_following !== undefined
+            ? !!response.is_following
+            : response.status
+                ? response.status === 'following'
+                : Number(response.follow ?? (profile.value.is_following ? 0 : 1)) > 0;
+
         profile.value.is_following = isNowFollowing;
         if (response.followers_count !== undefined) {
             profile.value.followers_count = response.followers_count;

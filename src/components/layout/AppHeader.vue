@@ -39,16 +39,28 @@ watch(
 );
 
 const loginUrl = computed(() => window.fcomModernFeed?.loginUrl || '/wp-login.php');
+const isSinglePostRoute = computed(() => route.name === 'single-post' || route.name === 'single-post-slug');
+const siteLogoUrl = computed(() => window.fcomModernFeed?.site?.logo || '');
+const siteName = computed(() => window.fcomModernFeed?.site?.name || 'Site');
 
 /** Profile dropdown: merge settings items with Profile, Saved, Portal Settings (order preserved). */
 const profileDropdownItems = computed(() => {
     const fromSettings = (window.fcomModernFeed?.profileDropdownItems ?? []) as ProfileDropdownItem[];
     const hasPortalSettings = fromSettings.some((i) => i.slug === 'portal_settings');
     const needsPortalSettings = authStore.canAccessAdminSettings && !hasPortalSettings;
+    const profileNameLabel = authStore.userName || authStore.userUsername || 'My Profile';
+    const profileNameItem: ProfileDropdownItem = {
+        slug: 'my_profile_name',
+        title: profileNameLabel,
+        permalink: '',
+        shape_svg: '',
+        enabled: 'yes',
+    };
 
     if (fromSettings.length === 0) {
         // Default order: Profile, Saved, Portal Settings (if admin), divider, Logout
         const defaultItems: ProfileDropdownItem[] = [
+            profileNameItem,
             { slug: 'profile', title: 'Profile', permalink: '', shape_svg: '', enabled: 'yes' },
             { slug: 'bookmarks', title: 'Saved', permalink: '', shape_svg: '', enabled: 'yes' },
         ];
@@ -65,7 +77,7 @@ const profileDropdownItems = computed(() => {
         return defaultItems;
     }
 
-    const merged: ProfileDropdownItem[] = [];
+    const merged: ProfileDropdownItem[] = [profileNameItem];
     for (const item of fromSettings) {
         if (item.slug === 'logout' && needsPortalSettings) {
             merged.push({
@@ -113,6 +125,11 @@ function navigateTo(path: string): void {
     router.push(path);
 }
 
+function goBackToFeed(): void {
+    showUserMenu.value = false;
+    router.push('/');
+}
+
 function goToProfile(): void {
     const username = authStore.userUsername || authStore.currentUser?.username;
     if (username) {
@@ -129,7 +146,7 @@ function doLogout(): void {
 
 function handleDropdownAction(item: ProfileDropdownItem): void {
     showUserMenu.value = false;
-    if (item.slug === 'profile') {
+    if (item.slug === 'profile' || item.slug === 'my_profile_name') {
         goToProfile();
         return;
     }
@@ -164,6 +181,7 @@ function isInternalRoute(item: ProfileDropdownItem): boolean {
 }
 
 const defaultIcons: Record<string, string> = {
+    my_profile_name: '<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>',
     profile: '<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>',
     bookmarks: '<path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>',
     logout: '<path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>',
@@ -178,11 +196,37 @@ const defaultIcons: Record<string, string> = {
     <header class="header">
         <div class="header__inner">
             <!-- Logo -->
-            <button class="header__logo" @click="navigateTo('/')">
-                <svg width="28" height="28" viewBox="0 0 50 50" fill="currentColor">
-                    <circle cx="25" cy="25" r="23" stroke="currentColor" stroke-width="2" fill="none"/>
-                    <path d="M15 20h20M15 25h20M15 30h12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+            <router-link class="header__logo" to="/" :title="siteName">
+                <img
+                    v-if="siteLogoUrl"
+                    :src="siteLogoUrl"
+                    :alt="siteName"
+                    class="header__logo-image"
+                />
+                <span v-else class="header__logo-fallback" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                    </svg>
+                </span>
+            </router-link>
+
+            <button
+                v-if="isSinglePostRoute"
+                class="header__context-back"
+                type="button"
+                title="Back to Feed"
+                @click="goBackToFeed"
+            >
+                <img
+                    v-if="siteLogoUrl"
+                    :src="siteLogoUrl"
+                    :alt="siteName"
+                    class="header__context-logo"
+                />
+                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
+                <span>Feed</span>
             </button>
 
             <!-- Search -->
@@ -208,11 +252,6 @@ const defaultIcons: Record<string, string> = {
                 >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-                    </svg>
-                </button>
-                <button class="header__nav-btn" title="Members" @click="navigateTo('/members')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                     </svg>
                 </button>
                 <button class="header__nav-btn" title="Spaces" @click="navigateTo('/spaces')">
@@ -259,7 +298,7 @@ const defaultIcons: Record<string, string> = {
                             <template v-for="(item, idx) in profileDropdownItems" :key="item.slug + String(idx)">
                                 <div v-if="item.slug === 'logout'" class="header__menu-divider"></div>
                                 <button
-                                    v-if="item.slug === 'logout' || item.slug === 'profile' || item.slug === 'bookmarks' || (item.permalink && isInternalRoute(item))"
+                                    v-if="item.slug === 'logout' || item.slug === 'profile' || item.slug === 'my_profile_name' || item.slug === 'bookmarks' || (item.permalink && isInternalRoute(item))"
                                     type="button"
                                     class="header__menu-item"
                                     @mousedown="handleDropdownAction(item)"
@@ -312,18 +351,51 @@ const defaultIcons: Record<string, string> = {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 36px;
+        width: auto;
+        min-width: 36px;
+        max-width: 180px;
         height: 36px;
         color: var(--fcom-mf-primary, #1877f2);
         background: none;
-        border: none;
+        border: 0;
+        padding: 2px 6px 2px 2px;
         cursor: pointer;
         border-radius: var(--fcom-mf-radius-sm, 6px);
         transition: opacity $transition-fast;
         flex-shrink: 0;
+        text-decoration: none;
 
         &:hover {
             opacity: 0.8;
+        }
+
+        @media (max-width: $breakpoint-sm) {
+            max-width: 132px;
+            padding-right: 2px;
+        }
+    }
+
+    &__logo-image {
+        display: block;
+        width: auto;
+        max-width: 100%;
+        height: 28px;
+        border-radius: 6px;
+        object-fit: contain;
+    }
+
+    &__logo-fallback {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1);
+        color: var(--fcom-mf-primary, #1877f2);
+
+        svg {
+            display: block;
         }
     }
 
@@ -363,6 +435,47 @@ const defaultIcons: Record<string, string> = {
                 outline: none;
             }
         }
+    }
+
+    &__context-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 999px;
+        background: $white;
+        color: $text-secondary;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-medium;
+        line-height: 1;
+        flex-shrink: 0;
+        transition: background-color $transition-fast, color $transition-fast, border-color $transition-fast;
+
+        &:hover {
+            background: $gray-50;
+            border-color: rgba(0, 0, 0, 0.16);
+            color: $text-primary;
+        }
+
+        @media (max-width: $breakpoint-md) {
+            width: 32px;
+            justify-content: center;
+            padding: 0;
+
+            span {
+                display: none;
+            }
+        }
+    }
+
+    &__context-logo {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        object-fit: contain;
+        flex-shrink: 0;
     }
 
     &__nav {

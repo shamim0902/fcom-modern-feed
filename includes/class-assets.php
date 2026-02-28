@@ -110,10 +110,12 @@ class Assets
             'ajaxNonce' => wp_create_nonce('fcom_mf_ajax'),
             'pluginUrl' => FCOM_MF_PLUGIN_URL,
             'user' => $user->ID ? self::getUserData($user) : null,
+            'permissions' => self::getUserPermissions(),
             'isLoggedIn' => is_user_logged_in(),
             'loginUrl' => wp_login_url(get_permalink()),
             'registerUrl' => wp_registration_url(),
             'logoutUrl' => wp_logout_url(get_permalink()),
+            'site' => self::getSiteBranding(),
             'i18n' => self::getTranslations(),
             'features' => [
                 'reactions' => true,
@@ -141,6 +143,33 @@ class Assets
                 ],
                 self::getThemeSettingsForFrontend()
             ),
+        ];
+    }
+
+    /**
+     * Site branding data for header logo/link usage.
+     *
+     * @return array{name: string, url: string, logo: string}
+     */
+    private static function getSiteBranding()
+    {
+        $siteName = (string) get_bloginfo('name');
+        $siteUrl = home_url('/');
+        $logoUrl = '';
+
+        $customLogoId = (int) get_theme_mod('custom_logo');
+        if ($customLogoId) {
+            $logoUrl = (string) wp_get_attachment_image_url($customLogoId, 'full');
+        }
+
+        if (!$logoUrl) {
+            $logoUrl = (string) get_site_icon_url(192);
+        }
+
+        return [
+            'name' => $siteName,
+            'url'  => $siteUrl,
+            'logo' => $logoUrl,
         ];
     }
 
@@ -412,6 +441,33 @@ class Assets
             'avatar'   => $avatar,
             'email'    => $user->user_email,
         ];
+    }
+
+    /**
+     * Get current user's Fluent Community permissions (global/community level).
+     *
+     * @return array<string, bool>
+     */
+    private static function getUserPermissions()
+    {
+        if (!is_user_logged_in() || !class_exists(\FluentCommunity\App\Models\User::class)) {
+            return [];
+        }
+
+        $permissions = [];
+        $user = \FluentCommunity\App\Models\User::find(get_current_user_id());
+
+        if (!$user || !method_exists($user, 'getPermissions')) {
+            return $permissions;
+        }
+
+        $rawPermissions = (array) $user->getPermissions();
+
+        foreach ($rawPermissions as $key => $value) {
+            $permissions[sanitize_key($key)] = (bool) $value;
+        }
+
+        return $permissions;
     }
 
     private static function canAccessAdminSettings()

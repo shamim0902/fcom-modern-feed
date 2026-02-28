@@ -922,6 +922,26 @@
     .fcom-mf-comments__empty {
         color: var(--fcom-dark-text-secondary) !important;
     }
+    .fcom-mf-feed-item__content,
+    .fcom-mf-feed-item__content p,
+    .fcom-mf-feed-item__content li,
+    .fcom-mf-feed-item__content strong,
+    .fcom-mf-feed-item__content em,
+    .fcom-mf-feed-item__content span {
+        color: var(--fcom-dark-text) !important;
+    }
+    .fcom-mf-feed-item__content a {
+        color: var(--fcom-mf-primary, #6b9ef7) !important;
+    }
+    .fcom-mf-feed-item__content blockquote {
+        color: var(--fcom-dark-text-secondary) !important;
+        border-left-color: var(--fcom-dark-border) !important;
+    }
+    .fcom-mf-feed-item__content pre,
+    .fcom-mf-feed-item__content code {
+        background: var(--fcom-dark-bg-input) !important;
+        color: var(--fcom-dark-text) !important;
+    }
     .fcom-mf-comment__bubble {
         background: var(--fcom-dark-bg-input) !important;
     }

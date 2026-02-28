@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import type { Feed, Comment } from '@/api/types';
 
 interface CurrentUser {
     id: number;
@@ -52,6 +53,61 @@ export const useAuthStore = defineStore('auth', () => {
         return true;
     }
 
+    function hasInPermission(permission: string, allPermissions?: Record<string, boolean>): boolean {
+        if (!allPermissions || typeof allPermissions !== 'object') {
+            return false;
+        }
+        return !!allPermissions[permission];
+    }
+
+    function hasPermission(permission: string): boolean {
+        return hasInPermission(permission, window.fcomModernFeed?.permissions);
+    }
+
+    function hasCurrentSpacePermission(permission: string): boolean {
+        return hasInPermission(permission, window.fcom_current_community?.permissions);
+    }
+
+    function hasPermissionOrInCurrentSpace(permission: string): boolean {
+        return hasPermission(permission) || hasCurrentSpacePermission(permission);
+    }
+
+    function canDeleteFeed(feed: Pick<Feed, 'user_id'>): boolean {
+        const currentUserId = Number(userId.value || 0);
+        if (!currentUserId) {
+            return false;
+        }
+
+        return Number(feed.user_id) === currentUserId || hasPermissionOrInCurrentSpace('delete_any_feed');
+    }
+
+    function canEditFeed(feed: Pick<Feed, 'user_id'>): boolean {
+        const currentUserId = Number(userId.value || 0);
+        if (!currentUserId) {
+            return false;
+        }
+
+        return Number(feed.user_id) === currentUserId || hasPermissionOrInCurrentSpace('edit_any_feed');
+    }
+
+    function canDeleteComment(comment: Pick<Comment, 'user_id'>): boolean {
+        const currentUserId = Number(userId.value || 0);
+        if (!currentUserId) {
+            return false;
+        }
+
+        return Number(comment.user_id) === currentUserId || hasPermissionOrInCurrentSpace('delete_any_comment');
+    }
+
+    function canEditComment(comment: Pick<Comment, 'user_id'>): boolean {
+        const currentUserId = Number(userId.value || 0);
+        if (!currentUserId) {
+            return false;
+        }
+
+        return Number(comment.user_id) === currentUserId || hasPermissionOrInCurrentSpace('edit_any_comment');
+    }
+
     function canCreatePost(): boolean {
         return window.fcomModernFeed?.features?.createPost ?? false;
     }
@@ -80,6 +136,14 @@ export const useAuthStore = defineStore('auth', () => {
         // Actions
         initialize,
         requireAuth,
+        hasInPermission,
+        hasPermission,
+        hasCurrentSpacePermission,
+        hasPermissionOrInCurrentSpace,
+        canDeleteFeed,
+        canEditFeed,
+        canDeleteComment,
+        canEditComment,
         canCreatePost,
         canUploadMedia,
     };

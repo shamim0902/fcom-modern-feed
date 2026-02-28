@@ -30,6 +30,7 @@ class Plugin
         require_once FCOM_MF_PLUGIN_DIR . 'includes/class-rewrite-handler.php';
         require_once FCOM_MF_PLUGIN_DIR . 'includes/class-fullpage-template.php';
         require_once FCOM_MF_PLUGIN_DIR . 'includes/class-admin.php';
+        require_once FCOM_MF_PLUGIN_DIR . 'includes/class-reaction-compat.php';
     }
 
     private function initHooks()
@@ -40,6 +41,7 @@ class Plugin
         GutenbergBlock::init();
         RewriteHandler::init();
         FullpageTemplate::init();
+        ReactionCompat::init();
 
         // Load text domain
         add_action('init', [$this, 'loadTextDomain']);

@@ -10,6 +10,7 @@ import CommentList from '../comments/CommentList.vue';
 import TimeAgo from '../common/TimeAgo.vue';
 import EditPostModal from './EditPostModal.vue';
 import PollRenderer from './PollRenderer.vue';
+import { normalizeRenderedHtmlLinks, resolveInternalAppPath } from '@/utils/linkRouting';
 
 const props = defineProps<{
     feed: Feed;
@@ -34,24 +35,50 @@ const dropdownFlipped = ref(false);
 const showEditModal = ref(false);
 
 const contentIsLong = computed(() => {
-    return props.feed.message_rendered.length > 500;
+    const text = new DOMParser().parseFromString(props.feed.message_rendered || '', 'text/html').body.textContent || '';
+    return text.length > 500;
 });
 
-const displayContent = computed(() => {
-    // Show full content in single post view
-    if (props.showFullContent || expanded.value || !contentIsLong.value) {
-        return props.feed.message_rendered;
-    }
-    // Find a good break point
-    const text = props.feed.message_rendered;
-    let breakPoint = text.lastIndexOf(' ', 500);
-    if (breakPoint === -1) breakPoint = 500;
-    return text.substring(0, breakPoint) + '...';
+const renderedContent = computed(() => {
+    return normalizeRenderedHtmlLinks(props.feed.message_rendered || '');
 });
 
 // Navigation to single post
 function navigateToPost(): void {
     router.push({ name: 'single-post', params: { id: props.feed.id } });
+}
+
+function handleContentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+        return;
+    }
+
+    const anchor = target.closest('a') as HTMLAnchorElement | null;
+    if (anchor) {
+        const dataRoute = anchor.getAttribute('data-mf-route');
+        if (dataRoute) {
+            event.preventDefault();
+            router.push(dataRoute);
+            return;
+        }
+
+        const href = anchor.getAttribute('href');
+        if (!href) {
+            return;
+        }
+
+        const internalPath = resolveInternalAppPath(href);
+        if (internalPath) {
+            event.preventDefault();
+            router.push(internalPath);
+        }
+        return;
+    }
+
+    if (!props.showFullContent) {
+        navigateToPost();
+    }
 }
 
 const hasMedia = computed(() => {
@@ -156,8 +183,12 @@ async function handleReact(type: string = 'like'): Promise<void> {
 function toggleComments(): void {
     showComments.value = !showComments.value;
 
-    // Fetch comments if not already loaded
-    if (showComments.value && !props.feed.comments) {
+    // Fetch comments if not already loaded and server indicates there are comments.
+    if (
+        showComments.value &&
+        props.feed.comments_count > 0 &&
+        (!props.feed.comments || props.feed.comments.length === 0)
+    ) {
         feedStore.fetchComments(props.feed.id);
     }
 }
@@ -176,11 +207,12 @@ function handleShare(): void {
 }
 
 // Menu actions
-const isOwnPost = computed(() => {
-    // Convert both to numbers for comparison to avoid type mismatch
-    const currentUserId = Number(authStore.userId);
-    const postUserId = Number(props.feed.user_id);
-    return authStore.isLoggedIn && currentUserId > 0 && currentUserId === postUserId;
+const canEditPost = computed(() => {
+    return authStore.canEditFeed(props.feed);
+});
+
+const canDeletePost = computed(() => {
+    return authStore.canDeleteFeed(props.feed);
 });
 
 const isBookmarked = computed(() => {
@@ -205,6 +237,14 @@ const commentsDisabled = computed(() => {
 
 const hasSpaceContext = computed(() => {
     return !!props.feed.space_id;
+});
+
+const hasSpaceAdminAccess = computed(() => {
+    return authStore.hasPermissionOrInCurrentSpace('community_admin');
+});
+
+const canModerateSpacePost = computed(() => {
+    return canEditPost.value && hasSpaceContext.value && hasSpaceAdminAccess.value;
 });
 
 function toggleMenu(): void {
@@ -261,6 +301,11 @@ async function handlePinToTop(): Promise<void> {
         closeMenu();
         return;
     }
+    if (!canModerateSpacePost.value) {
+        uiStore.showError('You do not have permission to perform this action');
+        closeMenu();
+        return;
+    }
     closeMenu();
 
     const wasPinned = isPinned.value;
@@ -275,6 +320,11 @@ async function handlePinToTop(): Promise<void> {
 async function handlePinToSidebar(): Promise<void> {
     if (!hasSpaceContext.value) {
         uiStore.showError('Pin to sidebar is only available for space posts');
+        closeMenu();
+        return;
+    }
+    if (!canModerateSpacePost.value) {
+        uiStore.showError('You do not have permission to perform this action');
         closeMenu();
         return;
     }
@@ -305,6 +355,12 @@ async function handleRemovePreview(): Promise<void> {
 }
 
 async function handleToggleComments(): Promise<void> {
+    if (!canModerateSpacePost.value) {
+        uiStore.showError('You do not have permission to perform this action');
+        closeMenu();
+        return;
+    }
+
     closeMenu();
 
     const wasDisabled = commentsDisabled.value;
@@ -317,6 +373,12 @@ async function handleToggleComments(): Promise<void> {
 }
 
 async function handleDelete(): Promise<void> {
+    if (!canDeletePost.value) {
+        uiStore.showError('You do not have permission to perform this action');
+        closeMenu();
+        return;
+    }
+
     if (!confirm('Are you sure you want to delete this post?')) {
         closeMenu();
         return;
@@ -335,6 +397,12 @@ async function handleDelete(): Promise<void> {
 }
 
 function handleEdit(): void {
+    if (!canEditPost.value) {
+        uiStore.showError('You do not have permission to perform this action');
+        closeMenu();
+        return;
+    }
+
     showEditModal.value = true;
     closeMenu();
 }
@@ -403,8 +471,8 @@ function handlePostUpdated(): void {
                                 <span>Copy Link</span>
                             </button>
 
-                            <!-- Edit (own posts only) -->
-                            <button v-if="isOwnPost" class="fcom-mf-feed-item__menu-item" @click="handleEdit">
+                            <!-- Edit -->
+                            <button v-if="canEditPost" class="fcom-mf-feed-item__menu-item" @click="handleEdit">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -412,8 +480,8 @@ function handlePostUpdated(): void {
                                 <span>Edit</span>
                             </button>
 
-                            <!-- Pin to top (own posts in spaces only) -->
-                            <button v-if="isOwnPost && hasSpaceContext" class="fcom-mf-feed-item__menu-item" @click="handlePinToTop">
+                            <!-- Pin to top (space admins/moderators only) -->
+                            <button v-if="canModerateSpacePost" class="fcom-mf-feed-item__menu-item" @click="handlePinToTop">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M12 17V3"></path>
                                     <path d="m6 11 6 6 6-6"></path>
@@ -422,8 +490,8 @@ function handlePostUpdated(): void {
                                 <span>{{ isPinned ? 'Unpin from top' : 'Pin to top' }}</span>
                             </button>
 
-                            <!-- Pin to sidebar (own posts in spaces only) -->
-                            <button v-if="isOwnPost && hasSpaceContext" class="fcom-mf-feed-item__menu-item" @click="handlePinToSidebar">
+                            <!-- Pin to sidebar (space admins/moderators only) -->
+                            <button v-if="canModerateSpacePost" class="fcom-mf-feed-item__menu-item" @click="handlePinToSidebar">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                     <line x1="9" y1="3" x2="9" y2="21"></line>
@@ -432,7 +500,7 @@ function handlePostUpdated(): void {
                             </button>
 
                             <!-- Remove Preview (if has preview) -->
-                            <button v-if="isOwnPost && hasPreview" class="fcom-mf-feed-item__menu-item" @click="handleRemovePreview">
+                            <button v-if="canEditPost && hasPreview" class="fcom-mf-feed-item__menu-item" @click="handleRemovePreview">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                     <line x1="9" y1="9" x2="15" y2="15"></line>
@@ -441,8 +509,8 @@ function handlePostUpdated(): void {
                                 <span>Remove Preview</span>
                             </button>
 
-                            <!-- Disable/Enable comments (own posts only) -->
-                            <button v-if="isOwnPost" class="fcom-mf-feed-item__menu-item" @click="handleToggleComments">
+                            <!-- Disable/Enable comments (space admins only) -->
+                            <button v-if="canModerateSpacePost" class="fcom-mf-feed-item__menu-item" @click="handleToggleComments">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                                     <line v-if="!commentsDisabled" x1="9" y1="10" x2="15" y2="10"></line>
@@ -459,10 +527,10 @@ function handlePostUpdated(): void {
                             </button>
 
                             <!-- Divider before danger zone -->
-                            <div v-if="isOwnPost" class="fcom-mf-feed-item__menu-divider"></div>
+                            <div v-if="canDeletePost" class="fcom-mf-feed-item__menu-divider"></div>
 
-                            <!-- Delete (own posts only) -->
-                            <button v-if="isOwnPost" class="fcom-mf-feed-item__menu-item fcom-mf-feed-item__menu-item--danger" @click="handleDelete">
+                            <!-- Delete -->
+                            <button v-if="canDeletePost" class="fcom-mf-feed-item__menu-item fcom-mf-feed-item__menu-item--danger" @click="handleDelete">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="3 6 5 6 21 6"></polyline>
                                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -483,9 +551,12 @@ function handlePostUpdated(): void {
         <!-- Content -->
         <div
             class="fcom-mf-feed-item__content"
-            :class="{ 'fcom-mf-feed-item__content--clickable': !showFullContent }"
-            @click="!showFullContent && navigateToPost()"
-            v-html="displayContent"
+            :class="{
+                'fcom-mf-feed-item__content--clickable': !showFullContent,
+                'fcom-mf-feed-item__content--collapsed': !showFullContent && !expanded && contentIsLong
+            }"
+            @click="handleContentClick"
+            v-html="renderedContent"
         ></div>
 
         <!-- See More/Less -->
@@ -564,6 +635,7 @@ function handlePostUpdated(): void {
             :feed-id="feed.id"
             :comments="feed.comments || []"
             :sticky-comment="feed.sticky_comment"
+            :comments-disabled="commentsDisabled"
             :show-all="showCommentsInline"
         />
 
@@ -580,10 +652,37 @@ function handlePostUpdated(): void {
 <style lang="scss" scoped>
 .fcom-mf-feed-item {
     padding: 0;
-    transition: box-shadow $transition-normal;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.07);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+    transition: box-shadow $transition-normal, transform $transition-normal, border-color $transition-fast;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(
+            90deg,
+            rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0) 0%,
+            rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.34) 50%,
+            rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0) 100%
+        );
+        opacity: 0;
+        transition: opacity $transition-fast;
+    }
 
     &:hover {
-        box-shadow: $shadow-card-hover;
+        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.1);
+        border-color: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.18);
+        transform: translateY(-1px);
+
+        &::before {
+            opacity: 1;
+        }
 
         .fcom-mf-feed-item__menu-btn {
             opacity: 1;
@@ -591,7 +690,8 @@ function handlePostUpdated(): void {
     }
 
     &--sticky {
-        border: 2px solid var(--fcom-mf-primary, #1877f2);
+        border-color: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.38);
+        box-shadow: 0 2px 10px rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.15);
     }
 
     &__sticky-badge {
@@ -607,7 +707,7 @@ function handlePostUpdated(): void {
         display: flex;
         align-items: flex-start;
         gap: $spacing-sm;
-        padding: $spacing-md;
+        padding: $spacing-lg $spacing-lg $spacing-sm;
         padding-bottom: 0;
     }
 
@@ -640,16 +740,22 @@ function handlePostUpdated(): void {
 
     &__menu-btn {
         @include button-reset;
-        @include hover-bg;
+        @include focus-ring;
         width: 32px;
         height: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
         border-radius: $border-radius-full;
-        color: $text-tertiary;
-        opacity: 0;
-        transition: opacity $transition-fast;
+        color: $text-secondary;
+        background: rgba(15, 23, 42, 0.04);
+        opacity: 0.65;
+        transition: opacity $transition-fast, background-color $transition-fast, color $transition-fast;
+
+        &:hover {
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.12);
+            color: var(--fcom-mf-primary, #1877f2);
+        }
 
         @media (max-width: $breakpoint-md) {
             opacity: 1; // Always show on mobile
@@ -685,7 +791,7 @@ function handlePostUpdated(): void {
         min-width: 200px;
         background: $white;
         border-radius: $border-radius-md;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05);
         padding: $spacing-xs 0;
         overflow: hidden;
     }
@@ -737,10 +843,11 @@ function handlePostUpdated(): void {
 
     &__title {
         margin: 0;
-        padding: $spacing-sm $spacing-md 0;
-        font-size: $font-size-lg;
+        padding: $spacing-sm $spacing-lg 0;
+        font-size: $font-size-xl;
         font-weight: $font-weight-semibold;
         line-height: $line-height-tight;
+        letter-spacing: $letter-spacing-tight;
 
         a {
             color: inherit;
@@ -756,9 +863,17 @@ function handlePostUpdated(): void {
         font-size: $font-size-md;
         line-height: $line-height-relaxed;
         word-wrap: break-word;
+        color: $text-primary;
 
         &--clickable {
             cursor: pointer;
+        }
+
+        &--collapsed {
+            display: -webkit-box;
+            -webkit-line-clamp: 8;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         :deep(a) {
@@ -771,6 +886,38 @@ function handlePostUpdated(): void {
             &:last-child {
                 margin-bottom: 0;
             }
+        }
+
+        :deep(ul),
+        :deep(ol) {
+            margin: 0 0 $spacing-md;
+            padding-left: $spacing-xl;
+        }
+
+        :deep(li) {
+            margin-bottom: $spacing-xs;
+
+            &:last-child {
+                margin-bottom: 0;
+            }
+        }
+
+        // Defend against aggressive theme CSS forcing SVG/icon markers to full width.
+        :deep(li > svg:first-child),
+        :deep(li > img:first-child),
+        :deep(li > span:first-child > svg:only-child),
+        :deep(li > span:first-child > img:only-child) {
+            display: inline-block;
+            vertical-align: text-bottom;
+            width: 1em !important;
+            min-width: 1em;
+            max-width: 1em;
+            height: 1em !important;
+            min-height: 1em;
+            max-height: 1em;
+            margin-right: $spacing-xs;
+            border-radius: 0;
+            object-fit: contain;
         }
 
         :deep(img) {
@@ -807,10 +954,13 @@ function handlePostUpdated(): void {
 
     &__toggle {
         @include button-reset;
-        padding: 0 $spacing-md;
-        color: $text-secondary;
+        padding: 0 $spacing-lg $spacing-sm;
+        color: var(--fcom-mf-primary, #1877f2);
         font-size: $font-size-sm;
         font-weight: $font-weight-semibold;
+        display: inline-flex;
+        align-items: center;
+        gap: $spacing-xs;
 
         &:hover {
             text-decoration: underline;
@@ -818,11 +968,14 @@ function handlePostUpdated(): void {
     }
 
     &__embed {
-        margin: $spacing-sm $spacing-md;
+        margin: $spacing-sm $spacing-lg $spacing-md;
+        border-radius: $border-radius-md;
+        overflow: hidden;
+        border: 1px solid rgba(0, 0, 0, 0.08);
 
         :deep(iframe) {
             max-width: 100%;
-            border-radius: $border-radius-sm;
+            display: block;
         }
     }
 
@@ -830,24 +983,35 @@ function handlePostUpdated(): void {
         display: flex;
         flex-wrap: wrap;
         gap: $spacing-xs;
-        padding: $spacing-xs $spacing-md;
+        padding: $spacing-xs $spacing-lg $spacing-sm;
     }
 
     &__topic {
-        color: $text-link;
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.08);
+        color: var(--fcom-mf-primary, #1877f2);
         font-size: $font-size-xs;
+        font-weight: $font-weight-medium;
+        transition: background-color $transition-fast;
 
         &:hover {
-            text-decoration: underline;
+            text-decoration: none;
+            background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.14);
         }
     }
 
     &__stats {
         display: flex;
         justify-content: space-between;
-        padding: $spacing-xs $spacing-md;
+        padding: $spacing-sm $spacing-lg;
         font-size: $font-size-xs;
         color: $text-secondary;
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.02) 0%, rgba(15, 23, 42, 0) 100%);
     }
 
     &__stat {
@@ -857,10 +1021,15 @@ function handlePostUpdated(): void {
 
         &--clickable {
             @include button-reset;
+            @include focus-ring;
             cursor: pointer;
+            border-radius: 999px;
+            padding: 2px 8px;
+            transition: background-color $transition-fast;
 
             &:hover {
-                text-decoration: underline;
+                text-decoration: none;
+                background: rgba(0, 0, 0, 0.05);
             }
         }
     }
@@ -874,13 +1043,13 @@ function handlePostUpdated(): void {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 16px;
-        height: 16px;
+        width: 18px;
+        height: 18px;
         font-size: 11px;
-        background: $white;
+        background: rgba(255, 255, 255, 0.95);
         border: 2px solid $white;
         border-radius: $border-radius-full;
-        margin-right: -4px;
+        margin-right: -5px;
         box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
 
         &:last-child {
@@ -894,6 +1063,30 @@ function handlePostUpdated(): void {
 
     .fcom-mf-divider {
         margin: 0 $spacing-md;
+    }
+
+    @media (max-width: $breakpoint-sm) {
+        &__header {
+            padding: $spacing-md $spacing-md $spacing-xs;
+        }
+
+        &__title,
+        &__content,
+        &__toggle,
+        &__topics,
+        &__stats {
+            padding-left: $spacing-md;
+            padding-right: $spacing-md;
+        }
+
+        &__embed {
+            margin-left: $spacing-md;
+            margin-right: $spacing-md;
+        }
+
+        &__title {
+            font-size: $font-size-lg;
+        }
     }
 }
 

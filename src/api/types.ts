@@ -27,6 +27,7 @@ export interface Term {
 export interface MediaItem {
     url: string;
     type: string;
+    media_id?: number;
     width?: number;
     height?: number;
     thumbnail?: string;
@@ -106,6 +107,12 @@ export interface Feed {
     reactions?: Reaction[];
     terms?: Term[];
     meta?: FeedMeta;
+    media_images?: MediaItem[];
+    media?: VideoEmbed | MediaPreview;
+    survey?: SurveyData;
+    topic_ids?: number[] | number | string;
+    send_announcement_email?: 'yes' | 'no';
+    document_ids?: Array<Record<string, unknown>>;
     default_comment_sort_by?: string;
     permalink: string;
 }
@@ -122,8 +129,10 @@ export interface Comment {
     is_sticky: number;
     reactions_count: number;
     has_user_react?: boolean;
+    liked?: number | boolean;
     xprofile: XProfile;
     meta?: Record<string, unknown>;
+    comments?: Comment[];
     replies?: Comment[];
     replies_count?: number;
 }
@@ -268,6 +277,7 @@ export interface SpaceFull {
     id: number;
     title: string;
     slug: string;
+    permalink?: string;
     description?: string;
     type: string;
     privacy: string;
@@ -278,11 +288,57 @@ export interface SpaceFull {
     created_at?: string;
     is_member?: boolean;
     is_admin?: boolean;
+    membership?: {
+        user_id?: number;
+        role?: string;
+        status?: string;
+    };
+    permissions?: Record<string, boolean>;
     settings?: Record<string, unknown>;
     space_group?: {
         id: number;
         title: string;
         slug: string;
+    };
+}
+
+export interface SpaceMember {
+    id: number;
+    user_id: number;
+    space_id?: number;
+    role?: string;
+    status?: string;
+    created_at?: string;
+    updated_at?: string;
+    xprofile: XProfile;
+}
+
+export interface SpaceMembersResponse {
+    members: {
+        data: SpaceMember[];
+        current_page: number;
+        per_page: number;
+        has_more?: boolean;
+        total?: number;
+        last_page?: number;
+    };
+    pending_count?: number;
+}
+
+export interface SpaceSearchUser {
+    ID: number;
+    display_name: string;
+    user_email?: string;
+}
+
+export interface SpaceUserSearchResponse {
+    users: {
+        data: SpaceSearchUser[];
+        current_page: number;
+        per_page: number;
+        has_more?: boolean;
+        total?: number;
+        last_page?: number;
     };
 }
 
