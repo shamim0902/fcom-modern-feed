@@ -183,8 +183,12 @@ async function handleReact(type: string = 'like'): Promise<void> {
 function toggleComments(): void {
     showComments.value = !showComments.value;
 
-    // Fetch comments if not already loaded
-    if (showComments.value && !props.feed.comments) {
+    // Fetch comments if not already loaded and server indicates there are comments.
+    if (
+        showComments.value &&
+        props.feed.comments_count > 0 &&
+        (!props.feed.comments || props.feed.comments.length === 0)
+    ) {
         feedStore.fetchComments(props.feed.id);
     }
 }

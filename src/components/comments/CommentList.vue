@@ -177,6 +177,7 @@ async function handleReaction(commentId: number): Promise<void> {
                 :key="comment.id"
                 :comment="comment"
                 :feed-id="feedId"
+                :comments-disabled="isCommentsDisabled"
                 :is-sticky="stickyComment?.id === comment.id"
                 @reply="handleReply"
                 @edit="handleEdit"

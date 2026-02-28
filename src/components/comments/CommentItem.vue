@@ -12,6 +12,7 @@ const props = defineProps<{
     feedId: number;
     isSticky?: boolean;
     isReply?: boolean;
+    commentsDisabled?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -56,6 +57,7 @@ const renderedMessage = computed(() => {
 });
 
 async function handleReply(message: string): Promise<void> {
+    if (props.commentsDisabled) return;
     if (!message.trim() || isSubmittingReply.value) return;
 
     isSubmittingReply.value = true;
@@ -183,7 +185,7 @@ function handleTextClick(event: MouseEvent): void {
                     {{ uiStore.t('like') }}
                 </button>
 
-                <template v-if="!isReply">
+                <template v-if="!isReply && !commentsDisabled">
                     <span class="fcom-mf-comment__action-sep">·</span>
                     <button
                         class="fcom-mf-comment__action"
@@ -216,7 +218,7 @@ function handleTextClick(event: MouseEvent): void {
 
             <!-- Reply Form -->
             <CommentForm
-                v-if="showReplyForm"
+                v-if="showReplyForm && !commentsDisabled"
                 :is-submitting="isSubmittingReply"
                 :placeholder="uiStore.t('writeReply')"
                 size="sm"
@@ -245,6 +247,7 @@ function handleTextClick(event: MouseEvent): void {
                     :comment="reply"
                     :feed-id="feedId"
                     :is-reply="true"
+                    :comments-disabled="commentsDisabled"
                     @reply="(parentId, message) => emit('reply', parentId, message)"
                     @edit="(id, message) => emit('edit', id, message)"
                     @delete="(id) => emit('delete', id)"
