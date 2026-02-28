@@ -111,16 +111,6 @@ watch([() => route.params.id, () => route.params.slug], () => {
 
 <template>
     <div class="fcom-mf-single-post" :class="{ 'fcom-mf-single-post--media-layout': useMediaLayout }">
-        <!-- Back button -->
-        <div class="fcom-mf-single-post__header">
-            <button class="fcom-mf-single-post__back" @click="goBack">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
-                <span>Back to Feed</span>
-            </button>
-        </div>
-
         <!-- Guest: login required modal -->
         <div v-if="!authStore.isLoggedIn" class="fcom-mf-single-post__login-card">
             <div class="fcom-mf-single-post__login-icon">
@@ -202,34 +192,6 @@ watch([() => route.params.id, () => route.params.slug], () => {
     // Hide dividers in single post view
     :deep(.fcom-mf-divider) {
         display: none;
-    }
-
-    &__header {
-        margin-bottom: $spacing-sm;
-    }
-
-    &__back {
-        display: inline-flex;
-        align-items: center;
-        gap: $spacing-sm;
-        padding: 6px $spacing-sm;
-        border: none;
-        background: $white;
-        border-radius: $border-radius-sm;
-        color: $text-primary;
-        font-size: $font-size-sm;
-        font-weight: $font-weight-medium;
-        cursor: pointer;
-        transition: background-color $transition-fast;
-        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
-
-        &:hover {
-            background: $gray-50;
-        }
-
-        svg {
-            color: $text-secondary;
-        }
     }
 
     &__loading {

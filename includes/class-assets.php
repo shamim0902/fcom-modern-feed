@@ -115,6 +115,7 @@ class Assets
             'loginUrl' => wp_login_url(get_permalink()),
             'registerUrl' => wp_registration_url(),
             'logoutUrl' => wp_logout_url(get_permalink()),
+            'site' => self::getSiteBranding(),
             'i18n' => self::getTranslations(),
             'features' => [
                 'reactions' => true,
@@ -142,6 +143,33 @@ class Assets
                 ],
                 self::getThemeSettingsForFrontend()
             ),
+        ];
+    }
+
+    /**
+     * Site branding data for header logo/link usage.
+     *
+     * @return array{name: string, url: string, logo: string}
+     */
+    private static function getSiteBranding()
+    {
+        $siteName = (string) get_bloginfo('name');
+        $siteUrl = home_url('/');
+        $logoUrl = '';
+
+        $customLogoId = (int) get_theme_mod('custom_logo');
+        if ($customLogoId) {
+            $logoUrl = (string) wp_get_attachment_image_url($customLogoId, 'full');
+        }
+
+        if (!$logoUrl) {
+            $logoUrl = (string) get_site_icon_url(192);
+        }
+
+        return [
+            'name' => $siteName,
+            'url'  => $siteUrl,
+            'logo' => $logoUrl,
         ];
     }
 

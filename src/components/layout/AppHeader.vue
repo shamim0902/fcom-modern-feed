@@ -39,6 +39,9 @@ watch(
 );
 
 const loginUrl = computed(() => window.fcomModernFeed?.loginUrl || '/wp-login.php');
+const isSinglePostRoute = computed(() => route.name === 'single-post' || route.name === 'single-post-slug');
+const siteLogoUrl = computed(() => window.fcomModernFeed?.site?.logo || '');
+const siteName = computed(() => window.fcomModernFeed?.site?.name || 'Site');
 
 /** Profile dropdown: merge settings items with Profile, Saved, Portal Settings (order preserved). */
 const profileDropdownItems = computed(() => {
@@ -122,6 +125,11 @@ function navigateTo(path: string): void {
     router.push(path);
 }
 
+function goBackToFeed(): void {
+    showUserMenu.value = false;
+    router.push('/');
+}
+
 function goToProfile(): void {
     const username = authStore.userUsername || authStore.currentUser?.username;
     if (username) {
@@ -188,11 +196,37 @@ const defaultIcons: Record<string, string> = {
     <header class="header">
         <div class="header__inner">
             <!-- Logo -->
-            <button class="header__logo" @click="navigateTo('/')">
-                <svg width="28" height="28" viewBox="0 0 50 50" fill="currentColor">
-                    <circle cx="25" cy="25" r="23" stroke="currentColor" stroke-width="2" fill="none"/>
-                    <path d="M15 20h20M15 25h20M15 30h12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+            <router-link class="header__logo" to="/" :title="siteName">
+                <img
+                    v-if="siteLogoUrl"
+                    :src="siteLogoUrl"
+                    :alt="siteName"
+                    class="header__logo-image"
+                />
+                <span v-else class="header__logo-fallback" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                    </svg>
+                </span>
+            </router-link>
+
+            <button
+                v-if="isSinglePostRoute"
+                class="header__context-back"
+                type="button"
+                title="Back to Feed"
+                @click="goBackToFeed"
+            >
+                <img
+                    v-if="siteLogoUrl"
+                    :src="siteLogoUrl"
+                    :alt="siteName"
+                    class="header__context-logo"
+                />
+                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
+                <span>Feed</span>
             </button>
 
             <!-- Search -->
@@ -317,18 +351,51 @@ const defaultIcons: Record<string, string> = {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 36px;
+        width: auto;
+        min-width: 36px;
+        max-width: 180px;
         height: 36px;
         color: var(--fcom-mf-primary, #1877f2);
         background: none;
-        border: none;
+        border: 0;
+        padding: 2px 6px 2px 2px;
         cursor: pointer;
         border-radius: var(--fcom-mf-radius-sm, 6px);
         transition: opacity $transition-fast;
         flex-shrink: 0;
+        text-decoration: none;
 
         &:hover {
             opacity: 0.8;
+        }
+
+        @media (max-width: $breakpoint-sm) {
+            max-width: 132px;
+            padding-right: 2px;
+        }
+    }
+
+    &__logo-image {
+        display: block;
+        width: auto;
+        max-width: 100%;
+        height: 28px;
+        border-radius: 6px;
+        object-fit: contain;
+    }
+
+    &__logo-fallback {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: rgba(var(--fcom-mf-primary-rgb, 24, 119, 242), 0.1);
+        color: var(--fcom-mf-primary, #1877f2);
+
+        svg {
+            display: block;
         }
     }
 
@@ -368,6 +435,47 @@ const defaultIcons: Record<string, string> = {
                 outline: none;
             }
         }
+    }
+
+    &__context-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 999px;
+        background: $white;
+        color: $text-secondary;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-medium;
+        line-height: 1;
+        flex-shrink: 0;
+        transition: background-color $transition-fast, color $transition-fast, border-color $transition-fast;
+
+        &:hover {
+            background: $gray-50;
+            border-color: rgba(0, 0, 0, 0.16);
+            color: $text-primary;
+        }
+
+        @media (max-width: $breakpoint-md) {
+            width: 32px;
+            justify-content: center;
+            padding: 0;
+
+            span {
+                display: none;
+            }
+        }
+    }
+
+    &__context-logo {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        object-fit: contain;
+        flex-shrink: 0;
     }
 
     &__nav {

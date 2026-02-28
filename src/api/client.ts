@@ -70,6 +70,11 @@ declare global {
             loginUrl: string;
             registerUrl: string;
             logoutUrl: string;
+            site?: {
+                name: string;
+                url: string;
+                logo: string;
+            };
             i18n: Record<string, string>;
             features: {
                 reactions: boolean;
