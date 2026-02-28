@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useFeedStore, useAuthStore, useUiStore, useSpaceStore } from '@/stores';
 import { api } from '@/api/client';
 import type { MediaItem, SpaceFull, CreateFeedData } from '@/api/types';
+import { insertHtmlAtCursor, plainTextToHtml, sanitizePastedHtml } from '@/utils/pasteSanitizer';
 
 const props = defineProps<{
     spaceSlug?: string;
@@ -612,63 +613,24 @@ function onEditorPaste(e: ClipboardEvent): void {
     const html = clipboardData.getData('text/html');
     if (html) {
         e.preventDefault();
-        // Sanitize the HTML - keep only safe tags
         const sanitized = sanitizePastedHtml(html);
-        document.execCommand('insertHTML', false, sanitized);
+        if (sanitized) {
+            insertHtmlAtCursor(sanitized);
+            onEditorInput();
+            return;
+        }
+    }
+
+    const plainText = clipboardData.getData('text/plain');
+    if (plainText) {
+        e.preventDefault();
+        insertHtmlAtCursor(plainTextToHtml(plainText));
         onEditorInput();
         return;
     }
 
-    // Plain text paste - let the browser handle it, then sync
+    // Fallback: let browser handle unknown clipboard formats, then sync state.
     setTimeout(() => onEditorInput(), 0);
-}
-
-function sanitizePastedHtml(html: string): string {
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    const body = doc.body;
-
-    // Remove script, style, meta, link tags
-    body.querySelectorAll('script, style, meta, link, head, title').forEach(el => el.remove());
-
-    // Allow only safe tags
-    const allowedTags = new Set([
-        'P', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DEL',
-        'A', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'PRE', 'CODE',
-        'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'DIV', 'SPAN',
-        'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD', 'HR', 'IMG',
-    ]);
-
-    function cleanNode(node: Node): void {
-        const children = Array.from(node.childNodes);
-        for (const child of children) {
-            if (child.nodeType === Node.ELEMENT_NODE) {
-                const el = child as Element;
-                if (!allowedTags.has(el.tagName)) {
-                    // Replace disallowed element with its children
-                    while (el.firstChild) {
-                        node.insertBefore(el.firstChild, el);
-                    }
-                    node.removeChild(el);
-                } else {
-                    // Remove all style attributes except on links (keep href)
-                    const attrs = Array.from(el.attributes);
-                    for (const attr of attrs) {
-                        if (attr.name === 'href' || attr.name === 'src' || attr.name === 'alt') continue;
-                        el.removeAttribute(attr.name);
-                    }
-                    // Ensure links open in new tab
-                    if (el.tagName === 'A') {
-                        el.setAttribute('target', '_blank');
-                        el.setAttribute('rel', 'noopener noreferrer');
-                    }
-                    cleanNode(el);
-                }
-            }
-        }
-    }
-
-    cleanNode(body);
-    return body.innerHTML;
 }
 
 async function handlePastedImage(file: File): Promise<void> {
