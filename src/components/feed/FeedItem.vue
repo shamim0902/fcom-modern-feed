@@ -10,6 +10,7 @@ import CommentList from '../comments/CommentList.vue';
 import TimeAgo from '../common/TimeAgo.vue';
 import EditPostModal from './EditPostModal.vue';
 import PollRenderer from './PollRenderer.vue';
+import { normalizeRenderedHtmlLinks, resolveInternalAppPath } from '@/utils/linkRouting';
 
 const props = defineProps<{
     feed: Feed;
@@ -34,24 +35,50 @@ const dropdownFlipped = ref(false);
 const showEditModal = ref(false);
 
 const contentIsLong = computed(() => {
-    return props.feed.message_rendered.length > 500;
+    const text = new DOMParser().parseFromString(props.feed.message_rendered || '', 'text/html').body.textContent || '';
+    return text.length > 500;
 });
 
-const displayContent = computed(() => {
-    // Show full content in single post view
-    if (props.showFullContent || expanded.value || !contentIsLong.value) {
-        return props.feed.message_rendered;
-    }
-    // Find a good break point
-    const text = props.feed.message_rendered;
-    let breakPoint = text.lastIndexOf(' ', 500);
-    if (breakPoint === -1) breakPoint = 500;
-    return text.substring(0, breakPoint) + '...';
+const renderedContent = computed(() => {
+    return normalizeRenderedHtmlLinks(props.feed.message_rendered || '');
 });
 
 // Navigation to single post
 function navigateToPost(): void {
     router.push({ name: 'single-post', params: { id: props.feed.id } });
+}
+
+function handleContentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+        return;
+    }
+
+    const anchor = target.closest('a') as HTMLAnchorElement | null;
+    if (anchor) {
+        const dataRoute = anchor.getAttribute('data-mf-route');
+        if (dataRoute) {
+            event.preventDefault();
+            router.push(dataRoute);
+            return;
+        }
+
+        const href = anchor.getAttribute('href');
+        if (!href) {
+            return;
+        }
+
+        const internalPath = resolveInternalAppPath(href);
+        if (internalPath) {
+            event.preventDefault();
+            router.push(internalPath);
+        }
+        return;
+    }
+
+    if (!props.showFullContent) {
+        navigateToPost();
+    }
 }
 
 const hasMedia = computed(() => {
@@ -483,9 +510,12 @@ function handlePostUpdated(): void {
         <!-- Content -->
         <div
             class="fcom-mf-feed-item__content"
-            :class="{ 'fcom-mf-feed-item__content--clickable': !showFullContent }"
-            @click="!showFullContent && navigateToPost()"
-            v-html="displayContent"
+            :class="{
+                'fcom-mf-feed-item__content--clickable': !showFullContent,
+                'fcom-mf-feed-item__content--collapsed': !showFullContent && !expanded && contentIsLong
+            }"
+            @click="handleContentClick"
+            v-html="renderedContent"
         ></div>
 
         <!-- See More/Less -->
@@ -759,6 +789,13 @@ function handlePostUpdated(): void {
 
         &--clickable {
             cursor: pointer;
+        }
+
+        &--collapsed {
+            display: -webkit-box;
+            -webkit-line-clamp: 8;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         :deep(a) {

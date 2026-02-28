@@ -5,6 +5,7 @@ import { useAuthStore, useUiStore } from '@/stores';
 import type { Comment } from '@/api/types';
 import TimeAgo from '../common/TimeAgo.vue';
 import CommentForm from './CommentForm.vue';
+import { normalizeRenderedHtmlLinks, resolveInternalAppPath } from '@/utils/linkRouting';
 
 const props = defineProps<{
     comment: Comment;
@@ -47,31 +48,7 @@ const profilePath = computed(() => {
 });
 
 const renderedMessage = computed(() => {
-    const rawHtml = props.comment.message_rendered || '';
-    if (!rawHtml) {
-        return '';
-    }
-
-    const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
-    doc.querySelectorAll('a[href]').forEach((anchor) => {
-        const href = anchor.getAttribute('href');
-        if (!href) {
-            return;
-        }
-
-        try {
-            const resolved = new URL(href, window.location.origin);
-            const isExternal = resolved.origin !== window.location.origin;
-            if (isExternal) {
-                anchor.setAttribute('target', '_blank');
-                anchor.setAttribute('rel', 'noopener noreferrer nofollow');
-            }
-        } catch {
-            // Keep original href if parsing fails.
-        }
-    });
-
-    return doc.body.innerHTML;
+    return normalizeRenderedHtmlLinks(props.comment.message_rendered || '');
 });
 
 async function handleReply(message: string): Promise<void> {
@@ -116,6 +93,36 @@ function toggleReplies(): void {
 function goToProfile(): void {
     router.push(profilePath.value);
 }
+
+function handleTextClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+        return;
+    }
+
+    const anchor = target.closest('a') as HTMLAnchorElement | null;
+    if (!anchor) {
+        return;
+    }
+
+    const dataRoute = anchor.getAttribute('data-mf-route');
+    if (dataRoute) {
+        event.preventDefault();
+        router.push(dataRoute);
+        return;
+    }
+
+    const href = anchor.getAttribute('href');
+    if (!href) {
+        return;
+    }
+
+    const internalPath = resolveInternalAppPath(href);
+    if (internalPath) {
+        event.preventDefault();
+        router.push(internalPath);
+    }
+}
 </script>
 
 <template>
@@ -138,7 +145,7 @@ function goToProfile(): void {
                         {{ comment.xprofile.display_name }}
                     </button>
                     <template v-if="!showEditForm">
-                        <div class="fcom-mf-comment__text" v-html="renderedMessage"></div>
+                        <div class="fcom-mf-comment__text" @click="handleTextClick" v-html="renderedMessage"></div>
                     </template>
                     <CommentForm
                         v-else
